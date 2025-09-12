@@ -1,52 +1,341 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Armotor Sistema</title>
-<style>
-body{font-family:Arial,sans-serif;background:#B9B8BF;margin:0;padding:20px}
-.container{max-width:1200px;margin:0 auto;background:white;border-radius:20px;overflow:hidden}
-.header{background:linear-gradient(135deg,#191726 0%,#353440 100%);padding:50px;text-align:center;color:white}
-.logo{font-size:3em;font-weight:bold}
-.tagline{color:#B9B8BF;margin-top:5px}
-.title{font-size:2.2em;margin:30px 0 15px}
-.subtitle{font-size:1.2em;opacity:0.9}
-.section{padding:50px}
-.section-gray{background:#f5f5f5}
-.section-dark{background:#6A6873;color:white}
-.section-black{background:#0D0D0D;color:white;text-align:center}
-h2{font-size:2em;font-weight:bold;text-align:center;margin-bottom:40px;color:#191726}
-.section-dark h2,.section-black h2{color:white}
-.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1100px;margin:0 auto}
-.card{background:white;padding:25px;border-radius:12px;box-shadow:0 3px 15px rgba(0,0,0,0.08);text-align:center}
-.card-icon{width:60px;height:60px;margin:0 auto 15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8em;background:linear-gradient(135deg,#191726,#353440);color:white}
-.card-text{color:#353440;font-size:0.9em;font-weight:500}
-.category{margin-bottom:30px}
-.category-title{font-size:1.2em;font-weight:bold;margin-bottom:15px;padding-left:10px;border-left:4px solid #D32F2F}
-.tips-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
-.tip{display:flex;align-items:center;padding:12px;background:#f8f8f8;border-radius:8px;border-left:2px solid #D32F2F}
-.tip-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;background:#D32F2F;color:white;flex-shrink:0}
-.tip-text{color:#353440;font-size:0.9em;font-weight:500}
-.green .category-title{border-left-color:#28a745}
-.green .tip{border-left-color:#28a745}
-.green .tip-icon{background:#28a745}
-.blue .category-title{border-left-color:#007bff}
-.blue .tip{border-left-color:#007bff}
-.blue .tip-icon{background:#007bff}
-.yellow .category-title{border-left-color:#ffc107}
-.yellow .tip{border-left-color:#ffc107}
-.yellow .tip-icon{background:#ffc107;color:#191726}
-.contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:25px;max-width:900px;margin:0 auto}
-.contact-card{background:white;border-radius:12px;padding:30px;text-align:center;color:#353440}
-.contact-icon{width:60px;height:60px;margin:0 auto 20px;background:#191726;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8em;color:white}
-.contact-name{color:#191726;font-size:1.15em;font-weight:600;margin-bottom:12px}
-.steps-wrapper{max-width:1000px;margin:0 auto}
-.step{display:flex;align-items:center;margin-bottom:25px}
-.step-number{width:55px;height:55px;background:#191726;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4em;font-weight:bold;flex-shrink:0}
-.step-content{flex:1;padding:20px;background:white;border-radius:12px;margin-left:20px;border-left:3px solid #6A6873}
-.step-title{color:#191726;font-size:1.1em;font-weight:600;margin-bottom:8px}
-.step-desc{color:#6A6873;font-size:0.9em}
-.btn{display:inline-block;padding:16px 45px;background:linear-gradient(135deg,#D32F2F,#B71C1C);color:white;text-decoration:none;border-radius:50px;font-size:1.05em;font-weight:600}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armotor - Sistema de Retroalimentacion</title>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #B9B8BF;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #191726 0%, #353440 100%);
+            padding: 50px;
+            text-align: center;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3em;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+        
+        .tagline {
+            color: #B9B8BF;
+            margin-top: 5px;
+            font-weight: 300;
+        }
+        
+        .title {
+            font-size: 2.4em;
+            margin: 30px 0 15px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .section {
+            padding: 50px;
+        }
+        
+        .section-gray {
+            background: #f5f5f5;
+        }
+        
+        .section-dark {
+            background: #6A6873;
+            color: white;
+        }
+        
+        .section-black {
+            background: #0D0D0D;
+            color: white;
+            text-align: center;
+        }
+        
+        h2 {
+            font-size: 2em;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 40px;
+            color: #191726;
+        }
+        
+        .section-dark h2, .section-black h2 {
+            color: white;
+        }
+        
+        .grid-4 {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            flex: 1;
+            min-width: 220px;
+            max-width: 260px;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            color: white;
+        }
+        
+        .icon1 { background: linear-gradient(135deg, #191726, #353440); }
+        .icon2 { background: linear-gradient(135deg, #353440, #6A6873); }
+        .icon3 { background: linear-gradient(135deg, #6A6873, #B9B8BF); }
+        .icon4 { background: linear-gradient(135deg, #353440, #191726); }
+        
+        .card-text {
+            color: #353440;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .category {
+            margin-bottom: 30px;
+        }
+        
+        .category-title {
+            font-size: 1.2em;
+            font-weight: 800;
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 4px solid #D32F2F;
+        }
+        
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        
+        .tip {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            border-left: 2px solid #D32F2F;
+        }
+        
+        .tip-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            background: #D32F2F;
+            color: white;
+            flex-shrink: 0;
+            font-size: 0.9em;
+        }
+        
+        .tip-text {
+            color: #353440;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .green .category-title {
+            border-left-color: #28a745;
+        }
+        
+        .green .tip {
+            border-left-color: #28a745;
+        }
+        
+        .green .tip-icon {
+            background: #28a745;
+        }
+        
+        .blue .category-title {
+            border-left-color: #007bff;
+        }
+        
+        .blue .tip {
+            border-left-color: #007bff;
+        }
+        
+        .blue .tip-icon {
+            background: #007bff;
+        }
+        
+        .yellow .category-title {
+            border-left-color: #ffc107;
+        }
+        
+        .yellow .tip {
+            border-left-color: #ffc107;
+        }
+        
+        .yellow .tip-icon {
+            background: #ffc107;
+            color: #191726;
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .contact-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            color: #353440;
+        }
+        
+        .contact-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background: #191726;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            color: white;
+        }
+        
+        .contact-name {
+            color: #191726;
+            font-size: 1.15em;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .contact-phone {
+            font-weight: 700;
+            color: #191726;
+            font-size: 1.1em;
+        }
+        
+        .steps-wrapper {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .step:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+        
+        .step-number {
+            width: 55px;
+            height: 55px;
+            background: #191726;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4em;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            margin: 0 20px;
+            border-left: 3px solid #6A6873;
+        }
+        
+        .step:nth-child(even) .step-content {
+            border-left: none;
+            border-right: 3px solid #6A6873;
+        }
+        
+        .step-title {
+            color: #191726;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .step-desc {
+            color: #6A6873;
+            font-size: 0.9em;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 16px 45px;
+            background: linear-gradient(135deg, #D32F2F, #B71C1C);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.05em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(211, 47, 47, 0.5);
+        }
 </style>
 </head>
 <body>
