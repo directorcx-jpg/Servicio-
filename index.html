@@ -1,197 +1,269 @@
-import React from 'react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Armotor Sistema</title>
+<style>
+body{font-family:Arial,sans-serif;background:#B9B8BF;margin:0;padding:20px}
+.container{max-width:1200px;margin:0 auto;background:white;border-radius:20px;overflow:hidden}
+.header{background:linear-gradient(135deg,#191726 0%,#353440 100%);padding:50px;text-align:center;color:white}
+.logo{font-size:3em;font-weight:bold}
+.tagline{color:#B9B8BF;margin-top:5px}
+.title{font-size:2.2em;margin:30px 0 15px}
+.subtitle{font-size:1.2em;opacity:0.9}
+.section{padding:50px}
+.section-gray{background:#f5f5f5}
+.section-dark{background:#6A6873;color:white}
+.section-black{background:#0D0D0D;color:white;text-align:center}
+h2{font-size:2em;font-weight:bold;text-align:center;margin-bottom:40px;color:#191726}
+.section-dark h2,.section-black h2{color:white}
+.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:1100px;margin:0 auto}
+.card{background:white;padding:25px;border-radius:12px;box-shadow:0 3px 15px rgba(0,0,0,0.08);text-align:center}
+.card-icon{width:60px;height:60px;margin:0 auto 15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8em;background:linear-gradient(135deg,#191726,#353440);color:white}
+.card-text{color:#353440;font-size:0.9em;font-weight:500}
+.category{margin-bottom:30px}
+.category-title{font-size:1.2em;font-weight:bold;margin-bottom:15px;padding-left:10px;border-left:4px solid #D32F2F}
+.tips-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.tip{display:flex;align-items:center;padding:12px;background:#f8f8f8;border-radius:8px;border-left:2px solid #D32F2F}
+.tip-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;background:#D32F2F;color:white;flex-shrink:0}
+.tip-text{color:#353440;font-size:0.9em;font-weight:500}
+.green .category-title{border-left-color:#28a745}
+.green .tip{border-left-color:#28a745}
+.green .tip-icon{background:#28a745}
+.blue .category-title{border-left-color:#007bff}
+.blue .tip{border-left-color:#007bff}
+.blue .tip-icon{background:#007bff}
+.yellow .category-title{border-left-color:#ffc107}
+.yellow .tip{border-left-color:#ffc107}
+.yellow .tip-icon{background:#ffc107;color:#191726}
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:25px;max-width:900px;margin:0 auto}
+.contact-card{background:white;border-radius:12px;padding:30px;text-align:center;color:#353440}
+.contact-icon{width:60px;height:60px;margin:0 auto 20px;background:#191726;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8em;color:white}
+.contact-name{color:#191726;font-size:1.15em;font-weight:600;margin-bottom:12px}
+.steps-wrapper{max-width:1000px;margin:0 auto}
+.step{display:flex;align-items:center;margin-bottom:25px}
+.step-number{width:55px;height:55px;background:#191726;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4em;font-weight:bold;flex-shrink:0}
+.step-content{flex:1;padding:20px;background:white;border-radius:12px;margin-left:20px;border-left:3px solid #6A6873}
+.step-title{color:#191726;font-size:1.1em;font-weight:600;margin-bottom:8px}
+.step-desc{color:#6A6873;font-size:0.9em}
+.btn{display:inline-block;padding:16px 45px;background:linear-gradient(135deg,#D32F2F,#B71C1C);color:white;text-decoration:none;border-radius:50px;font-size:1.05em;font-weight:600}
+</style>
+</head>
+<body>
 
-export default function ArmotorFeedbackSystem() {
-  return (
-    <div style={{ fontFamily: 'Arial, sans-serif', background: '#B9B8BF', minHeight: '100vh', padding: '20px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', background: 'white', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #191726 0%, #353440 100%)', padding: '50px 40px', textAlign: 'center' }}>
-          <div style={{ color: 'white', fontSize: '2.8em', fontWeight: '700' }}>armotor</div>
-          <div style={{ color: '#B9B8BF', fontSize: '0.9em', marginTop: '5px' }}>Le pone motor a tu vida</div>
-          <h1 style={{ color: 'white', fontSize: '2.2em', fontWeight: '600', marginBottom: '15px', marginTop: '30px' }}>
-            Sistema de Retroalimentación y Mejora Continua
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.15em' }}>
-            Tu voz impulsa la excelencia en el servicio al cliente
-          </p>
-        </div>
-        
-        {/* Purpose Section - 4 items in one line */}
-        <div style={{ padding: '50px 40px', background: '#f5f5f5', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.8em', color: '#191726', marginBottom: '40px', fontWeight: '600' }}>
-            ¿Para qué usamos el formulario?
-          </h2>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', maxWidth: '1100px', margin: '0 auto', flexWrap: 'wrap' }}>
-            {[
-              { icon: '⭐', text: 'Capturar retroalimentación positiva y reconocimientos', gradient: 'linear-gradient(135deg, #191726, #353440)' },
-              { icon: '📈', text: 'Identificar oportunidades de mejora en procesos', gradient: 'linear-gradient(135deg, #353440, #6A6873)' },
-              { icon: '💬', text: 'Gestionar PQRs de manera eficiente', gradient: 'linear-gradient(135deg, #6A6873, #B9B8BF)' },
-              { icon: '💡', text: 'Documentar sugerencias valiosas del equipo', gradient: 'linear-gradient(135deg, #353440, #191726)' }
-            ].map((item, index) => (
-              <div key={index} style={{ background: 'white', padding: '25px 15px', borderRadius: '12px', boxShadow: '0 3px 15px rgba(0,0,0,0.08)', transition: 'all 0.3s ease', border: '2px solid transparent', flex: '1', minWidth: '220px', maxWidth: '260px' }}>
-                <div style={{ width: '60px', height: '60px', margin: '0 auto 15px', background: item.gradient, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8em', color: 'white' }}>
-                  {item.icon}
-                </div>
-                <p style={{ color: '#353440', fontSize: '0.9em', fontWeight: '500', lineHeight: '1.3' }}>
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Tips Section - MOVED UP and EXPANDED */}
-        <div style={{ padding: '50px 40px', background: 'white' }}>
-          <h2 style={{ textAlign: 'center', fontSize: '1.8em', color: '#191726', marginBottom: '40px', fontWeight: '600' }}>
-            Tips por Tipo de Registro
-          </h2>
-          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-            {[
-              {
-                category: '🔴 RECLAMACIONES',
-                color: '#D32F2F',
-                tips: [
-                  { icon: '👂', text: 'Escucha completa: No interrumpas, toma nota de todos los detalles' },
-                  { icon: '❤️', text: 'Empatía primero: Entiendo su molestia, vamos a solucionarlo' },
-                  { icon: '🎯', text: 'Intenta resolver: Usa tu conocimiento y autoridad al máximo' },
-                  { icon: '⚡', text: 'Tiempo máximo: 10 minutos para decidir si resolver o escalar' }
-                ]
-              },
-              {
-                category: '🟢 RECONOCIMIENTOS',
-                color: '#28a745',
-                tips: [
-                  { icon: '⭐', text: 'Sé específico: Describe exactamente qué hizo bien el compañero' },
-                  { icon: '📸', text: 'Documenta siempre: Los reconocimientos motivan al equipo' },
-                  { icon: '🎯', text: 'Comparte ejemplos: Ayuda a otros a replicar buenas prácticas' },
-                  { icon: '😊', text: 'Cliente feliz = Registro: Si un cliente te felicita, regístralo' }
-                ]
-              },
-              {
-                category: '🔵 OPORTUNIDADES DE MEJORA',
-                color: '#007bff',
-                tips: [
-                  { icon: '💡', text: 'No hay ideas pequeñas: Toda mejora cuenta' },
-                  { icon: '👥', text: 'Piensa en el cliente: ¿Cómo facilitaría su experiencia?' },
-                  { icon: '💰', text: 'Cuantifica si puedes: Tiempo o dinero que se ahorraría' },
-                  { icon: '🔧', text: 'Propón soluciones: No solo identifiques problemas' }
-                ]
-              },
-              {
-                category: '🟡 SUGERENCIAS',
-                color: '#ffc107',
-                tips: [
-                  { icon: '👥', text: 'Cliente interno importa: El bienestar del equipo mejora el servicio' },
-                  { icon: '📊', text: 'Observa patrones: Si varios clientes piden lo mismo, repórtalo' },
-                  { icon: '💡', text: 'Innovación bienvenida: Propón nuevas formas de hacer las cosas' },
-                  { icon: '🌟', text: 'Benchmark: Si viste algo bueno en otro lado, sugiérelo' }
-                ]
-              }
-            ].map((category, categoryIndex) => (
-              <div key={categoryIndex} style={{ marginBottom: '25px' }}>
-                <h3 style={{ color: '#191726', fontSize: '1.2em', marginBottom: '15px', paddingLeft: '10px', borderLeft: `4px solid ${category.color}` }}>
-                  {category.category}
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
-                  {category.tips.map((tip, tipIndex) => (
-                    <div key={tipIndex} style={{ display: 'flex', alignItems: 'center', padding: '12px', background: '#f8f8f8', borderRadius: '8px', borderLeft: `2px solid ${category.color}` }}>
-                      <div style={{ width: '32px', height: '32px', background: category.color, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: category.color === '#ffc107' ? '#191726' : 'white', fontSize: '1em', marginRight: '12px', flexShrink: 0 }}>
-                        {tip.icon}
-                      </div>
-                      <p style={{ color: '#353440', fontSize: '0.85em', lineHeight: '1.3', margin: 0 }}>
-                        {tip.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Contact Section */}
-        <div style={{ background: '#6A6873', padding: '50px 40px' }}>
-          <h2 style={{ textAlign: 'center', color: 'white', fontSize: '1.8em', marginBottom: '45px', fontWeight: '600' }}>
-            Canales de Escalamiento
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', maxWidth: '900px', margin: '0 auto' }}>
-            {[
-              { icon: '📋', name: 'Formulario Digital', details: ['Google Forms', 'Disponible 24/7', 'Acceso desde intranet'] },
-              { icon: '📞', name: 'Líneas Telefónicas', details: ['Reclamaciones:', '300 339 9204', 'Agendamientos:', '310 451 7716'] },
-              { icon: '✉️', name: 'Correo Electrónico', details: ['Servicio al Cliente:', 'servicioalcliente@armotor.com'] }
-            ].map((contact, index) => (
-              <div key={index} style={{ background: 'white', borderRadius: '12px', padding: '30px 25px', textAlign: 'center' }}>
-                <div style={{ width: '60px', height: '60px', margin: '0 auto 20px', background: '#191726', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8em', color: 'white' }}>
-                  {contact.icon}
-                </div>
-                <h3 style={{ color: '#191726', fontSize: '1.15em', fontWeight: '600', marginBottom: '12px' }}>
-                  {contact.name}
-                </h3>
-                <div style={{ color: '#6A6873', fontSize: '0.9em', lineHeight: '1.6' }}>
-                  {contact.details.map((detail, i) => (
-                    <div key={i} style={{ fontWeight: i === 1 || i === 3 ? '700' : '400', color: i === 1 || i === 3 ? '#191726' : '#6A6873', fontSize: i === 1 || i === 3 ? '1.05em' : '0.9em', margin: '5px 0' }}>
-                      {detail}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Steps Section - MOVED DOWN */}
-        <div style={{ padding: '50px 40px', background: '#f5f5f5' }}>
-          <h2 style={{ textAlign: 'center', fontSize: '1.8em', color: '#191726', marginBottom: '45px', fontWeight: '600' }}>
-            7 Pasos para el Éxito
-          </h2>
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            {[
-              { number: 1, title: 'ESCUCHA ACTIVA', desc: 'Presta atención completa al cliente. Identifica si es una felicitación, sugerencia o situación a resolver.' },
-              { number: 2, title: 'EVALÚA LA SITUACIÓN', desc: 'Determina el tipo de retroalimentación y si puedes resolverla inmediatamente.' },
-              { number: 3, title: 'INTENTA RESOLVER', desc: 'Si está en tu alcance, brinda una solución inmediata y efectiva.' },
-              { number: 4, title: 'ACCEDE AL FORMULARIO', desc: 'Ingresa a Google Forms mediante el enlace en la intranet o solicítalo a tu supervisor.' },
-              { number: 5, title: 'DOCUMENTA CON PRECISIÓN', desc: 'Completa todos los campos. Especifica si es retroalimentación positiva, mejora o PQR.' },
-              { number: 6, title: 'INFORMA AL CLIENTE', desc: 'Comunica que su caso está siendo gestionado. Tiempo de respuesta: 24-48 horas.' },
-              { number: 7, title: 'HAZ SEGUIMIENTO', desc: 'Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.' }
-            ].map((step, index) => (
-              <div key={step.number} style={{ display: 'flex', alignItems: 'center', marginBottom: '25px', flexDirection: index % 2 === 1 ? 'row-reverse' : 'row' }}>
-                <div style={{ width: '55px', height: '55px', background: '#191726', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4em', fontWeight: 'bold', flexShrink: 0 }}>
-                  {step.number}
-                </div>
-                <div style={{ flex: 1, padding: '20px 25px', background: 'white', borderRadius: '12px', margin: '0 20px', borderLeft: index % 2 === 0 ? '3px solid #6A6873' : 'none', borderRight: index % 2 === 1 ? '3px solid #6A6873' : 'none' }}>
-                  <h3 style={{ color: '#191726', fontSize: '1.1em', fontWeight: '600', marginBottom: '8px' }}>
-                    {step.title}
-                  </h3>
-                  <p style={{ color: '#6A6873', fontSize: '0.9em', lineHeight: '1.5' }}>
-                    {step.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* CTA Section */}
-        <div style={{ background: '#0D0D0D', padding: '50px 40px', textAlign: 'center' }}>
-          <h2 style={{ color: 'white', fontSize: '2.2em', marginBottom: '12px', fontWeight: '800', letterSpacing: '-0.5px' }}>
-            ¡Juntos Construimos la Excelencia!
-          </h2>
-          <p style={{ color: '#B9B8BF', fontSize: '1.1em', marginBottom: '35px', fontWeight: '400' }}>
-            Tu participación activa marca la diferencia en cada experiencia
-          </p>
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'inline-block', padding: '16px 45px', background: 'linear-gradient(135deg, #D32F2F, #B71C1C)', color: 'white', textDecoration: 'none', borderRadius: '50px', fontSize: '1.05em', fontWeight: '600' }}
-          >
-            ACCEDER AL FORMULARIO
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-        
-  
+<div class="container">
+
+<div class="header">
+<div class="logo">armotor</div>
+<div class="tagline">Le pone motor a tu vida</div>
+<div class="title">Sistema de Retroalimentacion y Mejora Continua</div>
+<div class="subtitle">Tu voz impulsa la excelencia en el servicio al cliente</div>
+</div>
+
+<div class="section section-gray">
+<h2>Para que usamos el formulario</h2>
+<div class="grid-4">
+<div class="card">
+<div class="card-icon">STAR</div>
+<div class="card-text">Capturar retroalimentacion positiva y reconocimientos</div>
+</div>
+<div class="card">
+<div class="card-icon">CHART</div>
+<div class="card-text">Identificar oportunidades de mejora en procesos</div>
+</div>
+<div class="card">
+<div class="card-icon">CHAT</div>
+<div class="card-text">Gestionar PQRs de manera eficiente</div>
+</div>
+<div class="card">
+<div class="card-icon">IDEA</div>
+<div class="card-text">Documentar sugerencias valiosas del equipo</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Tips por Tipo de Registro</h2>
+
+<div class="category">
+<div class="category-title">RECLAMACIONES</div>
+<div class="tips-grid">
+<div class="tip">
+<div class="tip-icon">1</div>
+<div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
+</div>
+<div class="tip">
+<div class="tip-icon">2</div>
+<div class="tip-text">Empatia primero: Entiendo su molestia, vamos a solucionarlo</div>
+</div>
+<div class="tip">
+<div class="tip-icon">3</div>
+<div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al maximo</div>
+</div>
+<div class="tip">
+<div class="tip-icon">4</div>
+<div class="tip-text">Tiempo maximo: 10 minutos para decidir si resolver o escalar</div>
+</div>
+</div>
+</div>
+
+<div class="category green">
+<div class="category-title">RECONOCIMIENTOS</div>
+<div class="tips-grid">
+<div class="tip">
+<div class="tip-icon">1</div>
+<div class="tip-text">Se especifico: Describe exactamente que hizo bien el companero</div>
+</div>
+<div class="tip">
+<div class="tip-icon">2</div>
+<div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
+</div>
+<div class="tip">
+<div class="tip-icon">3</div>
+<div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas practicas</div>
+</div>
+<div class="tip">
+<div class="tip-icon">4</div>
+<div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, registralo</div>
+</div>
+</div>
+</div>
+
+<div class="category blue">
+<div class="category-title">OPORTUNIDADES DE MEJORA</div>
+<div class="tips-grid">
+<div class="tip">
+<div class="tip-icon">1</div>
+<div class="tip-text">No hay ideas pequenas: Toda mejora cuenta</div>
+</div>
+<div class="tip">
+<div class="tip-icon">2</div>
+<div class="tip-text">Piensa en el cliente: Como facilitaria su experiencia</div>
+</div>
+<div class="tip">
+<div class="tip-icon">3</div>
+<div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraria</div>
+</div>
+<div class="tip">
+<div class="tip-icon">4</div>
+<div class="tip-text">Propon soluciones: No solo identifiques problemas</div>
+</div>
+</div>
+</div>
+
+<div class="category yellow">
+<div class="category-title">SUGERENCIAS</div>
+<div class="tips-grid">
+<div class="tip">
+<div class="tip-icon">1</div>
+<div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
+</div>
+<div class="tip">
+<div class="tip-icon">2</div>
+<div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, reportalo</div>
+</div>
+<div class="tip">
+<div class="tip-icon">3</div>
+<div class="tip-text">Innovacion bienvenida: Propon nuevas formas de hacer las cosas</div>
+</div>
+<div class="tip">
+<div class="tip-icon">4</div>
+<div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugierelo</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section section-dark">
+<h2>Canales de Escalamiento</h2>
+<div class="contact-grid">
+<div class="contact-card">
+<div class="contact-icon">FORM</div>
+<div class="contact-name">Formulario Digital</div>
+<div>Google Forms</div>
+<div>Disponible 24/7</div>
+<div>Acceso desde intranet</div>
+</div>
+<div class="contact-card">
+<div class="contact-icon">PHONE</div>
+<div class="contact-name">Lineas Telefonicas</div>
+<div>Reclamaciones:</div>
+<div><strong>300 339 9204</strong></div>
+<div>Agendamientos:</div>
+<div><strong>310 451 7716</strong></div>
+</div>
+<div class="contact-card">
+<div class="contact-icon">EMAIL</div>
+<div class="contact-name">Correo Electronico</div>
+<div>Servicio al Cliente:</div>
+<div><strong>servicioalcliente@armotor.com</strong></div>
+</div>
+</div>
+</div>
+
+<div class="section section-gray">
+<h2>7 Pasos para el Exito</h2>
+<div class="steps-wrapper">
+<div class="step">
+<div class="step-number">1</div>
+<div class="step-content">
+<div class="step-title">ESCUCHA ACTIVA</div>
+<div class="step-desc">Presta atencion completa al cliente. Identifica si es una felicitacion, sugerencia o situacion a resolver.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">2</div>
+<div class="step-content">
+<div class="step-title">EVALUA LA SITUACION</div>
+<div class="step-desc">Determina el tipo de retroalimentacion y si puedes resolverla inmediatamente.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">3</div>
+<div class="step-content">
+<div class="step-title">INTENTA RESOLVER</div>
+<div class="step-desc">Si esta en tu alcance, brinda una solucion inmediata y efectiva.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">4</div>
+<div class="step-content">
+<div class="step-title">ACCEDE AL FORMULARIO</div>
+<div class="step-desc">Ingresa a Google Forms mediante el enlace en la intranet o solicitalo a tu supervisor.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">5</div>
+<div class="step-content">
+<div class="step-title">DOCUMENTA CON PRECISION</div>
+<div class="step-desc">Completa todos los campos. Especifica si es retroalimentacion positiva, mejora o PQR.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">6</div>
+<div class="step-content">
+<div class="step-title">INFORMA AL CLIENTE</div>
+<div class="step-desc">Comunica que su caso esta siendo gestionado. Tiempo de respuesta: 24-48 horas.</div>
+</div>
+</div>
+<div class="step">
+<div class="step-number">7</div>
+<div class="step-content">
+<div class="step-title">HAZ SEGUIMIENTO</div>
+<div class="step-desc">Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section section-black">
+<h2>Juntos Construimos la Excelencia</h2>
+<p>Tu participacion activa marca la diferencia en cada experiencia</p>
+<br>
+<a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" target="_blank" class="btn">ACCEDER AL FORMULARIO</a>
+</div>
+
+</div>
+
+</body>
+</html>
