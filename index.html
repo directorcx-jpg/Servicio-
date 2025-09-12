@@ -1,670 +1,197 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Armotor - Sistema de Retroalimentación</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+import React from 'react';
+
+export default function ArmotorFeedbackSystem() {
+  return (
+    <div style={{ fontFamily: 'Arial, sans-serif', background: '#B9B8BF', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', background: 'white', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #B9B8BF;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #191726 0%, #353440 100%);
-            padding: 50px 40px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 40%;
-            height: 200%;
-            background: rgba(106, 104, 115, 0.1);
-            transform: rotate(45deg);
-        }
-        
-        .logo-section {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 30px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .logo-armotor {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .car-logo {
-            width: 60px;
-            height: 40px;
-            position: relative;
-        }
-        
-        .car-body {
-            position: absolute;
-            bottom: 8px;
-            left: 0;
-            width: 100%;
-            height: 20px;
-            background: linear-gradient(90deg, #D32F2F 0%, #B71C1C 100%);
-            border-radius: 25px 8px 8px 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .car-roof {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 35px;
-            height: 15px;
-            background: linear-gradient(90deg, #D32F2F 0%, #B71C1C 100%);
-            border-radius: 8px 8px 0 0;
-            transform: skewX(-5deg);
-        }
-        
-        .car-window {
-            position: absolute;
-            top: 10px;
-            right: 12px;
-            width: 25px;
-            height: 10px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 4px;
-            transform: skewX(-5deg);
-        }
-        
-        .logo-text {
-            color: white;
-            font-size: 2.8em;
-            font-weight: 700;
-            letter-spacing: -1px;
-        }
-        
-        .logo-tagline {
-            color: #B9B8BF;
-            font-size: 0.9em;
-            margin-top: 5px;
-            font-weight: 300;
-        }
-        
-        h1 {
-            color: white;
-            font-size: 2.2em;
-            font-weight: 600;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 1;
-            letter-spacing: -0.5px;
-        }
-        
-        .subtitle {
-            color: rgba(255,255,255,0.85);
-            font-size: 1.15em;
-            font-weight: 300;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .purpose-section {
-            padding: 50px 40px;
-            background: #f5f5f5;
-            text-align: center;
-        }
-        
-        .purpose-title {
-            font-size: 1.8em;
-            color: #191726;
-            margin-bottom: 40px;
-            font-weight: 600;
-        }
-        
-        .purpose-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 25px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        
-        .purpose-card {
-            background: white;
-            padding: 30px 20px;
-            border-radius: 12px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-        
-        .purpose-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-            border-color: #6A6873;
-        }
-        
-        .purpose-icon {
-            width: 70px;
-            height: 70px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, #6A6873, #353440);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            color: white;
-        }
-        
-        .purpose-card:nth-child(1) .purpose-icon {
-            background: linear-gradient(135deg, #191726, #353440);
-        }
-        
-        .purpose-card:nth-child(2) .purpose-icon {
-            background: linear-gradient(135deg, #353440, #6A6873);
-        }
-        
-        .purpose-card:nth-child(3) .purpose-icon {
-            background: linear-gradient(135deg, #6A6873, #B9B8BF);
-        }
-        
-        .purpose-card:nth-child(4) .purpose-icon {
-            background: linear-gradient(135deg, #353440, #191726);
-        }
-        
-        .purpose-text {
-            color: #353440;
-            font-size: 0.95em;
-            font-weight: 500;
-            line-height: 1.4;
-        }
-        
-        .steps-section {
-            padding: 50px 40px;
-            background: white;
-        }
-        
-        .steps-title {
-            text-align: center;
-            font-size: 1.8em;
-            color: #191726;
-            margin-bottom: 45px;
-            font-weight: 600;
-        }
-        
-        .steps-wrapper {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        .step-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 25px;
-            position: relative;
-        }
-        
-        .step-row:nth-child(even) {
-            flex-direction: row-reverse;
-        }
-        
-        .step-row:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            bottom: -12px;
-            left: 50%;
-            width: 2px;
-            height: 25px;
-            background: linear-gradient(180deg, #6A6873, transparent);
-            transform: translateX(-50%);
-        }
-        
-        .step-number {
-            width: 55px;
-            height: 55px;
-            background: #191726;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4em;
-            font-weight: bold;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(25, 23, 38, 0.3);
-        }
-        
-        .step-content {
-            flex: 1;
-            padding: 20px 25px;
-            background: #f8f8f8;
-            border-radius: 12px;
-            margin: 0 20px;
-            border-left: 3px solid #6A6873;
-        }
-        
-        .step-row:nth-child(even) .step-content {
-            border-left: none;
-            border-right: 3px solid #6A6873;
-        }
-        
-        .step-name {
-            color: #191726;
-            font-size: 1.1em;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .step-desc {
-            color: #6A6873;
-            font-size: 0.9em;
-            line-height: 1.5;
-        }
-        
-        .contact-section {
-            background: #6A6873;
-            padding: 50px 40px;
-        }
-        
-        .contact-title {
-            text-align: center;
-            color: white;
-            font-size: 1.8em;
-            margin-bottom: 45px;
-            font-weight: 600;
-        }
-        
-        .contact-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        
-        .contact-card {
-            background: white;
-            border-radius: 12px;
-            padding: 30px 25px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .contact-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 35px rgba(0,0,0,0.2);
-        }
-        
-        .contact-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 20px;
-            background: #191726;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8em;
-            color: white;
-        }
-        
-        .contact-name {
-            color: #191726;
-            font-size: 1.15em;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-        
-        .contact-details {
-            color: #6A6873;
-            font-size: 0.9em;
-            line-height: 1.6;
-        }
-        
-        .contact-phone {
-            color: #191726;
-            font-weight: 700;
-            font-size: 1.05em;
-            margin: 5px 0;
-        }
-        
-        .tips-section {
-            padding: 50px 40px;
-            background: #f5f5f5;
-        }
-        
-        .tips-title {
-            text-align: center;
-            font-size: 1.8em;
-            color: #191726;
-            margin-bottom: 40px;
-            font-weight: 600;
-        }
-        
-        .tips-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 18px;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        .tip {
-            display: flex;
-            align-items: center;
-            padding: 18px;
-            background: white;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            border-left: 3px solid transparent;
-        }
-        
-        .tip:hover {
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transform: translateX(5px);
-            border-left-color: #191726;
-        }
-        
-        .tip-icon {
-            width: 38px;
-            height: 38px;
-            background: #353440;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2em;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-        
-        .tip-text {
-            color: #353440;
-            font-size: 0.9em;
-            line-height: 1.4;
-        }
-        
-        .cta-section {
-            background: #0D0D0D;
-            padding: 50px 40px;
-            text-align: center;
-        }
-        
-        .cta-title {
-            color: white;
-            font-size: 2em;
-            margin-bottom: 12px;
-            font-weight: 600;
-        }
-        
-        .cta-subtitle {
-            color: #B9B8BF;
-            font-size: 1.05em;
-            margin-bottom: 35px;
-            font-weight: 300;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            padding: 16px 45px;
-            background: linear-gradient(135deg, #D32F2F, #B71C1C);
-            color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            font-size: 1.05em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(211, 47, 47, 0.3);
-            letter-spacing: 0.5px;
-        }
-        
-        .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(211, 47, 47, 0.5);
-        }
-        
-        @media (max-width: 768px) {
-            .header {
-                padding: 35px 20px;
-            }
-            
-            h1 {
-                font-size: 1.6em;
-            }
-            
-            .logo-text {
-                font-size: 2.2em;
-            }
-            
-            .step-row, .step-row:nth-child(even) {
-                flex-direction: column;
-            }
-            
-            .step-content {
-                margin: 20px 0;
-            }
-            
-            .step-row:nth-child(even) .step-content {
-                border-right: none;
-                border-left: 3px solid #6A6873;
-            }
-            
-            .contact-cards, .tips-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .purpose-section, .steps-section, .contact-section, .tips-section {
-                padding: 40px 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-section">
-                <div class="logo-armotor">
-                    <div class="car-logo">
-                        <div class="car-body"></div>
-                        <div class="car-roof"></div>
-                        <div class="car-window"></div>
-                    </div>
-                    <div>
-                        <div class="logo-text">armotor</div>
-                        <div class="logo-tagline">Le pone motor a tu vida</div>
-                    </div>
-                </div>
-            </div>
-            <h1>Sistema de Retroalimentación y Mejora Continua</h1>
-            <p class="subtitle">Tu voz impulsa la excelencia en el servicio al cliente</p>
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg, #191726 0%, #353440 100%)', padding: '50px 40px', textAlign: 'center' }}>
+          <div style={{ color: 'white', fontSize: '2.8em', fontWeight: '700' }}>armotor</div>
+          <div style={{ color: '#B9B8BF', fontSize: '0.9em', marginTop: '5px' }}>Le pone motor a tu vida</div>
+          <h1 style={{ color: 'white', fontSize: '2.2em', fontWeight: '600', marginBottom: '15px', marginTop: '30px' }}>
+            Sistema de Retroalimentación y Mejora Continua
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.15em' }}>
+            Tu voz impulsa la excelencia en el servicio al cliente
+          </p>
         </div>
         
-        <div class="purpose-section">
-            <h2 class="purpose-title">¿Para qué usamos el formulario?</h2>
-            <div class="purpose-grid">
-                <div class="purpose-card">
-                    <div class="purpose-icon">⭐</div>
-                    <p class="purpose-text">Capturar retroalimentación positiva y reconocimientos</p>
+        {/* Purpose Section - 4 items in one line */}
+        <div style={{ padding: '50px 40px', background: '#f5f5f5', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.8em', color: '#191726', marginBottom: '40px', fontWeight: '600' }}>
+            ¿Para qué usamos el formulario?
+          </h2>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', maxWidth: '1100px', margin: '0 auto', flexWrap: 'wrap' }}>
+            {[
+              { icon: '⭐', text: 'Capturar retroalimentación positiva y reconocimientos', gradient: 'linear-gradient(135deg, #191726, #353440)' },
+              { icon: '📈', text: 'Identificar oportunidades de mejora en procesos', gradient: 'linear-gradient(135deg, #353440, #6A6873)' },
+              { icon: '💬', text: 'Gestionar PQRs de manera eficiente', gradient: 'linear-gradient(135deg, #6A6873, #B9B8BF)' },
+              { icon: '💡', text: 'Documentar sugerencias valiosas del equipo', gradient: 'linear-gradient(135deg, #353440, #191726)' }
+            ].map((item, index) => (
+              <div key={index} style={{ background: 'white', padding: '25px 15px', borderRadius: '12px', boxShadow: '0 3px 15px rgba(0,0,0,0.08)', transition: 'all 0.3s ease', border: '2px solid transparent', flex: '1', minWidth: '220px', maxWidth: '260px' }}>
+                <div style={{ width: '60px', height: '60px', margin: '0 auto 15px', background: item.gradient, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8em', color: 'white' }}>
+                  {item.icon}
                 </div>
-                
-                <div class="purpose-card">
-                    <div class="purpose-icon">📈</div>
-                    <p class="purpose-text">Identificar oportunidades de mejora en procesos</p>
-                </div>
-                
-                <div class="purpose-card">
-                    <div class="purpose-icon">💬</div>
-                    <p class="purpose-text">Gestionar PQRs de manera eficiente</p>
-                </div>
-                
-                <div class="purpose-card">
-                    <div class="purpose-icon">💡</div>
-                    <p class="purpose-text">Documentar sugerencias valiosas del equipo</p>
-                </div>
-            </div>
+                <p style={{ color: '#353440', fontSize: '0.9em', fontWeight: '500', lineHeight: '1.3' }}>
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
         
-        <div class="steps-section">
-            <h2 class="steps-title">7 Pasos para el Éxito</h2>
-            <div class="steps-wrapper">
-                <div class="step-row">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3 class="step-name">ESCUCHA ACTIVA</h3>
-                        <p class="step-desc">Presta atención completa al cliente. Identifica si es una felicitación, sugerencia o situación a resolver.</p>
+        {/* Tips Section - MOVED UP and EXPANDED */}
+        <div style={{ padding: '50px 40px', background: 'white' }}>
+          <h2 style={{ textAlign: 'center', fontSize: '1.8em', color: '#191726', marginBottom: '40px', fontWeight: '600' }}>
+            Tips por Tipo de Registro
+          </h2>
+          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+            {[
+              {
+                category: '🔴 RECLAMACIONES',
+                color: '#D32F2F',
+                tips: [
+                  { icon: '👂', text: 'Escucha completa: No interrumpas, toma nota de todos los detalles' },
+                  { icon: '❤️', text: 'Empatía primero: Entiendo su molestia, vamos a solucionarlo' },
+                  { icon: '🎯', text: 'Intenta resolver: Usa tu conocimiento y autoridad al máximo' },
+                  { icon: '⚡', text: 'Tiempo máximo: 10 minutos para decidir si resolver o escalar' }
+                ]
+              },
+              {
+                category: '🟢 RECONOCIMIENTOS',
+                color: '#28a745',
+                tips: [
+                  { icon: '⭐', text: 'Sé específico: Describe exactamente qué hizo bien el compañero' },
+                  { icon: '📸', text: 'Documenta siempre: Los reconocimientos motivan al equipo' },
+                  { icon: '🎯', text: 'Comparte ejemplos: Ayuda a otros a replicar buenas prácticas' },
+                  { icon: '😊', text: 'Cliente feliz = Registro: Si un cliente te felicita, regístralo' }
+                ]
+              },
+              {
+                category: '🔵 OPORTUNIDADES DE MEJORA',
+                color: '#007bff',
+                tips: [
+                  { icon: '💡', text: 'No hay ideas pequeñas: Toda mejora cuenta' },
+                  { icon: '👥', text: 'Piensa en el cliente: ¿Cómo facilitaría su experiencia?' },
+                  { icon: '💰', text: 'Cuantifica si puedes: Tiempo o dinero que se ahorraría' },
+                  { icon: '🔧', text: 'Propón soluciones: No solo identifiques problemas' }
+                ]
+              },
+              {
+                category: '🟡 SUGERENCIAS',
+                color: '#ffc107',
+                tips: [
+                  { icon: '👥', text: 'Cliente interno importa: El bienestar del equipo mejora el servicio' },
+                  { icon: '📊', text: 'Observa patrones: Si varios clientes piden lo mismo, repórtalo' },
+                  { icon: '💡', text: 'Innovación bienvenida: Propón nuevas formas de hacer las cosas' },
+                  { icon: '🌟', text: 'Benchmark: Si viste algo bueno en otro lado, sugiérelo' }
+                ]
+              }
+            ].map((category, categoryIndex) => (
+              <div key={categoryIndex} style={{ marginBottom: '25px' }}>
+                <h3 style={{ color: '#191726', fontSize: '1.2em', marginBottom: '15px', paddingLeft: '10px', borderLeft: `4px solid ${category.color}` }}>
+                  {category.category}
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                  {category.tips.map((tip, tipIndex) => (
+                    <div key={tipIndex} style={{ display: 'flex', alignItems: 'center', padding: '12px', background: '#f8f8f8', borderRadius: '8px', borderLeft: `2px solid ${category.color}` }}>
+                      <div style={{ width: '32px', height: '32px', background: category.color, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: category.color === '#ffc107' ? '#191726' : 'white', fontSize: '1em', marginRight: '12px', flexShrink: 0 }}>
+                        {tip.icon}
+                      </div>
+                      <p style={{ color: '#353440', fontSize: '0.85em', lineHeight: '1.3', margin: 0 }}>
+                        {tip.text}
+                      </p>
                     </div>
+                  ))}
                 </div>
-                
-                <div class="step-row">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3 class="step-name">EVALÚA LA SITUACIÓN</h3>
-                        <p class="step-desc">Determina el tipo de retroalimentación y si puedes resolverla inmediatamente.</p>
-                    </div>
-                </div>
-                
-                <div class="step-row">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3 class="step-name">INTENTA RESOLVER</h3>
-                        <p class="step-desc">Si está en tu alcance, brinda una solución inmediata y efectiva.</p>
-                    </div>
-                </div>
-                
-                <div class="step-row">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3 class="step-name">ACCEDE AL FORMULARIO</h3>
-                        <p class="step-desc">Ingresa a Google Forms mediante el enlace en la intranet o solicítalo a tu supervisor.</p>
-                    </div>
-                </div>
-                
-                <div class="step-row">
-                    <div class="step-number">5</div>
-                    <div class="step-content">
-                        <h3 class="step-name">DOCUMENTA CON PRECISIÓN</h3>
-                        <p class="step-desc">Completa todos los campos. Especifica si es retroalimentación positiva, mejora o PQR.</p>
-                    </div>
-                </div>
-                
-                <div class="step-row">
-                    <div class="step-number">6</div>
-                    <div class="step-content">
-                        <h3 class="step-name">INFORMA AL CLIENTE</h3>
-                        <p class="step-desc">Comunica que su caso está siendo gestionado. Tiempo de respuesta: 24-48 horas.</p>
-                    </div>
-                </div>
-                
-                <div class="step-row">
-                    <div class="step-number">7</div>
-                    <div class="step-content">
-                        <h3 class="step-name">HAZ SEGUIMIENTO</h3>
-                        <p class="step-desc">Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.</p>
-                    </div>
-                </div>
-            </div>
+              </div>
+            ))}
+          </div>
         </div>
         
-        <div class="contact-section">
-            <h2 class="contact-title">Canales de Escalamiento</h2>
-            <div class="contact-cards">
-                <div class="contact-card">
-                    <div class="contact-icon">📋</div>
-                    <h3 class="contact-name">Formulario Digital</h3>
-                    <div class="contact-details">
-                        Google Forms<br>
-                        Disponible 24/7<br>
-                        Acceso desde intranet
-                    </div>
+        {/* Contact Section */}
+        <div style={{ background: '#6A6873', padding: '50px 40px' }}>
+          <h2 style={{ textAlign: 'center', color: 'white', fontSize: '1.8em', marginBottom: '45px', fontWeight: '600' }}>
+            Canales de Escalamiento
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', maxWidth: '900px', margin: '0 auto' }}>
+            {[
+              { icon: '📋', name: 'Formulario Digital', details: ['Google Forms', 'Disponible 24/7', 'Acceso desde intranet'] },
+              { icon: '📞', name: 'Líneas Telefónicas', details: ['Reclamaciones:', '300 339 9204', 'Agendamientos:', '310 451 7716'] },
+              { icon: '✉️', name: 'Correo Electrónico', details: ['Servicio al Cliente:', 'servicioalcliente@armotor.com'] }
+            ].map((contact, index) => (
+              <div key={index} style={{ background: 'white', borderRadius: '12px', padding: '30px 25px', textAlign: 'center' }}>
+                <div style={{ width: '60px', height: '60px', margin: '0 auto 20px', background: '#191726', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8em', color: 'white' }}>
+                  {contact.icon}
                 </div>
-                
-                <div class="contact-card">
-                    <div class="contact-icon">📞</div>
-                    <h3 class="contact-name">Líneas Telefónicas</h3>
-                    <div class="contact-details">
-                        Reclamaciones:<br>
-                        <div class="contact-phone">300 339 9204</div>
-                        Agendamientos:<br>
-                        <div class="contact-phone">310 451 7716</div>
+                <h3 style={{ color: '#191726', fontSize: '1.15em', fontWeight: '600', marginBottom: '12px' }}>
+                  {contact.name}
+                </h3>
+                <div style={{ color: '#6A6873', fontSize: '0.9em', lineHeight: '1.6' }}>
+                  {contact.details.map((detail, i) => (
+                    <div key={i} style={{ fontWeight: i === 1 || i === 3 ? '700' : '400', color: i === 1 || i === 3 ? '#191726' : '#6A6873', fontSize: i === 1 || i === 3 ? '1.05em' : '0.9em', margin: '5px 0' }}>
+                      {detail}
                     </div>
+                  ))}
                 </div>
-                
-                <div class="contact-card">
-                    <div class="contact-icon">✉️</div>
-                    <h3 class="contact-name">Correo Electrónico</h3>
-                    <div class="contact-details">
-                        Servicio al Cliente:<br>
-                        <div class="contact-phone">servicioalcliente@armotor.com</div>
-                    </div>
-                </div>
-            </div>
+              </div>
+            ))}
+          </div>
         </div>
         
-        <div class="tips-section">
-            <h2 class="tips-title">Mejores Prácticas</h2>
-            <div class="tips-grid">
-                <div class="tip">
-                    <div class="tip-icon">⚡</div>
-                    <p class="tip-text">Responde en menos de 5 minutos cuando sea posible</p>
+        {/* Steps Section - MOVED DOWN */}
+        <div style={{ padding: '50px 40px', background: '#f5f5f5' }}>
+          <h2 style={{ textAlign: 'center', fontSize: '1.8em', color: '#191726', marginBottom: '45px', fontWeight: '600' }}>
+            7 Pasos para el Éxito
+          </h2>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            {[
+              { number: 1, title: 'ESCUCHA ACTIVA', desc: 'Presta atención completa al cliente. Identifica si es una felicitación, sugerencia o situación a resolver.' },
+              { number: 2, title: 'EVALÚA LA SITUACIÓN', desc: 'Determina el tipo de retroalimentación y si puedes resolverla inmediatamente.' },
+              { number: 3, title: 'INTENTA RESOLVER', desc: 'Si está en tu alcance, brinda una solución inmediata y efectiva.' },
+              { number: 4, title: 'ACCEDE AL FORMULARIO', desc: 'Ingresa a Google Forms mediante el enlace en la intranet o solicítalo a tu supervisor.' },
+              { number: 5, title: 'DOCUMENTA CON PRECISIÓN', desc: 'Completa todos los campos. Especifica si es retroalimentación positiva, mejora o PQR.' },
+              { number: 6, title: 'INFORMA AL CLIENTE', desc: 'Comunica que su caso está siendo gestionado. Tiempo de respuesta: 24-48 horas.' },
+              { number: 7, title: 'HAZ SEGUIMIENTO', desc: 'Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.' }
+            ].map((step, index) => (
+              <div key={step.number} style={{ display: 'flex', alignItems: 'center', marginBottom: '25px', flexDirection: index % 2 === 1 ? 'row-reverse' : 'row' }}>
+                <div style={{ width: '55px', height: '55px', background: '#191726', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4em', fontWeight: 'bold', flexShrink: 0 }}>
+                  {step.number}
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">📝</div>
-                    <p class="tip-text">Documenta TODA retroalimentación, positiva o negativa</p>
+                <div style={{ flex: 1, padding: '20px 25px', background: 'white', borderRadius: '12px', margin: '0 20px', borderLeft: index % 2 === 0 ? '3px solid #6A6873' : 'none', borderRight: index % 2 === 1 ? '3px solid #6A6873' : 'none' }}>
+                  <h3 style={{ color: '#191726', fontSize: '1.1em', fontWeight: '600', marginBottom: '8px' }}>
+                    {step.title}
+                  </h3>
+                  <p style={{ color: '#6A6873', fontSize: '0.9em', lineHeight: '1.5' }}>
+                    {step.desc}
+                  </p>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">💬</div>
-                    <p class="tip-text">Usa lenguaje profesional y empático siempre</p>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">✅</div>
-                    <p class="tip-text">Confirma que el cliente entendió la solución</p>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">💡</div>
-                    <p class="tip-text">Captura sugerencias de mejora del equipo</p>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">🎯</div>
-                    <p class="tip-text">Si prometes algo, cúmplalo siempre</p>
-                </div>
-            </div>
+              </div>
+            ))}
+          </div>
         </div>
         
-        <div class="cta-section">
-            <h2 class="cta-title">¡Juntos Construimos la Excelencia!</h2>
-            <p class="cta-subtitle">Tu participación activa marca la diferencia en cada experiencia</p>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
-               target="_blank" 
-               class="cta-button">
-                ACCEDER AL FORMULARIO
-            </a>
+        {/* CTA Section */}
+        <div style={{ background: '#0D0D0D', padding: '50px 40px', textAlign: 'center' }}>
+          <h2 style={{ color: 'white', fontSize: '2.2em', marginBottom: '12px', fontWeight: '800', letterSpacing: '-0.5px' }}>
+            ¡Juntos Construimos la Excelencia!
+          </h2>
+          <p style={{ color: '#B9B8BF', fontSize: '1.1em', marginBottom: '35px', fontWeight: '400' }}>
+            Tu participación activa marca la diferencia en cada experiencia
+          </p>
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block', padding: '16px 45px', background: 'linear-gradient(135deg, #D32F2F, #B71C1C)', color: 'white', textDecoration: 'none', borderRadius: '50px', fontSize: '1.05em', fontWeight: '600' }}
+          >
+            ACCEDER AL FORMULARIO
+          </a>
         </div>
+      </div>
     </div>
-</body>
-</html>
+  );
+}
+        
+  
