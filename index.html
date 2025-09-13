@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Armotor Sistema - Retroalimentación y Mejora Continua</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * {
     margin: 0;
@@ -12,11 +11,90 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 20px 10px;
+    padding-top: 70px; /* Espacio para el menú fijo */
+}
+
+/* Menú de navegación rápida fijo */
+.nav-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(25, 23, 38, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    padding: 10px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.nav-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.nav-logo {
+    color: white;
+    font-weight: bold;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.nav-logo::before {
+    content: "⚙";
+    color: #D32F2F;
+}
+
+.nav-links {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    font-size: 0.9em;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.nav-btn {
+    background: linear-gradient(135deg, #D32F2F, #f44336);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(211, 47, 47, 0.3);
+}
+
+.nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4);
 }
 
 .container {
@@ -176,7 +254,56 @@ h2::after {
     background: linear-gradient(90deg, #fff, #B9B8BF);
 }
 
-/* Sección Para qué usamos el formulario - EN UNA LÍNEA */
+/* Botón de CTA principal que aparece múltiples veces */
+.cta-button-container {
+    text-align: center;
+    margin: 30px 0;
+}
+
+.cta-button {
+    display: inline-block;
+    padding: 18px 45px;
+    background: linear-gradient(135deg, #D32F2F, #f44336);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(211, 47, 47, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.cta-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.cta-button::after {
+    content: " →";
+    margin-left: 5px;
+}
+
+.cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(211, 47, 47, 0.4);
+}
+
+.cta-button:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Sección Para qué usamos el formulario */
 .grid {
     display: flex;
     flex-wrap: wrap;
@@ -245,40 +372,82 @@ h2::after {
     line-height: 1.5;
 }
 
-/* Tips por Tipo de Registro */
+/* Tips por Tipo de Registro - ACORDEÓN INTERACTIVO */
 #tips-section h2::before {
     content: "ℹ️";
 }
 
-.category {
-    margin-bottom: 35px;
+.tips-container {
+    max-width: 900px;
+    margin: 0 auto;
 }
 
-.cat-title {
-    font-size: 1.3em;
-    font-weight: bold;
-    margin-bottom: 20px;
-    padding-left: 15px;
+.accordion-item {
+    margin-bottom: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.accordion-item:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.accordion-header {
+    background: white;
+    padding: 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-left: 5px solid #D32F2F;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background: #f8f8f8;
+}
+
+.accordion-title {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-.cat-title::before {
-    content: "⚠️";
     font-size: 1.2em;
+    font-weight: bold;
+    color: #191726;
 }
 
-.green .cat-title::before { content: "🏆"; }
-.blue .cat-title::before { content: "🚀"; }
-.yellow .cat-title::before { content: "💬"; }
+.accordion-icon {
+    font-size: 1.3em;
+}
+
+.accordion-arrow {
+    font-size: 1.5em;
+    transition: transform 0.3s ease;
+    color: #6A6873;
+}
+
+.accordion-item.active .accordion-arrow {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease;
+    background: #f9f9f9;
+}
+
+.accordion-item.active .accordion-content {
+    max-height: 1000px;
+}
 
 .tips {
+    padding: 20px;
     display: grid;
     gap: 15px;
-    max-width: 800px;
-    margin: 0 auto;
 }
 
 .tip {
@@ -286,15 +455,14 @@ h2::after {
     align-items: center;
     padding: 15px;
     background: white;
-    border-radius: 12px;
-    border-left: 3px solid #D32F2F;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     transition: all 0.3s ease;
 }
 
 .tip:hover {
     transform: translateX(5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
 .tip-icon {
@@ -318,38 +486,34 @@ h2::after {
     line-height: 1.5;
 }
 
-.green .cat-title {
+/* Colores específicos para cada categoría */
+.accordion-item.reclamaciones .accordion-header {
+    border-left-color: #D32F2F;
+}
+
+.accordion-item.reconocimientos .accordion-header {
     border-left-color: #28a745;
 }
-.green .tip {
-    border-left-color: #28a745;
-}
-.green .tip-icon {
+.accordion-item.reconocimientos .tip-icon {
     background: linear-gradient(135deg, #28a745, #4caf50);
 }
 
-.blue .cat-title {
+.accordion-item.oportunidades .accordion-header {
     border-left-color: #007bff;
 }
-.blue .tip {
-    border-left-color: #007bff;
-}
-.blue .tip-icon {
+.accordion-item.oportunidades .tip-icon {
     background: linear-gradient(135deg, #007bff, #2196f3);
 }
 
-.yellow .cat-title {
+.accordion-item.sugerencias .accordion-header {
     border-left-color: #ffc107;
 }
-.yellow .tip {
-    border-left-color: #ffc107;
-}
-.yellow .tip-icon {
+.accordion-item.sugerencias .tip-icon {
     background: linear-gradient(135deg, #ffc107, #ffeb3b);
     color: #191726;
 }
 
-/* Canales de Escalamiento - MEJORADO Y CENTRADO */
+/* Canales de Escalamiento */
 #canales-section h2::before {
     content: "📡";
 }
@@ -452,7 +616,7 @@ h2::after {
     transform: scale(1.05);
 }
 
-/* 7 Pasos para el Éxito - CORREGIDO CON NÚMEROS VISIBLES */
+/* 7 Pasos para el Éxito */
 #pasos-section h2::before {
     content: "📝";
 }
@@ -490,7 +654,6 @@ h2::after {
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-/* Números grandes y visibles para cada paso */
 .step:nth-child(1) .step-num::before { content: "1"; }
 .step:nth-child(2) .step-num::before { content: "2"; }
 .step:nth-child(3) .step-num::before { content: "3"; }
@@ -532,50 +695,61 @@ h2::after {
     content: "🤝";
 }
 
-.btn {
-    display: inline-block;
-    padding: 18px 45px;
-    background: linear-gradient(135deg, #D32F2F, #f44336);
+/* Indicador de progreso */
+.progress-indicator {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.2);
+    z-index: 999;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #D32F2F, #764ba2);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Botón de volver arriba */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #191726, #2d2b3d);
     color: white;
-    text-decoration: none;
-    border-radius: 50px;
-    font-size: 1.1em;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 5px 20px rgba(211, 47, 47, 0.3);
-    position: relative;
-    overflow: hidden;
-}
-
-.btn::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
     border-radius: 50%;
-    background: rgba(255,255,255,0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 998;
 }
 
-.btn::after {
-    content: " →";
-    margin-left: 5px;
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
 }
 
-.btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(211, 47, 47, 0.4);
+.back-to-top:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
 }
 
-.btn:hover::before {
-    width: 300px;
-    height: 300px;
+.back-to-top::before {
+    content: "↑";
 }
 
-/* Pulse animation para el botón */
+/* Pulse animation */
 @keyframes pulse {
     0% { transform: scale(1); }
     50% { transform: scale(1.05); }
@@ -588,6 +762,21 @@ h2::after {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    body {
+        padding-top: 60px;
+    }
+    
+    .nav-content {
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .nav-logo {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+    
     .logo {
         font-size: 2.2em;
         flex-direction: column;
@@ -633,7 +822,7 @@ h2::after {
         border-top: 4px solid #6A6873;
     }
     
-    .btn {
+    .cta-button {
         padding: 15px 35px;
         font-size: 1em;
     }
@@ -642,6 +831,7 @@ h2::after {
 @media (max-width: 480px) {
     body {
         padding: 10px 5px;
+        padding-top: 60px;
     }
     
     .container {
@@ -689,19 +879,51 @@ h2::after {
         padding: 25px 20px;
         min-width: auto;
     }
+    
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+    }
 }
 
 /* Asegurar que los iconos emoji se vean correctamente */
 .icon::before,
 .step-num::before,
-.contact-icon::before {
+.contact-icon::before,
+.accordion-icon {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiOne Color", "Twemoji Mozilla", sans-serif;
 }
 </style>
 </head>
 <body>
+<!-- Menú de navegación fijo -->
+<nav class="nav-fixed">
+    <div class="nav-content">
+        <div class="nav-logo">armotor</div>
+        <div class="nav-links">
+            <a href="#inicio" class="nav-link">Inicio</a>
+            <a href="#formulario" class="nav-link">Formulario</a>
+            <a href="#tips" class="nav-link">Tips</a>
+            <a href="#canales" class="nav-link">Canales</a>
+            <a href="#pasos" class="nav-link">Pasos</a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
+               target="_blank" 
+               class="nav-btn">
+                ACCEDER
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Indicador de progreso -->
+<div class="progress-indicator">
+    <div class="progress-bar" id="progressBar"></div>
+</div>
+
 <div class="container">
-    <div class="header">
+    <div class="header" id="inicio">
         <div class="logo">armotor</div>
         <div class="tagline">Le pone motor a tu vida</div>
         <div class="title">Sistema de Retroalimentación y Mejora Continua</div>
@@ -709,7 +931,7 @@ h2::after {
         <div class="interno">Ten presente que esta información es solo para uso interno</div>
     </div>
 
-    <div class="section gray">
+    <div class="section gray" id="formulario">
         <h2>Para qué usamos el formulario</h2>
         <div class="grid">
             <div class="card">
@@ -729,101 +951,148 @@ h2::after {
                 <div class="text">Documentar sugerencias valiosas del equipo</div>
             </div>
         </div>
+        
+        <!-- Primer botón CTA después de "Para qué usamos el formulario" -->
+        <div class="cta-button-container">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
+               target="_blank" 
+               class="cta-button pulse">
+                ACCEDER AL FORMULARIO
+            </a>
+        </div>
     </div>
 
-    <div class="section" id="tips-section">
+    <div class="section" id="tips">
         <h2>Tips por Tipo de Registro</h2>
         
-        <div class="category">
-            <div class="cat-title">RECLAMACIONES</div>
-            <div class="tips">
-                <div class="tip">
-                    <div class="tip-icon">1</div>
-                    <div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
+        <div class="tips-container">
+            <!-- Reclamaciones -->
+            <div class="accordion-item reclamaciones">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-title">
+                        <span class="accordion-icon">⚠️</span>
+                        <span>RECLAMACIONES</span>
+                    </div>
+                    <span class="accordion-arrow">▼</span>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">2</div>
-                    <div class="tip-text">Empatía primero: "Entiendo su molestia, vamos a solucionarlo"</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">3</div>
-                    <div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al máximo</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">4</div>
-                    <div class="tip-text">Tiempo máximo: 10 minutos para decidir si resolver o escalar</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="category green">
-            <div class="cat-title">RECONOCIMIENTOS</div>
-            <div class="tips">
-                <div class="tip">
-                    <div class="tip-icon">1</div>
-                    <div class="tip-text">Sé específico: Describe exactamente qué hizo bien el compañero</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">2</div>
-                    <div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">3</div>
-                    <div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas prácticas</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">4</div>
-                    <div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, regístralo</div>
+                <div class="accordion-content">
+                    <div class="tips">
+                        <div class="tip">
+                            <div class="tip-icon">1</div>
+                            <div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">2</div>
+                            <div class="tip-text">Empatía primero: "Entiendo su molestia, vamos a solucionarlo"</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">3</div>
+                            <div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al máximo</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">4</div>
+                            <div class="tip-text">Tiempo máximo: 10 minutos para decidir si resolver o escalar</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="category blue">
-            <div class="cat-title">OPORTUNIDADES DE MEJORA</div>
-            <div class="tips">
-                <div class="tip">
-                    <div class="tip-icon">1</div>
-                    <div class="tip-text">No hay ideas pequeñas: Toda mejora cuenta</div>
+            <!-- Reconocimientos -->
+            <div class="accordion-item reconocimientos">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-title">
+                        <span class="accordion-icon">🏆</span>
+                        <span>RECONOCIMIENTOS</span>
+                    </div>
+                    <span class="accordion-arrow">▼</span>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">2</div>
-                    <div class="tip-text">Piensa en el cliente: ¿Cómo facilitaría su experiencia?</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">3</div>
-                    <div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraría</div>
-                </div>
-                <div class="tip">
-                    <div class="tip-icon">4</div>
-                    <div class="tip-text">Propón soluciones: No solo identifiques problemas</div>
+                <div class="accordion-content">
+                    <div class="tips">
+                        <div class="tip">
+                            <div class="tip-icon">1</div>
+                            <div class="tip-text">Sé específico: Describe exactamente qué hizo bien el compañero</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">2</div>
+                            <div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">3</div>
+                            <div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas prácticas</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">4</div>
+                            <div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, regístralo</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="category yellow">
-            <div class="cat-title">SUGERENCIAS</div>
-            <div class="tips">
-                <div class="tip">
-                    <div class="tip-icon">1</div>
-                    <div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
+            <!-- Oportunidades de Mejora -->
+            <div class="accordion-item oportunidades">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-title">
+                        <span class="accordion-icon">🚀</span>
+                        <span>OPORTUNIDADES DE MEJORA</span>
+                    </div>
+                    <span class="accordion-arrow">▼</span>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">2</div>
-                    <div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, repórtalo</div>
+                <div class="accordion-content">
+                    <div class="tips">
+                        <div class="tip">
+                            <div class="tip-icon">1</div>
+                            <div class="tip-text">No hay ideas pequeñas: Toda mejora cuenta</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">2</div>
+                            <div class="tip-text">Piensa en el cliente: ¿Cómo facilitaría su experiencia?</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">3</div>
+                            <div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraría</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">4</div>
+                            <div class="tip-text">Propón soluciones: No solo identifiques problemas</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">3</div>
-                    <div class="tip-text">Innovación bienvenida: Propón nuevas formas de hacer las cosas</div>
+            </div>
+
+            <!-- Sugerencias -->
+            <div class="accordion-item sugerencias">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-title">
+                        <span class="accordion-icon">💬</span>
+                        <span>SUGERENCIAS</span>
+                    </div>
+                    <span class="accordion-arrow">▼</span>
                 </div>
-                <div class="tip">
-                    <div class="tip-icon">4</div>
-                    <div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugiérelo</div>
+                <div class="accordion-content">
+                    <div class="tips">
+                        <div class="tip">
+                            <div class="tip-icon">1</div>
+                            <div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">2</div>
+                            <div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, repórtalo</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">3</div>
+                            <div class="tip-text">Innovación bienvenida: Propón nuevas formas de hacer las cosas</div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">4</div>
+                            <div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugiérelo</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="section dark" id="canales-section">
+    <div class="section dark" id="canales">
         <h2>Canales de Escalamiento</h2>
         <div class="contacts">
             <div class="contact">
@@ -854,9 +1123,18 @@ h2::after {
                 </div>
             </div>
         </div>
+        
+        <!-- Segundo botón CTA después de "Canales de Escalamiento" -->
+        <div class="cta-button-container">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
+               target="_blank" 
+               class="cta-button">
+                IR AL FORMULARIO
+            </a>
+        </div>
     </div>
 
-    <div class="section gray" id="pasos-section">
+    <div class="section gray" id="pasos">
         <h2>7 Pasos para el Éxito</h2>
         <div class="steps">
             <div class="step">
@@ -911,17 +1189,86 @@ h2::after {
         </div>
     </div>
 
-    <div class="section black" id="final-section">
+    <div class="section black" id="final">
         <h2>Juntos Construimos la Excelencia</h2>
         <p style="margin-bottom: 30px; font-size: 1.1em; opacity: 0.9;">
             <span style="font-size: 1.2em;">👥</span> Tu participación activa marca la diferencia en cada experiencia
         </p>
+        <!-- Tercer botón CTA al final -->
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
            target="_blank" 
-           class="btn pulse">
-            ACCEDER AL FORMULARIO
+           class="cta-button pulse">
+            COMPLETAR FORMULARIO AHORA
         </a>
     </div>
 </div>
+
+<!-- Botón de volver arriba -->
+<div class="back-to-top" id="backToTop" onclick="scrollToTop()"></div>
+
+<script>
+// Función para el acordeón
+function toggleAccordion(header) {
+    const item = header.parentElement;
+    const allItems = document.querySelectorAll('.accordion-item');
+    
+    // Cerrar todos los demás
+    allItems.forEach(otherItem => {
+        if (otherItem !== item && otherItem.classList.contains('active')) {
+            otherItem.classList.remove('active');
+        }
+    });
+    
+    // Toggle el actual
+    item.classList.toggle('active');
+}
+
+// Indicador de progreso de scroll
+window.addEventListener('scroll', () => {
+    const scrolled = window.scrollY;
+    const maxHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const scrollPercent = (scrolled / maxHeight) * 100;
+    
+    document.getElementById('progressBar').style.width = scrollPercent + '%';
+    
+    // Mostrar/ocultar botón de volver arriba
+    const backToTop = document.getElementById('backToTop');
+    if (scrolled > 300) {
+        backToTop.classList.add('visible');
+    } else {
+        backToTop.classList.remove('visible');
+    }
+});
+
+// Función para volver arriba
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+// Smooth scroll para los enlaces del menú
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+
+// Abrir el primer acordeón por defecto
+document.addEventListener('DOMContentLoaded', () => {
+    const firstAccordion = document.querySelector('.accordion-item');
+    if (firstAccordion) {
+        firstAccordion.classList.add('active');
+    }
+});
+</script>
 </body>
 </html>
