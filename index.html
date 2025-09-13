@@ -760,21 +760,13 @@ h2::after {
     animation: pulse 2s infinite;
 }
 
-/* Responsive Design */
+/* Eliminar cualquier estilo de botón flotante viejo */
+/* Los únicos botones CTA deben estar donde corresponden */
+
+/* Responsive Design específico para móviles */
 @media (max-width: 768px) {
     body {
-        padding-top: 60px;
-    }
-    
-    .nav-content {
-        justify-content: center;
-        text-align: center;
-    }
-    
-    .nav-logo {
-        width: 100%;
-        justify-content: center;
-        margin-bottom: 10px;
+        padding-top: 20px; /* Sin menú fijo en móvil */
     }
     
     .logo {
@@ -809,6 +801,16 @@ h2::after {
     .contact {
         max-width: 100%;
         width: 100%;
+    }
+    
+    /* Asegurar que el botón en la tarjeta se vea bien en móvil */
+    .contact.formulario-card {
+        padding-bottom: 90px;
+    }
+    
+    .form-button-inside {
+        width: 90%;
+        bottom: 15px;
     }
     
     .step {
