@@ -1,254 +1,927 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Armotor Sistema</title>
+<title>Armotor Sistema - Retroalimentación y Mejora Continua</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-body {margin:0;padding:10px;font-family:Arial,sans-serif;background:#B9B8BF;}
-.container {max-width:1200px;margin:0 auto;background:white;border-radius:20px;overflow:hidden;}
-.header {background:#191726;padding:30px 20px;text-align:center;color:white;}
-.logo {font-size:2.5em;font-weight:bold;}
-.tagline {color:#B9B8BF;font-size:0.9em;margin-top:5px;}
-.title {font-size:1.6em;margin:20px 0 10px;}
-.subtitle {font-size:1em;opacity:0.9;}
-.interno {margin-top:15px;padding:8px;background:rgba(255,255,255,0.1);border-radius:8px;font-size:0.85em;}
-.section {padding:30px 15px;}
-.gray {background:#f5f5f5;}
-.dark {background:#6A6873;color:white;}
-.black {background:#0D0D0D;color:white;text-align:center;}
-h2 {text-align:center;font-size:1.5em;margin-bottom:25px;color:#191726;}
-.dark h2,.black h2 {color:white;}
-.grid {display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin:0 auto;}
-.card {background:white;padding:20px 10px;border-radius:12px;text-align:center;box-shadow:0 3px 15px rgba(0,0,0,0.1);}
-.icon {width:50px;height:50px;margin:0 auto 10px;border-radius:50%;background:#353440;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5em;}
-.text {color:#353440;font-size:0.8em;line-height:1.3;}
-.category {margin-bottom:25px;}
-.cat-title {font-size:1.1em;font-weight:bold;margin-bottom:12px;padding-left:10px;border-left:4px solid #D32F2F;}
-.tips {display:grid;gap:10px;}
-.tip {display:flex;align-items:center;padding:10px;background:#f8f8f8;border-radius:8px;border-left:2px solid #D32F2F;}
-.tip-icon {width:28px;height:28px;border-radius:50%;background:#D32F2F;color:white;margin-right:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.8em;}
-.tip-text {color:#353440;font-size:0.8em;line-height:1.3;}
-.green .cat-title {border-left-color:#28a745;}
-.green .tip {border-left-color:#28a745;}
-.green .tip-icon {background:#28a745;}
-.blue .cat-title {border-left-color:#007bff;}
-.blue .tip {border-left-color:#007bff;}
-.blue .tip-icon {background:#007bff;}
-.yellow .cat-title {border-left-color:#ffc107;}
-.yellow .tip {border-left-color:#ffc107;}
-.yellow .tip-icon {background:#ffc107;color:#191726;}
-.contacts {display:grid;gap:20px;}
-.contact {background:white;border-radius:12px;padding:25px 20px;text-align:center;}
-.contact-icon {width:50px;height:50px;margin:0 auto 15px;background:#191726;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5em;}
-.contact-name {color:#191726;font-size:1.1em;font-weight:bold;margin-bottom:10px;}
-.contact-info {font-size:0.9em;line-height:1.5;color:#353440;}
-.phone {font-weight:bold;color:#191726;font-size:1.1em;margin:5px 0;}
-.steps {margin:0 auto;}
-.step {display:flex;align-items:flex-start;margin-bottom:20px;gap:15px;}
-.step-num {width:45px;height:45px;background:#191726;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2em;font-weight:bold;flex-shrink:0;}
-.step-content {flex:1;padding:15px;background:white;border-radius:10px;border-left:3px solid #6A6873;}
-.step-title {color:#191726;font-size:0.95em;font-weight:bold;margin-bottom:5px;}
-.step-desc {color:#6A6873;font-size:0.8em;line-height:1.4;}
-.btn {display:inline-block;padding:14px 35px;background:#D32F2F;color:white;text-decoration:none;border-radius:50px;font-size:0.95em;font-weight:bold;}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px 10px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 25px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+    background: linear-gradient(135deg, #191726 0%, #2d2b3d 100%);
+    padding: 40px 20px;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.05" d="M0,96L48,112C96,128,192,160,288,165.3C384,171,480,149,576,133.3C672,117,768,107,864,117.3C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom center;
+    background-size: cover;
+}
+
+.logo {
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.logo::before {
+    content: "⚙";
+    color: #D32F2F;
+    font-size: 1.2em;
+}
+
+.tagline {
+    color: #B9B8BF;
+    font-size: 1em;
+    margin-top: 5px;
+    position: relative;
+    z-index: 1;
+}
+
+.title {
+    font-size: 1.8em;
+    margin: 25px 0 15px;
+    position: relative;
+    z-index: 1;
+    font-weight: 300;
+}
+
+.subtitle {
+    font-size: 1.1em;
+    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+}
+
+.subtitle::before {
+    content: "💬 ";
+    margin-right: 5px;
+}
+
+.interno {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    font-size: 0.9em;
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(5px);
+}
+
+.interno::before {
+    content: "🔒 ";
+    margin-right: 5px;
+}
+
+.section {
+    padding: 40px 20px;
+}
+
+.gray {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.dark {
+    background: linear-gradient(135deg, #6A6873 0%, #4a485f 100%);
+    color: white;
+}
+
+.black {
+    background: linear-gradient(135deg, #0D0D0D 0%, #1a1a1a 100%);
+    color: white;
+    text-align: center;
+}
+
+h2 {
+    text-align: center;
+    font-size: 2em;
+    margin-bottom: 30px;
+    color: #191726;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+h2::before {
+    content: "📋";
+    font-size: 0.9em;
+}
+
+h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #D32F2F, #764ba2);
+    border-radius: 2px;
+}
+
+.dark h2, .black h2 {
+    color: white;
+}
+
+.dark h2::after, .black h2::after {
+    background: linear-gradient(90deg, #fff, #B9B8BF);
+}
+
+/* Sección Para qué usamos el formulario - EN UNA LÍNEA */
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: 20px;
+    margin: 0 auto;
+    max-width: 1100px;
+}
+
+.card {
+    background: white;
+    padding: 30px 20px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    flex: 1;
+    min-width: 240px;
+    max-width: 260px;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #D32F2F, #764ba2);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.icon {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 30px;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.card:nth-child(1) .icon::before { content: "⭐"; }
+.card:nth-child(2) .icon::before { content: "📈"; }
+.card:nth-child(3) .icon::before { content: "✅"; }
+.card:nth-child(4) .icon::before { content: "💡"; }
+
+.text {
+    color: #353440;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+/* Tips por Tipo de Registro */
+#tips-section h2::before {
+    content: "ℹ️";
+}
+
+.category {
+    margin-bottom: 35px;
+}
+
+.cat-title {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 20px;
+    padding-left: 15px;
+    border-left: 5px solid #D32F2F;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cat-title::before {
+    content: "⚠️";
+    font-size: 1.2em;
+}
+
+.green .cat-title::before { content: "🏆"; }
+.blue .cat-title::before { content: "🚀"; }
+.yellow .cat-title::before { content: "💬"; }
+
+.tips {
+    display: grid;
+    gap: 15px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.tip {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border-radius: 12px;
+    border-left: 3px solid #D32F2F;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.tip:hover {
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.tip-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #D32F2F, #f44336);
+    color: white;
+    margin-right: 15px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.tip-text {
+    color: #353440;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.green .cat-title {
+    border-left-color: #28a745;
+}
+.green .tip {
+    border-left-color: #28a745;
+}
+.green .tip-icon {
+    background: linear-gradient(135deg, #28a745, #4caf50);
+}
+
+.blue .cat-title {
+    border-left-color: #007bff;
+}
+.blue .tip {
+    border-left-color: #007bff;
+}
+.blue .tip-icon {
+    background: linear-gradient(135deg, #007bff, #2196f3);
+}
+
+.yellow .cat-title {
+    border-left-color: #ffc107;
+}
+.yellow .tip {
+    border-left-color: #ffc107;
+}
+.yellow .tip-icon {
+    background: linear-gradient(135deg, #ffc107, #ffeb3b);
+    color: #191726;
+}
+
+/* Canales de Escalamiento - MEJORADO Y CENTRADO */
+#canales-section h2::before {
+    content: "📡";
+}
+
+.contacts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: 25px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.contact {
+    background: rgba(255,255,255,0.95);
+    border-radius: 15px;
+    padding: 30px 25px;
+    text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    flex: 1;
+    min-width: 280px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.contact:hover {
+    transform: translateY(-5px);
+    background: white;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.contact-icon {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #191726, #2d2b3d);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 30px;
+    transition: transform 0.3s ease;
+}
+
+.contact:hover .contact-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.contact:nth-child(1) .contact-icon::before { content: "📝"; }
+.contact:nth-child(2) .contact-icon::before { content: "📞"; }
+.contact:nth-child(3) .contact-icon::before { content: "✉️"; }
+
+.contact-name {
+    color: #191726;
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.contact-info {
+    font-size: 1em;
+    line-height: 1.6;
+    color: #353440;
+}
+
+.contact-info::before {
+    content: "🕐 ";
+    font-size: 0.9em;
+}
+
+.contact:nth-child(2) .contact-info::before,
+.contact:nth-child(3) .contact-info::before {
+    content: "";
+}
+
+.phone {
+    font-weight: bold;
+    color: #D32F2F;
+    font-size: 1.2em;
+    margin: 10px 0;
+    display: block;
+    transition: all 0.3s ease;
+}
+
+.phone::before {
+    content: "📱 ";
+    margin-right: 5px;
+}
+
+.contact:nth-child(3) .phone::before {
+    content: "@ ";
+}
+
+.phone:hover {
+    transform: scale(1.05);
+}
+
+/* 7 Pasos para el Éxito - CORREGIDO CON NÚMEROS VISIBLES */
+#pasos-section h2::before {
+    content: "📝";
+}
+
+.steps {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 25px;
+    gap: 20px;
+    animation: slideIn 0.6s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.step-num {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #191726, #2d2b3d);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* Números grandes y visibles para cada paso */
+.step:nth-child(1) .step-num::before { content: "1"; }
+.step:nth-child(2) .step-num::before { content: "2"; }
+.step:nth-child(3) .step-num::before { content: "3"; }
+.step:nth-child(4) .step-num::before { content: "4"; }
+.step:nth-child(5) .step-num::before { content: "5"; }
+.step:nth-child(6) .step-num::before { content: "6"; }
+.step:nth-child(7) .step-num::before { content: "7"; }
+
+.step-content {
+    flex: 1;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    border-left: 4px solid #6A6873;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.step:hover .step-content {
+    transform: translateX(5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.step-title {
+    color: #191726;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.step-desc {
+    color: #6A6873;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+/* Sección Final */
+#final-section h2::before {
+    content: "🤝";
+}
+
+.btn {
+    display: inline-block;
+    padding: 18px 45px;
+    background: linear-gradient(135deg, #D32F2F, #f44336);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(211, 47, 47, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn::after {
+    content: " →";
+    margin-left: 5px;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(211, 47, 47, 0.4);
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Pulse animation para el botón */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .logo {
+        font-size: 2.2em;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .title {
+        font-size: 1.4em;
+    }
+    
+    h2 {
+        font-size: 1.6em;
+    }
+    
+    .grid {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .card {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .contacts {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .contact {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .step {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .step-content {
+        border-left: none;
+        border-top: 4px solid #6A6873;
+    }
+    
+    .btn {
+        padding: 15px 35px;
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px 5px;
+    }
+    
+    .container {
+        border-radius: 15px;
+    }
+    
+    .header {
+        padding: 30px 15px;
+    }
+    
+    .section {
+        padding: 30px 15px;
+    }
+    
+    .logo {
+        font-size: 1.8em;
+    }
+    
+    .logo::before {
+        font-size: 1em;
+    }
+    
+    .title {
+        font-size: 1.2em;
+    }
+    
+    .subtitle {
+        font-size: 0.95em;
+    }
+    
+    h2 {
+        font-size: 1.4em;
+    }
+    
+    .card {
+        padding: 25px 15px;
+        min-width: auto;
+    }
+    
+    .tip {
+        padding: 12px;
+    }
+    
+    .contact {
+        padding: 25px 20px;
+        min-width: auto;
+    }
+}
+
+/* Asegurar que los iconos emoji se vean correctamente */
+.icon::before,
+.step-num::before,
+.contact-icon::before {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiOne Color", "Twemoji Mozilla", sans-serif;
+}
 </style>
 </head>
 <body>
 <div class="container">
-<div class="header">
-<div class="logo">armotor</div>
-<div class="tagline">Le pone motor a tu vida</div>
-<div class="title">Sistema de Retroalimentacion y Mejora Continua</div>
-<div class="subtitle">Tu voz impulsa la excelencia en el servicio al cliente</div>
-<div class="interno">Ten presente que esta informacion es solo para uso interno</div>
-</div>
-<div class="section gray">
-<h2>Para que usamos el formulario</h2>
-<div class="grid">
-<div class="card">
-<div class="icon">*</div>
-<div class="text">Capturar retroalimentacion positiva y reconocimientos</div>
-</div>
-<div class="card">
-<div class="icon">^</div>
-<div class="text">Identificar oportunidades de mejora en procesos</div>
-</div>
-<div class="card">
-<div class="icon">@</div>
-<div class="text">Gestionar PQRs de manera eficiente</div>
-</div>
-<div class="card">
-<div class="icon">!</div>
-<div class="text">Documentar sugerencias valiosas del equipo</div>
-</div>
-</div>
-</div>
-<div class="section">
-<h2>Tips por Tipo de Registro</h2>
-<div class="category">
-<div class="cat-title">RECLAMACIONES</div>
-<div class="tips">
-<div class="tip">
-<div class="tip-icon">1</div>
-<div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
-</div>
-<div class="tip">
-<div class="tip-icon">2</div>
-<div class="tip-text">Empatia primero: Entiendo su molestia, vamos a solucionarlo</div>
-</div>
-<div class="tip">
-<div class="tip-icon">3</div>
-<div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al maximo</div>
-</div>
-<div class="tip">
-<div class="tip-icon">4</div>
-<div class="tip-text">Tiempo maximo: 10 minutos para decidir si resolver o escalar</div>
-</div>
-</div>
-</div>
-<div class="category green">
-<div class="cat-title">RECONOCIMIENTOS</div>
-<div class="tips">
-<div class="tip">
-<div class="tip-icon">1</div>
-<div class="tip-text">Se especifico: Describe exactamente que hizo bien el companero</div>
-</div>
-<div class="tip">
-<div class="tip-icon">2</div>
-<div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
-</div>
-<div class="tip">
-<div class="tip-icon">3</div>
-<div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas practicas</div>
-</div>
-<div class="tip">
-<div class="tip-icon">4</div>
-<div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, registralo</div>
-</div>
-</div>
-</div>
-<div class="category blue">
-<div class="cat-title">OPORTUNIDADES DE MEJORA</div>
-<div class="tips">
-<div class="tip">
-<div class="tip-icon">1</div>
-<div class="tip-text">No hay ideas pequenas: Toda mejora cuenta</div>
-</div>
-<div class="tip">
-<div class="tip-icon">2</div>
-<div class="tip-text">Piensa en el cliente: Como facilitaria su experiencia</div>
-</div>
-<div class="tip">
-<div class="tip-icon">3</div>
-<div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraria</div>
-</div>
-<div class="tip">
-<div class="tip-icon">4</div>
-<div class="tip-text">Propon soluciones: No solo identifiques problemas</div>
-</div>
-</div>
-</div>
-<div class="category yellow">
-<div class="cat-title">SUGERENCIAS</div>
-<div class="tips">
-<div class="tip">
-<div class="tip-icon">1</div>
-<div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
-</div>
-<div class="tip">
-<div class="tip-icon">2</div>
-<div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, reportalo</div>
-</div>
-<div class="tip">
-<div class="tip-icon">3</div>
-<div class="tip-text">Innovacion bienvenida: Propon nuevas formas de hacer las cosas</div>
-</div>
-<div class="tip">
-<div class="tip-icon">4</div>
-<div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugierelo</div>
-</div>
-</div>
-</div>
-</div>
-<div class="section dark">
-<h2>Canales de Escalamiento</h2>
-<div class="contacts">
-<div class="contact">
-<div class="contact-icon">F</div>
-<div class="contact-name">Formulario Digital</div>
-<div class="contact-info">Google Forms<br>Disponible 24/7<br>Acceso desde este vinculo al final de la intranet</div>
-</div>
-<div class="contact">
-<div class="contact-icon">T</div>
-<div class="contact-name">Lineas Telefonicas</div>
-<div class="contact-info">Reclamaciones (PQRs):<br><div class="phone">300 339 9204</div>Agendamientos:<br><div class="phone">310 451 7716</div></div>
-</div>
-<div class="contact">
-<div class="contact-icon">E</div>
-<div class="contact-name">Correo Electronico</div>
-<div class="contact-info">Servicio al Cliente:<br><div class="phone">servicioalcliente@armotor.com</div></div>
-</div>
-</div>
-</div>
-<div class="section gray">
-<h2>7 Pasos para el Exito</h2>
-<div class="steps">
-<div class="step">
-<div class="step-num">1</div>
-<div class="step-content">
-<div class="step-title">ESCUCHA ACTIVA</div>
-<div class="step-desc">Presta atencion completa al cliente. Identifica si es una felicitacion, sugerencia o situacion a resolver.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">2</div>
-<div class="step-content">
-<div class="step-title">EVALUA LA SITUACION</div>
-<div class="step-desc">Determina el tipo de retroalimentacion y si puedes resolverla inmediatamente.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">3</div>
-<div class="step-content">
-<div class="step-title">INTENTA RESOLVER</div>
-<div class="step-desc">Si esta en tu alcance, brinda una solucion inmediata y efectiva.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">4</div>
-<div class="step-content">
-<div class="step-title">ACCEDE AL FORMULARIO</div>
-<div class="step-desc">Ingresa a Google Forms mediante el enlace en la intranet o solicitalo a tu supervisor.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">5</div>
-<div class="step-content">
-<div class="step-title">DOCUMENTA CON PRECISION</div>
-<div class="step-desc">Completa todos los campos. Especifica si es retroalimentacion positiva, mejora o PQR.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">6</div>
-<div class="step-content">
-<div class="step-title">INFORMA AL CLIENTE</div>
-<div class="step-desc">Comunica que su caso esta siendo gestionado. Tiempo de respuesta: 24-48 horas.</div>
-</div>
-</div>
-<div class="step">
-<div class="step-num">7</div>
-<div class="step-content">
-<div class="step-title">HAZ SEGUIMIENTO</div>
-<div class="step-desc">Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.</div>
-</div>
-</div>
-</div>
-</div>
-<div class="section black">
-<h2>Juntos Construimos la Excelencia</h2>
-<p style="margin-bottom:25px;">Tu participacion activa marca la diferencia en cada experiencia</p>
-<a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" target="_blank" class="btn">ACCEDER AL FORMULARIO</a>
-</div>
+    <div class="header">
+        <div class="logo">armotor</div>
+        <div class="tagline">Le pone motor a tu vida</div>
+        <div class="title">Sistema de Retroalimentación y Mejora Continua</div>
+        <div class="subtitle">Tu voz impulsa la excelencia en el servicio al cliente</div>
+        <div class="interno">Ten presente que esta información es solo para uso interno</div>
+    </div>
+
+    <div class="section gray">
+        <h2>Para qué usamos el formulario</h2>
+        <div class="grid">
+            <div class="card">
+                <div class="icon"></div>
+                <div class="text">Capturar retroalimentación positiva y reconocimientos</div>
+            </div>
+            <div class="card">
+                <div class="icon"></div>
+                <div class="text">Identificar oportunidades de mejora en procesos</div>
+            </div>
+            <div class="card">
+                <div class="icon"></div>
+                <div class="text">Gestionar PQRs de manera eficiente</div>
+            </div>
+            <div class="card">
+                <div class="icon"></div>
+                <div class="text">Documentar sugerencias valiosas del equipo</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="tips-section">
+        <h2>Tips por Tipo de Registro</h2>
+        
+        <div class="category">
+            <div class="cat-title">RECLAMACIONES</div>
+            <div class="tips">
+                <div class="tip">
+                    <div class="tip-icon">1</div>
+                    <div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">2</div>
+                    <div class="tip-text">Empatía primero: "Entiendo su molestia, vamos a solucionarlo"</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">3</div>
+                    <div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al máximo</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">4</div>
+                    <div class="tip-text">Tiempo máximo: 10 minutos para decidir si resolver o escalar</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="category green">
+            <div class="cat-title">RECONOCIMIENTOS</div>
+            <div class="tips">
+                <div class="tip">
+                    <div class="tip-icon">1</div>
+                    <div class="tip-text">Sé específico: Describe exactamente qué hizo bien el compañero</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">2</div>
+                    <div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">3</div>
+                    <div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas prácticas</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">4</div>
+                    <div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, regístralo</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="category blue">
+            <div class="cat-title">OPORTUNIDADES DE MEJORA</div>
+            <div class="tips">
+                <div class="tip">
+                    <div class="tip-icon">1</div>
+                    <div class="tip-text">No hay ideas pequeñas: Toda mejora cuenta</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">2</div>
+                    <div class="tip-text">Piensa en el cliente: ¿Cómo facilitaría su experiencia?</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">3</div>
+                    <div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraría</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">4</div>
+                    <div class="tip-text">Propón soluciones: No solo identifiques problemas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="category yellow">
+            <div class="cat-title">SUGERENCIAS</div>
+            <div class="tips">
+                <div class="tip">
+                    <div class="tip-icon">1</div>
+                    <div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">2</div>
+                    <div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, repórtalo</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">3</div>
+                    <div class="tip-text">Innovación bienvenida: Propón nuevas formas de hacer las cosas</div>
+                </div>
+                <div class="tip">
+                    <div class="tip-icon">4</div>
+                    <div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugiérelo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section dark" id="canales-section">
+        <h2>Canales de Escalamiento</h2>
+        <div class="contacts">
+            <div class="contact">
+                <div class="contact-icon"></div>
+                <div class="contact-name">Formulario Digital</div>
+                <div class="contact-info">
+                    Google Forms<br>
+                    Disponible 24/7<br>
+                    Acceso desde este vínculo al final de la intranet
+                </div>
+            </div>
+            <div class="contact">
+                <div class="contact-icon"></div>
+                <div class="contact-name">Líneas Telefónicas</div>
+                <div class="contact-info">
+                    <strong>Reclamaciones (PQRs):</strong>
+                    <span class="phone">300 339 9204</span>
+                    <strong>Agendamientos:</strong>
+                    <span class="phone">310 451 7716</span>
+                </div>
+            </div>
+            <div class="contact">
+                <div class="contact-icon"></div>
+                <div class="contact-name">Correo Electrónico</div>
+                <div class="contact-info">
+                    <strong>Servicio al Cliente:</strong>
+                    <span class="phone">servicioalcliente@armotor.com</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section gray" id="pasos-section">
+        <h2>7 Pasos para el Éxito</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">ESCUCHA ACTIVA</div>
+                    <div class="step-desc">Presta atención completa al cliente. Identifica si es una felicitación, sugerencia o situación a resolver.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">EVALÚA LA SITUACIÓN</div>
+                    <div class="step-desc">Determina el tipo de retroalimentación y si puedes resolverla inmediatamente.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">INTENTA RESOLVER</div>
+                    <div class="step-desc">Si está en tu alcance, brinda una solución inmediata y efectiva.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">ACCEDE AL FORMULARIO</div>
+                    <div class="step-desc">Ingresa a Google Forms mediante el enlace en la intranet o solicítalo a tu supervisor.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">DOCUMENTA CON PRECISIÓN</div>
+                    <div class="step-desc">Completa todos los campos. Especifica si es retroalimentación positiva, mejora o PQR.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">INFORMA AL CLIENTE</div>
+                    <div class="step-desc">Comunica que su caso está siendo gestionado. Tiempo de respuesta: 24-48 horas.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-content">
+                    <div class="step-title">HAZ SEGUIMIENTO</div>
+                    <div class="step-desc">Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section black" id="final-section">
+        <h2>Juntos Construimos la Excelencia</h2>
+        <p style="margin-bottom: 30px; font-size: 1.1em; opacity: 0.9;">
+            <span style="font-size: 1.2em;">👥</span> Tu participación activa marca la diferencia en cada experiencia
+        </p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
+           target="_blank" 
+           class="btn pulse">
+            ACCEDER AL FORMULARIO
+        </a>
+    </div>
 </div>
 </body>
 </html>
