@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.1.0",
+    version: "1.2.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,

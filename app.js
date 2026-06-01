@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js';
+import { DATA } from './data.js?v=1.2.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -439,6 +439,112 @@ function renderVip(){
 }
 
 // =============================================================
+//  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
+// =============================================================
+const RESULT_LABEL = { agenda:'Agendado', seg:'Seguimiento', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', noContactar:'No contactar' };
+const RESULT_COLOR = { agenda:'var(--ok)', seg:'var(--in)', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', noContactar:'var(--ac)' };
+let ctrlFiltro = { asesor:'', resultado:'' };
+
+function gestionesVisibles(){
+  let rows = getGestionesLocal();
+  const p = perms();
+  // asesores solo ven las propias
+  if (p.controlGestion === 'propios') rows = rows.filter(g => g.asesorCeta === S.user.alias);
+  return rows;
+}
+function renderControl(){
+  const el = $('#v-control');
+  if (!perms().controlGestion) { el.innerHTML = emptyState('fa-lock','Control de Gestión','Tu rol no tiene acceso a esta vista.'); return; }
+  let rows = gestionesVisibles();
+  const asesores = [...new Set(getGestionesLocal().map(g => g.asesorCeta).filter(Boolean))];
+  const fil = rows.filter(g =>
+    (!ctrlFiltro.asesor || g.asesorCeta === ctrlFiltro.asesor) &&
+    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado));
+
+  const total = fil.length;
+  const agend = fil.filter(g => g.resultado === 'agenda').length;
+  const noc = fil.filter(g => g.resultado === 'noc').length;
+  const segc = fil.filter(g => g.resultado === 'seg').length;
+
+  // contadores por asesor (balance de carga)
+  const porAsesor = {};
+  fil.forEach(g => { porAsesor[g.asesorCeta||'—'] = (porAsesor[g.asesorCeta||'—']||0)+1; });
+  const maxA = Math.max(1, ...Object.values(porAsesor));
+
+  el.innerHTML = `
+    ${viewHead('Control de Gestión',
+      `<span class="badge"><i class="fas fa-layer-group"></i> ${total} gestiones</span>${can('modoTV')?'<span class="badge"><i class="fas fa-tv"></i> Modo TV disponible</span>':''}`)}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Asesor</label>
+        <select id="ctrlAsesor" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${asesores.map(a=>`<option ${ctrlFiltro.asesor===a?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
+      <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Resultado</label>
+        <select id="ctrlResultado" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${ctrlFiltro.resultado===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <button class="btn btn-gh" id="ctrlClear"><i class="fas fa-filter-circle-xmark"></i> Limpiar</button>
+      ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV" style="margin-left:auto"><i class="fas fa-tv"></i> Modo TV</button>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+      ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
+        `<div class="fb" style="text-align:center;padding:14px"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div></div>`).join('')}
+    </div>
+    ${Object.keys(porAsesor).length?`<div class="fb"><div class="bt val" style="margin-bottom:8px"><span class="n"><i class="fas fa-scale-balanced"></i></span>Balance de carga</div>
+      ${Object.entries(porAsesor).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px"><div style="width:90px;flex-shrink:0">${esc(a)}</div><div style="flex:1;background:var(--bgs);border-radius:4px;height:14px;overflow:hidden"><div style="width:${Math.round(n/maxA*100)}%;height:100%;background:var(--ac)"></div></div><div style="width:28px;text-align:right;font-family:var(--fm)">${n}</div></div>`).join('')}
+    </div>`:''}
+    <div class="fb">
+      ${fil.length?`<table class="tbl"><thead><tr><th>Hora</th><th>Asesor</th><th>Placa</th><th>Cliente</th><th>Resultado</th></tr></thead><tbody>
+        ${fil.map(g=>`<tr><td style="font-family:var(--fm);font-size:11px">${esc(fmtHora(g._ts))}</td><td>${esc(g.asesorCeta||'—')}</td><td style="font-family:var(--fm)">${esc(g.placa||'—')}</td><td>${esc(g.nombre||'—')}</td><td><span class="tag" style="background:${RESULT_COLOR[g.resultado]||'var(--bgs)'}22;color:${RESULT_COLOR[g.resultado]||'var(--tx2)'}">${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}</span></td></tr>`).join('')}
+      </tbody></table>`:emptyState('fa-inbox','Sin gestiones','Aún no hay gestiones registradas. Las que guardes en el panel derecho aparecerán aquí.')}
+    </div>`;
+  const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
+  const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
+  const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
+  const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
+}
+function fmtHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
+
+// ===== MODO TV (fullscreen, auto-refresh 60s) =====
+let tvTimer = null;
+function openModoTV(){
+  const ov = $('#tvOverlay');
+  ov.classList.add('show');
+  renderTV();
+  if (ov.requestFullscreen) ov.requestFullscreen().catch(()=>{});
+  tvTimer = setInterval(renderTV, 60000);
+}
+function closeModoTV(){
+  $('#tvOverlay').classList.remove('show');
+  if (tvTimer) { clearInterval(tvTimer); tvTimer = null; }
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+}
+function renderTV(){
+  const rows = gestionesVisibles();
+  const total = rows.length;
+  const agend = rows.filter(g=>g.resultado==='agenda').length;
+  const pend = total - agend;
+  const porAsesor = {};
+  rows.forEach(g => { porAsesor[g.asesorCeta||'—'] = (porAsesor[g.asesorCeta||'—']||0)+1; });
+  const maxA = Math.max(1, ...Object.values(porAsesor));
+  $('#tvBody').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div style="font-family:var(--fd);font-weight:800;font-size:28px"><span style="color:var(--ac)">ARMOTOR</span> CETA · Control de Gestión</div>
+      <div style="font-family:var(--fm);font-size:24px">${new Date().toLocaleTimeString('es-CO')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px">
+      ${[['Gestiones del día',total,''],['Agendados',agend,'var(--ok)'],['Pendientes',pend,'var(--wr)']].map(([l,n,c])=>
+        `<div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:24px;text-align:center"><div style="font-family:var(--fd);font-weight:800;font-size:54px;${c?`color:${c}`:''}">${n}</div><div style="font-size:14px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${l}</div></div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px">
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">Últimas gestiones</div>
+        ${rows.slice(0,10).map(g=>`<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:15px"><span style="font-family:var(--fm);color:var(--tx3);width:60px">${fmtHora(g._ts)}</span><span style="width:120px">${esc(g.asesorCeta||'—')}</span><span style="font-family:var(--fm);width:90px">${esc(g.placa||'—')}</span><span style="color:${RESULT_COLOR[g.resultado]||'var(--tx2)'};font-weight:600">${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}</span></div>`).join('') || '<div style="color:var(--tx3)">Sin gestiones aún.</div>'}
+      </div>
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">Por asesor</div>
+        ${Object.entries(porAsesor).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:15px"><div style="width:120px">${esc(a)}</div><div style="flex:1;background:var(--bgs);border-radius:5px;height:20px;overflow:hidden"><div style="width:${Math.round(n/maxA*100)}%;height:100%;background:var(--ac)"></div></div><div style="width:34px;text-align:right;font-family:var(--fm);font-weight:700">${n}</div></div>`).join('') || '<div style="color:var(--tx3)">—</div>'}
+      </div>
+    </div>`;
+}
+
+// =============================================================
 //  CONFIG (gestión de usuarios — solo coordinador)
 // =============================================================
 function renderConfig(){
@@ -481,12 +587,12 @@ function renderContent(){
   renderConocimiento('v-manuales', ['operativo'], 'Manuales y Operativo', 'fa-wrench');
   renderCampanias();
   renderVip();
+  renderControl();
   renderPlaceholders();
 }
 function renderPlaceholders(){
   const ph = {
-    internos:['fa-inbox','Casos Internos CETA','Radicación y asignación — Fase 5 (pendiente reglas de asignación de Pablo).'],
-    control:['fa-table-columns','Control de Gestión','Tabla, filtros y Modo TV — Fase 4 (requiere backend Apps Script).']
+    internos:['fa-inbox','Casos Internos CETA','Radicación y asignación — Fase 5 (pendiente reglas de asignación de Pablo).']
   };
   Object.entries(ph).forEach(([k,[ic,t,m]]) => {
     const el = $('#v-'+k); if (el && !el.innerHTML.trim()) el.innerHTML = emptyState(ic.replace('fab ','').replace('fas ',''), t, m);
@@ -513,6 +619,7 @@ function goTo(v){
   const nav = $(`.ni[data-v="${v}"]`); if (nav) nav.classList.add('active');
   $$('.view').forEach(vw => vw.classList.remove('active'));
   const target = $('#v-'+v); if (target) target.classList.add('active');
+  if (v === 'control') renderControl();  // refresca con las gestiones más recientes
 }
 
 // =============================================================
@@ -786,6 +893,8 @@ function buildPayload(){
 async function saveGestion(){
   if (!can('registrar')) { toast('Tu rol no permite registrar'); return; }
   const payload = buildPayload();
+  // Siempre se registra localmente para que Control de Gestión opere sin backend.
+  pushGestionLocal(payload);
   const url = DATA.config.endpoints.guardarGestion;
   if (url) {
     try {
@@ -794,12 +903,22 @@ async function saveGestion(){
       await fetch(url, { method:'POST', body:JSON.stringify(payload), signal:ctrl.signal });
       clearTimeout(to);
       toast('✅ Gestión guardada');
-    } catch { toast('⚠️ Guardado local (sin conexión al servidor)'); }
+    } catch { toast('⚠️ Guardada local (sin conexión al servidor)'); }
   } else {
-    console.log('[CETA] Gestión (local, sin backend):', payload);
     toast('✅ Gestión registrada (local)');
   }
   setTimeout(resetPanel, 600);
+}
+
+// ===== Persistencia local de gestiones (respaldo / fuente de Control de Gestión) =====
+const LS_GESTIONES = 'ceta_gestiones';
+function getGestionesLocal(){
+  try { return JSON.parse(localStorage.getItem(LS_GESTIONES) || '[]'); } catch { return []; }
+}
+function pushGestionLocal(payload){
+  const list = getGestionesLocal();
+  list.unshift({ ...payload, _ts: Date.now() });
+  localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500))); // tope de seguridad
 }
 
 function resetPanel(){
@@ -850,7 +969,7 @@ function omniSearch(q){
 // =============================================================
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV });
 
 // =============================================================
 //  INIT
