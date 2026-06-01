@@ -87,9 +87,8 @@ function enterApp(){
   $('#appRoot').style.display = 'grid';
   applyRole();
   renderHome();
-  renderInbound();
+  renderContent();
   renderConfig();
-  renderPlaceholders();
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
 }
@@ -165,21 +164,278 @@ function renderHome(){
 }
 
 // =============================================================
-//  INBOUND (fichas Validar/Decir/Hacer/Escalar desde DATA)
+//  HELPERS de render
 // =============================================================
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
+function viewHead(title, badges){
+  return `<h1 class="ft-title">${title}</h1>${badges?`<div class="badges">${badges}</div>`:''}`;
+}
+
+// =============================================================
+//  INBOUND — 10 pasos navegables (← →)
+// =============================================================
+let inboundIdx = 0;
 function renderInbound(){
   const wrap = $('#inboundWrap');
   const pasos = DATA.inbound || [];
-  if (!pasos.length) { wrap.innerHTML = emptyState('fa-phone-volume','Inbound Posventa','Los 10 pasos se cargan en Fase 3.'); return; }
-  const ps = pasos[0];
+  if (!pasos.length) { wrap.innerHTML = emptyState('fa-phone-volume','Inbound Posventa','Sin contenido cargado.'); return; }
+  const i = Math.max(0, Math.min(inboundIdx, pasos.length-1));
+  inboundIdx = i;
+  const ps = pasos[i];
+  const decir = (ps.decir||[]).map(d =>
+    `${d.sub?`<div class="sub-l" style="margin-top:8px"><i class="fas fa-angle-right"></i>${esc(d.sub)}</div>`:''}<div class="sp">${nl2br(d.texto)}</div>`
+  ).join('');
   wrap.innerHTML = `
-    <h1 class="ft-title">Flujo Inbound · Paso ${ps.paso} — ${ps.titulo}</h1>
-    <div class="badges">${ps.marca?`<span class="badge kia">${ps.marca}</span>`:''}<span class="badge voz"><i class="fas fa-phone"></i> Voz</span><span class="badge vig"><i class="fas fa-circle" style="font-size:5px"></i> ${ps.tiempo||''}</span></div>
-    <div class="fb"><div class="bt val"><span class="n">1</span>Qué validar</div><ul class="cl">${(ps.validar||[]).map(x=>`<li><span class="ck"></span>${x}</li>`).join('')}</ul></div>
-    <div class="fb"><div class="bt say"><span class="n">2</span>Qué decir al cliente</div><div class="sp">${ps.decir||''}</div>${(ps.tips||[]).map(t=>`<div class="al in"><i class="fas fa-lightbulb"></i><div><strong>Tip:</strong> ${t}</div></div>`).join('')}</div>
-    <div class="fb"><div class="bt do"><span class="n">3</span>Qué hacer después</div><ul class="cl">${(ps.hacer||[]).map(x=>`<li><span class="ck"></span>${x}</li>`).join('')}</ul></div>
-    ${ps.escalar?`<div class="fb"><div class="bt esc"><span class="n">4</span>Cuándo escalar</div><div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>${ps.escalar}</div></div></div>`:''}
-    <div class="al in" style="margin-top:14px"><i class="fas fa-circle-info"></i><div>Muestra representativa. La navegación completa de 10 pasos (← →) llega en Fase 3.</div></div>`;
+    ${viewHead(`Flujo Inbound · Paso ${ps.paso} — ${esc(ps.titulo)}`,
+      `<span class="badge voz"><i class="fas fa-phone"></i> Voz</span><span class="badge vig"><i class="fas fa-clock" style="font-size:8px"></i> ${esc(ps.tiempo||'')}</span>${ps.critico?'<span class="badge" style="background:var(--acs);color:var(--ac)"><i class="fas fa-star"></i> Crítico</span>':''}`)}
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px">
+      ${pasos.map((p,idx)=>`<button class="pill ${idx===i?'on':''}" data-step="${idx}" style="min-width:26px;justify-content:center">${p.paso}</button>`).join('')}
+    </div>
+    <div class="fb"><div class="bt val"><span class="n">1</span>Qué validar</div><div style="font-size:12px;line-height:1.6">${nl2br(ps.validar)}</div></div>
+    <div class="fb"><div class="bt say"><span class="n">2</span>Qué decir al cliente</div>${decir}</div>
+    <div class="fb"><div class="bt do"><span class="n">3</span>Qué hacer después</div><div style="font-size:12px;line-height:1.6">${nl2br(ps.hacer)}</div></div>
+    ${ps.escalar?`<div class="fb"><div class="bt esc"><span class="n">4</span>Cuándo escalar</div><div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>${nl2br(ps.escalar)}</div></div></div>`:''}
+    ${ps.nota?`<div class="al in"><i class="fas fa-lightbulb"></i><div>${nl2br(ps.nota)}</div></div>`:''}
+    <div style="display:flex;gap:6px;margin-top:14px">
+      <button class="btn btn-gh" id="ibPrev" ${i===0?'disabled':''}><i class="fas fa-chevron-left"></i> Paso ${i>0?pasos[i-1].paso:''}</button>
+      <button class="btn btn-ac" id="ibNext" ${i===pasos.length-1?'disabled':''}>Paso ${i<pasos.length-1?pasos[i+1].paso:''} <i class="fas fa-chevron-right"></i></button>
+    </div>`;
+  $$('#inboundWrap [data-step]').forEach(b => b.addEventListener('click', () => { inboundIdx = +b.dataset.step; renderInbound(); }));
+  const prev = $('#ibPrev'), next = $('#ibNext');
+  if (prev) prev.addEventListener('click', () => { inboundIdx--; renderInbound(); });
+  if (next) next.addEventListener('click', () => { inboundIdx++; renderInbound(); });
+}
+
+// =============================================================
+//  OUTBOUND — fichas con momentos
+// =============================================================
+let outboundId = null;
+function renderOutbound(){
+  const el = $('#v-outbound');
+  const list = DATA.outbound || [];
+  if (!list.length) { el.innerHTML = emptyState('fa-arrow-up-from-bracket','Outbound','Sin contenido cargado.'); return; }
+  if (!outboundId) outboundId = list[0].id;
+  const g = list.find(x => x.id === outboundId) || list[0];
+  el.innerHTML = `
+    ${viewHead('Guiones Outbound', list.map(x =>
+      `<button class="pill ${x.id===outboundId?'on':''}" data-ob="${x.id}">${esc(x.titulo.split('—')[0].trim())}</button>`).join(''))}
+    <div class="fb" style="border-left:3px solid var(--ac)">
+      <div style="font-family:var(--fd);font-weight:700;font-size:15px;margin-bottom:4px">${esc(g.titulo)}</div>
+      <div class="badges"><span class="badge kia">${esc(g.marca)}</span><span class="badge"><i class="fas fa-tag"></i> ${esc(g.badge)}</span></div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.6">${nl2br(g.contexto)}</div>
+    </div>
+    <div class="fb"><div class="bt val"><span class="n"><i class="fas fa-list-check"></i></span>Validar antes de llamar</div><div style="font-size:12px;line-height:1.6">${nl2br(g.validar)}</div></div>
+    ${(g.momentos||[]).map(m =>
+      `<div class="fb"><div class="bt say"><span class="n"><i class="fas fa-quote-left" style="font-size:8px"></i></span>${esc(m.titulo)}</div><div class="sp">${nl2br(m.texto)}</div></div>`).join('')}
+    <div class="fb"><div class="bt do"><span class="n"><i class="fas fa-forward"></i></span>Qué hacer</div><div style="font-size:12px;line-height:1.6">${nl2br(g.hacer)}</div></div>
+    ${g.escalar?`<div class="fb"><div class="bt esc"><span class="n"><i class="fas fa-triangle-exclamation" style="font-size:9px"></i></span>Escalar / Pendiente</div><div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>${nl2br(g.escalar)}</div></div></div>`:''}`;
+  $$('#v-outbound [data-ob]').forEach(b => b.addEventListener('click', () => { outboundId = b.dataset.ob; renderOutbound(); }));
+}
+
+// =============================================================
+//  PLANTILLAS WHATSAPP — categorías + búsqueda + copiar
+// =============================================================
+let waCat = 'all', waQuery = '';
+function renderWhatsapp(){
+  const el = $('#v-whatsapp');
+  const cats = DATA.plantillasCategorias || [];
+  const plantillas = DATA.plantillas || [];
+  const q = waQuery.trim().toLowerCase();
+  const filtered = plantillas.filter(p =>
+    (waCat==='all' || p.cat===waCat) &&
+    (!q || (p.titulo+p.texto+p.usar).toLowerCase().includes(q)));
+  el.innerHTML = `
+    ${viewHead('Plantillas WhatsApp', `<span class="badge"><i class="fab fa-whatsapp"></i> ${plantillas.length} plantillas</span><span class="badge"><i class="fas fa-layer-group"></i> ${cats.length} categorías</span>`)}
+    <div class="omni" style="max-width:none;margin-bottom:12px"><i class="fas fa-search" style="color:var(--tx3);font-size:12px"></i><input id="waSearch" placeholder="Buscar plantilla por texto…" value="${esc(waQuery)}"></div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="pill ${waCat==='all'?'on':''}" data-wacat="all">Todas</button>
+      ${cats.map(c => `<button class="pill ${waCat===c?'on':''}" data-wacat="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>
+    ${filtered.length ? filtered.map(p => `
+      <div class="fb">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <div><span style="font-family:var(--fm);font-size:10px;color:var(--ac);font-weight:700">${esc(p.id)}</span> <strong style="font-size:13px">${esc(p.titulo)}</strong><div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(p.usar)}</div></div>
+          <button class="btn btn-ok wa-copy" data-id="${esc(p.id)}" style="flex-shrink:0"><i class="fas fa-copy"></i> Copiar</button>
+        </div>
+        <div class="out-box" style="max-height:none">${nl2br(p.texto)}</div>
+        ${(p.vars&&p.vars.length)?`<div style="margin-top:6px;font-size:10px;color:var(--tx3)">Variables: ${p.vars.map(v=>`<span style="font-family:var(--fm);background:var(--bgs);padding:1px 5px;border-radius:3px;margin-right:3px">[${esc(v)}]</span>`).join('')}</div>`:''}
+      </div>`).join('') : emptyState('fa-magnifying-glass','Sin resultados','No hay plantillas que coincidan con tu búsqueda.')}`;
+  const s = $('#waSearch');
+  if (s) s.addEventListener('input', e => { waQuery = e.target.value; const pos=e.target.selectionStart; renderWhatsapp(); const ns=$('#waSearch'); if(ns){ns.focus(); ns.setSelectionRange(pos,pos);} });
+  $$('#v-whatsapp [data-wacat]').forEach(b => b.addEventListener('click', () => { waCat = b.dataset.wacat; renderWhatsapp(); }));
+  $$('#v-whatsapp .wa-copy').forEach(b => b.addEventListener('click', () => {
+    const p = plantillas.find(x => x.id === b.dataset.id);
+    if (p) { navigator.clipboard.writeText(p.texto); flash(b); }
+  }));
+}
+
+// =============================================================
+//  CALIFICADOR DE LEADS — pills que calculan P1-P4 en vivo
+// =============================================================
+const calSel = {};  // grupo -> Set de pill ids
+function calPuntaje(){
+  let total = 0;
+  const c = DATA.calificador;
+  c.fases.forEach(f => {
+    const sel = calSel[f.grupo];
+    if (!sel) return;
+    // pills no acumulables: solo cuenta la mayor; acumulables: suman
+    let baseMax = 0, extra = 0;
+    f.pills.forEach(p => { if (sel.has(p.id)) { if (p.acumulable) extra += p.pts; else baseMax = Math.max(baseMax, p.pts); } });
+    total += baseMax + extra;
+  });
+  return total;
+}
+function calClasificacion(pts){
+  return (DATA.calificador.clasificaciones || []).find(c => pts >= c.rango[0] && pts <= c.rango[1]) || null;
+}
+function renderLeads(){
+  const el = $('#v-leads');
+  const c = DATA.calificador;
+  if (!c || !c.fases) { el.innerHTML = emptyState('fa-bullseye','Lead Comercial','Sin contenido cargado.'); return; }
+  el.innerHTML = `
+    ${viewHead('Calificador Comercial', `<span class="badge voz"><i class="fas fa-phone"></i> Voz · Leads</span><span class="badge"><i class="fas fa-bolt"></i> 5–8 clicks</span>`)}
+    <div class="fb" id="calResultBox" style="border-left:3px solid var(--ac);position:sticky;top:0;z-index:5"></div>
+    ${c.fases.map(f => `
+      <div class="fb">
+        <div class="bt say"><span class="n">${f.n}</span>${esc(f.titulo)} <span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0;color:var(--tx3)">${esc(f.tiempo)} · ${esc(f.califica)}</span></div>
+        <div style="font-size:12px;line-height:1.6;margin-bottom:10px">${(f.decir||[]).map(d=>`<div style="margin-bottom:5px;padding-left:10px;border-left:2px solid var(--bd)">${nl2br(d)}</div>`).join('')}</div>
+        <div class="pills">${f.pills.map(p=>`<button class="pill ${p.color}" data-grp="${f.grupo}" data-pid="${p.id}" data-acc="${p.acumulable?1:0}">${esc(p.label)} · +${p.pts}</button>`).join('')}</div>
+      </div>`).join('')}
+    <div class="fb"><div class="bt do"><span class="n">5</span>Cierre y decisión</div>
+      <div class="sub-l"><i class="fas fa-check"></i>Si ≥ 10 (P1/P2/P3) — Asignar</div><div class="sp" style="border-left-color:var(--ok)">${nl2br(c.cierre.asignar)}</div>
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-xmark"></i>Si < 10 (P4) — No asignar</div><div class="sp" style="border-left-color:var(--wr)">${nl2br(c.cierre.noAsignar)}</div>
+    </div>
+    <div class="fb"><div class="bt esc"><span class="n"><i class="fas fa-shield"></i></span>Manejo de objeciones</div>
+      ${c.objeciones.map(o=>`<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--ac)">${esc(o.q)}</div><div style="font-size:12px;color:var(--tx2);line-height:1.5">${esc(o.a)}</div></div>`).join('')}
+    </div>
+    <div class="fb"><div class="bt val"><span class="n"><i class="fas fa-arrows-turn-right"></i></span>Sistemas de transferencia</div>
+      <table class="tbl"><thead><tr><th>Marca</th><th>Sistema</th><th>Acción</th></tr></thead><tbody>
+      ${c.sistemas.map(s=>`<tr><td><strong>${esc(s.marca)}</strong></td><td>${esc(s.sistema)}</td><td>${esc(s.accion)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  $$('#v-leads .pill[data-grp]').forEach(b => b.addEventListener('click', () => {
+    const grp = b.dataset.grp, pid = b.dataset.pid, acc = b.dataset.acc==='1';
+    if (!calSel[grp]) calSel[grp] = new Set();
+    const sel = calSel[grp];
+    if (sel.has(pid)) { sel.delete(pid); b.classList.remove('sel-on'); b.style.outline=''; }
+    else {
+      if (!acc) { // exclusivo: limpiar otras no-acumulables del grupo
+        const fase = c.fases.find(f=>f.grupo===grp);
+        fase.pills.forEach(p => { if (!p.acumulable && sel.has(p.id)) { sel.delete(p.id); const ob=$(`#v-leads .pill[data-pid="${p.id}"]`); if(ob){ob.style.outline='';} } });
+      }
+      sel.add(pid); b.style.outline='2px solid currentColor';
+    }
+    renderCalResult();
+  }));
+  renderCalResult();
+}
+function renderCalResult(){
+  const box = $('#calResultBox'); if (!box) return;
+  const pts = calPuntaje(), cl = calClasificacion(pts);
+  box.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
+    <div style="font-family:var(--fd);font-size:30px;font-weight:800">${pts}<span style="font-size:13px;color:var(--tx3)">/100</span></div>
+    <div>${cl?`<div style="font-family:var(--fd);font-weight:700;font-size:16px;color:${cl.color}">${cl.id} · ${esc(cl.nombre)}</div><div style="font-size:11px;color:var(--tx2)">${esc(cl.accion)} — ${esc(cl.sistema)}</div>`:'<div style="color:var(--tx3)">Sin puntaje</div>'}</div>
+    <button class="btn btn-gh" id="calReset" style="margin-left:auto"><i class="fas fa-rotate-left"></i> Reiniciar</button>
+  </div>`;
+  const r = $('#calReset'); if (r) r.addEventListener('click', () => { Object.keys(calSel).forEach(k=>delete calSel[k]); renderLeads(); });
+}
+
+// =============================================================
+//  CONTACTOS Y SEDES (+ escalamiento + extensiones + pico y placa)
+// =============================================================
+let contQuery = '';
+function renderContactos(){
+  const el = $('#v-contactos');
+  const q = contQuery.trim().toLowerCase();
+  const match = (...parts) => !q || parts.join(' ').toLowerCase().includes(q);
+  const sedes = (DATA.sedes||[]).filter(s => match(s.nombre, s.direccion, ...(s.contactos||[]).map(c=>c.nombre+c.area)));
+  const esc2 = el => el;
+  el.innerHTML = `
+    ${viewHead('Contactos y Sedes', `<span class="badge"><i class="fas fa-location-dot"></i> ${(DATA.sedes||[]).length} sedes</span><span class="badge"><i class="fas fa-headset"></i> Escalamiento + IVR</span>`)}
+    <div class="omni" style="max-width:none;margin-bottom:14px"><i class="fas fa-search" style="color:var(--tx3);font-size:12px"></i><input id="contSearch" placeholder="Buscar sede, contacto o área…" value="${esc(contQuery)}"></div>
+
+    <div class="sub-l"><i class="fas fa-store"></i>Sedes</div>
+    ${sedes.map(s => `<div class="fb">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-family:var(--fd);font-weight:700;font-size:14px">${esc(s.nombre)}</div>
+        <div class="badges" style="margin:0">${(s.marcas||[]).map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);margin:6px 0">${esc(s.direccion)}${s.maps?` · <a href="${esc(s.maps)}" target="_blank" style="color:var(--in)">Mapa</a>`:''}</div>
+      <div style="font-size:11px;color:var(--tx3)"><i class="fas fa-wrench"></i> Taller: ${esc(s.horarioTaller||'—')}${s.horarioVitrina?`<br><i class="fas fa-store"></i> Vitrina: ${esc(s.horarioVitrina)}`:''}</div>
+      ${s.nota?`<div class="al in" style="margin-top:6px;font-size:11px"><i class="fas fa-circle-info"></i><div>${esc(s.nota)}</div></div>`:''}
+      ${(s.contactos&&s.contactos.length)?`<table class="tbl" style="margin-top:8px"><tbody>${s.contactos.map(c=>`<tr><td><strong>${esc(c.nombre)}</strong></td><td>${esc(c.area)}</td><td style="font-family:var(--fm);font-size:11px">${c.ext?'Ext '+esc(c.ext):''}${c.cel?(c.ext?' · ':'')+esc(c.cel):''}</td></tr>`).join('')}</tbody></table>`:''}
+    </div>`).join('') || emptyState('fa-magnifying-glass','Sin resultados','Ninguna sede coincide.')}
+
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-headset"></i>Contactos de escalamiento</div>
+    ${(DATA.escalamiento||[]).map(g=>`<div class="fb"><div class="bt val" style="margin-bottom:8px"><span class="n"><i class="fas fa-users"></i></span>${esc(g.grupo)}</div>
+      <table class="tbl"><tbody>${g.items.filter(it=>match(it.nombre,it.cargo,it.tel)).map(it=>`<tr><td>${esc(it.cargo)}</td><td><strong>${esc(it.nombre)}</strong></td><td style="font-family:var(--fm);font-size:11px">${esc(it.tel)}${it.email?`<br><span style="color:var(--in)">${esc(it.email)}</span>`:''}</td></tr>`).join('')}</tbody></table>
+    </div>`).join('')}
+
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-phone-volume"></i>Extensiones equipo CETA</div>
+    <div class="fb"><table class="tbl"><thead><tr><th>Nombre</th><th>Ext</th><th>Rol</th></tr></thead><tbody>
+      ${(DATA.extensiones||[]).filter(x=>match(x.nombre,x.rol,x.ext)).map(x=>`<tr><td><strong>${esc(x.nombre)}</strong></td><td style="font-family:var(--fm)">${esc(x.ext)}</td><td>${esc(x.rol)}</td></tr>`).join('')}
+    </tbody></table></div>
+
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-ban"></i>Pico y placa</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${Object.entries(DATA.picoPlaca||{}).map(([ciudad,pp])=>`<div class="fb">${pp?`<div style="font-weight:700;margin-bottom:6px">${esc(ciudad)}</div><div style="font-size:11px;color:var(--tx3);margin-bottom:6px">${esc(pp.horario)}</div><table class="tbl"><tbody>${Object.entries(pp.dias).map(([d,n])=>`<tr><td>${esc(d)}</td><td style="font-family:var(--fm)">${esc(n)}</td></tr>`).join('')}</tbody></table><div style="font-size:10px;color:var(--tx3);margin-top:6px">No aplica: ${esc(pp.noAplica)}</div>`:`<div style="font-weight:700;margin-bottom:6px">${esc(ciudad)}</div><div style="font-size:11px;color:var(--tx3)">Pendiente confirmar esquema.</div>`}</div>`).join('')}
+    </div>`;
+  const cs = $('#contSearch');
+  if (cs) cs.addEventListener('input', e => { contQuery = e.target.value; const pos=e.target.selectionStart; renderContactos(); const ns=$('#contSearch'); if(ns){ns.focus(); ns.setSelectionRange(pos,pos);} });
+}
+
+// =============================================================
+//  PRODUCTOS Y SERVICIOS / MANUALES (fichas de conocimiento)
+// =============================================================
+function renderConocimiento(viewId, cats, title, icon){
+  const el = $('#'+viewId);
+  const fichas = (DATA.conocimiento||[]).filter(f => cats.includes(f.cat));
+  if (!fichas.length) { el.innerHTML = emptyState(icon,title,'Sin contenido cargado.'); return; }
+  const badgeColor = { red:'background:var(--acs);color:var(--ac)', gold:'background:rgba(180,83,9,.1);color:var(--gd)', green:'background:var(--oks);color:var(--ok)' };
+  el.innerHTML = `${viewHead(title)}${fichas.map(f=>`
+    <div class="fb">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="badge" style="${badgeColor[f.badge]||''}"><i class="fas fa-circle" style="font-size:6px"></i> ${f.cat}</span>
+        <strong style="font-size:14px">${esc(f.titulo)}</strong>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">${esc(f.resumen)}</div>
+      <div class="out-box" style="max-height:none">${nl2br(f.contenido)}</div>
+      <div style="margin-top:6px">${(f.tags||[]).map(t=>`<span style="font-size:9px;color:var(--tx3);background:var(--bgs);padding:1px 6px;border-radius:8px;margin-right:3px">#${esc(t)}</span>`).join('')}</div>
+    </div>`).join('')}`;
+}
+
+// =============================================================
+//  CAMPAÑAS
+// =============================================================
+function renderCampanias(){
+  const el = $('#v-campanias');
+  const list = DATA.campanias || [];
+  el.innerHTML = `${viewHead('Campañas Activas')}${list.map(c=>`
+    <div class="fb" style="${c.vigente?'border-left:3px solid var(--ok)':'opacity:.7'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:14px">${esc(c.titulo)}</strong>
+        <span class="badge ${c.vigente?'vig':''}">${c.vigente?(c.permanente?'Permanente':(c.desde?`${esc(c.desde)} → ${esc(c.hasta)}`:'Vigente')):'Por definir'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);margin-top:6px;line-height:1.6">${esc(c.resumen||'')}</div>
+      ${c.guion?`<div style="font-size:11px;color:var(--tx3);margin-top:6px"><i class="fas fa-book"></i> Guion: ${esc(c.guion)}</div>`:''}
+      ${c.link?`<a href="${esc(c.link)}" target="_blank" class="btn btn-gh" style="margin-top:8px"><i class="fas fa-link"></i> ${esc(c.link)}</a>`:''}
+    </div>`).join('')}`;
+}
+
+// =============================================================
+//  CLIENTES VIP
+// =============================================================
+function renderVip(){
+  const el = $('#v-vip');
+  const list = DATA.vip || [];
+  el.innerHTML = `
+    ${viewHead('Clientes VIP', `<span class="badge" style="background:rgba(180,83,9,.1);color:var(--gd)"><i class="fas fa-crown"></i> ${list.length} prioritarios</span>`)}
+    <div class="al wr"><i class="fas fa-triangle-exclamation"></i><div><strong>Regla:</strong> verificar SIEMPRE antes de atender. Si el cliente está en esta lista, escalar al coordinador.</div></div>
+    <div class="fb"><table class="tbl"><thead><tr><th>Cliente</th><th>Placa</th><th>Nota</th><th>Contacto</th></tr></thead><tbody>
+      ${list.map(v=>`<tr><td><i class="fas fa-crown" style="color:var(--gd);font-size:10px"></i> <strong>${esc(v.nombre)}</strong></td><td style="font-family:var(--fm)">${esc(v.placa||'—')}</td><td style="font-size:11px;color:var(--tx3)">${esc(v.nota||'')}</td><td style="font-family:var(--fm);font-size:11px">${esc(v.tel||'')}</td></tr>`).join('')}
+    </tbody></table></div>`;
 }
 
 // =============================================================
@@ -215,18 +471,22 @@ function renderConfig(){
 function emptyState(icon, title, msg){
   return `<div class="empty"><i class="fas ${icon}"></i><h2>${title}</h2><div>${msg}</div></div>`;
 }
+function renderContent(){
+  renderInbound();
+  renderOutbound();
+  renderWhatsapp();
+  renderLeads();
+  renderContactos();
+  renderConocimiento('v-productos', ['productos','critico'], 'Productos y Servicios', 'fa-book');
+  renderConocimiento('v-manuales', ['operativo'], 'Manuales y Operativo', 'fa-wrench');
+  renderCampanias();
+  renderVip();
+  renderPlaceholders();
+}
 function renderPlaceholders(){
   const ph = {
-    outbound:['fa-arrow-up-from-bracket','Outbound','4 guiones (Advance, Recuperación, Seguridad, Total Confianza) — Fase 3.'],
-    leads:['fa-bullseye','Lead Comercial','Calificador P1–P4 integrado al guion — Fase 3.'],
-    whatsapp:['fab fa-whatsapp','Plantillas WhatsApp','25 plantillas en 8 categorías — Fase 3.'],
-    internos:['fa-inbox','Casos Internos CETA','Radicación y asignación — Fase 5.'],
-    control:['fa-table-columns','Control de Gestión','Tabla, filtros y Modo TV — Fase 4 (requiere backend).'],
-    productos:['fa-book','Productos y Servicios','Telemetría, We Go, Garantías — Fase 3.'],
-    contactos:['fa-address-book','Contactos y Sedes','70 corporativos + IVR, buscables — Fase 3.'],
-    manuales:['fa-wrench','Manuales de Mantenimiento','Consulta por marca/modelo/km — Fase 3.'],
-    campanias:['fa-bullhorn','Campañas Activas','Seguridad KIA · Total Confianza — Fase 3.'],
-    vip:['fa-crown','Clientes VIP','Lista prioritaria con badge dorado — Fase 3.']
+    internos:['fa-inbox','Casos Internos CETA','Radicación y asignación — Fase 5 (pendiente reglas de asignación de Pablo).'],
+    control:['fa-table-columns','Control de Gestión','Tabla, filtros y Modo TV — Fase 4 (requiere backend Apps Script).']
   };
   Object.entries(ph).forEach(([k,[ic,t,m]]) => {
     const el = $('#v-'+k); if (el && !el.innerHTML.trim()) el.innerHTML = emptyState(ic.replace('fab ','').replace('fas ',''), t, m);
@@ -561,21 +821,26 @@ function resetPanel(){
 // =============================================================
 function buildSearchIndex(){
   const idx = [];
-  (DATA.inbound||[]).forEach(p => idx.push({t:`Inbound · ${p.titulo}`, k:'Guion', go:'inbound'}));
-  (DATA.sedes||[]).forEach(s => idx.push({t:`Sede ${s.nombre}`, k:'Sede', go:'contactos'}));
+  (DATA.inbound||[]).forEach(p => idx.push({t:`Paso ${p.paso} · ${p.titulo}`, k:'Inbound', go:'inbound'}));
+  (DATA.outbound||[]).forEach(o => idx.push({t:o.titulo, k:'Outbound', go:'outbound'}));
+  (DATA.plantillas||[]).forEach(p => idx.push({t:`${p.id} · ${p.titulo}`, k:'WhatsApp', go:'whatsapp'}));
+  (DATA.conocimiento||[]).forEach(f => idx.push({t:f.titulo, k:'Conocimiento', go: f.cat==='operativo'?'manuales':'productos', extra:(f.tags||[]).join(' ')}));
+  (DATA.sedes||[]).forEach(s => idx.push({t:`Sede ${s.nombre}`, k:'Sede', go:'contactos', extra:s.direccion}));
+  (DATA.escalamiento||[]).forEach(g => g.items.forEach(it => idx.push({t:`${it.nombre} — ${it.cargo}`, k:'Contacto', go:'contactos', extra:it.tel})));
+  (DATA.extensiones||[]).forEach(x => idx.push({t:`${x.nombre} (ext ${x.ext})`, k:'Extensión', go:'contactos'}));
+  (DATA.vip||[]).forEach(v => idx.push({t:v.nombre, k:'VIP', go:'vip', extra:v.placa}));
   (DATA.campanias||[]).forEach(c => idx.push({t:c.titulo, k:'Campaña', go:'campanias'}));
   (DATA.usuarios||[]).forEach(usr => { if (can('config')) idx.push({t:usr.nombre, k:'Usuario', go:'config'}); });
-  [['Cotizador','Panel','inbound'],['Plantillas WhatsApp','Atención','whatsapp'],['Clientes VIP','BdC','vip'],['Telemetría','Producto','productos'],['We Go','Producto','productos']]
-    .forEach(([t,k,go]) => idx.push({t,k,go}));
+  [['Cotizador','Panel','inbound'],['Calificador de leads','Comercial','leads']].forEach(([t,k,go]) => idx.push({t,k,go}));
   return idx;
 }
 function omniSearch(q){
   const res = $('#omniRes');
   q = q.trim().toLowerCase();
   if (!q) { res.classList.remove('show'); res.innerHTML=''; return; }
-  const hits = buildSearchIndex().filter(i => i.t.toLowerCase().includes(q)).slice(0, 10);
+  const hits = buildSearchIndex().filter(i => (i.t + ' ' + (i.extra||'')).toLowerCase().includes(q)).slice(0, 12);
   if (!hits.length) { res.innerHTML = `<div class="omni-item"><span style="color:var(--tx3)">Sin resultados</span></div>`; res.classList.add('show'); return; }
-  res.innerHTML = hits.map(h => `<div class="omni-item" data-go="${h.go}"><i class="fas fa-arrow-right" style="font-size:10px;color:var(--tx3)"></i>${h.t}<span class="k">${h.k}</span></div>`).join('');
+  res.innerHTML = hits.map(h => `<div class="omni-item" data-go="${h.go}"><i class="fas fa-arrow-right" style="font-size:10px;color:var(--tx3)"></i>${esc(h.t)}<span class="k">${esc(h.k)}</span></div>`).join('');
   res.classList.add('show');
   $$('#omniRes .omni-item[data-go]').forEach(el => el.addEventListener('click', () => {
     goTo(el.dataset.go); res.classList.remove('show'); $('#omniInput').value='';
