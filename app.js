@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.2.0';
+import { DATA } from './data.js?v=1.3.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -445,6 +445,33 @@ const RESULT_LABEL = { agenda:'Agendado', seg:'Seguimiento', noc:'No contesta', 
 const RESULT_COLOR = { agenda:'var(--ok)', seg:'var(--in)', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', noContactar:'var(--ac)' };
 let ctrlFiltro = { asesor:'', resultado:'' };
 
+// Columnas configurables del Control de Gestión (coordinador).
+// 'def' = visible por defecto. El render() las pinta en este orden.
+const CTRL_COLUMNS = [
+  { key:'hora',        label:'Hora',          def:true,  render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(fmtHora(g._ts))}</span>` },
+  { key:'asesor',      label:'Asesor',        def:true,  render: g => esc(g.asesorCeta||'—') },
+  { key:'placa',       label:'Placa',         def:true,  render: g => `<span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>` },
+  { key:'cliente',     label:'Cliente',       def:true,  render: g => esc(g.nombre||'—') },
+  { key:'telefono',    label:'Teléfono',      def:false, render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(g.telefono||'—')}</span>` },
+  { key:'ciudad',      label:'Ciudad',        def:false, render: g => esc(g.ciudad||'—') },
+  { key:'servicio',    label:'Servicio',      def:false, render: g => esc(g.servicio||'—') },
+  { key:'asesorTaller',label:'Asesor servicio',def:false, render: g => esc(g.asesorTaller||'—') },
+  { key:'resultado',   label:'Resultado',     def:true,  render: g => `<span class="tag" style="background:${RESULT_COLOR[g.resultado]||'var(--bgs)'}22;color:${RESULT_COLOR[g.resultado]||'var(--tx2)'}">${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}</span>` },
+  { key:'actualizado', label:'Últ. actualización', def:false, render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(g._updated && g._updated!==g._ts ? fmtFechaHora(g._updated) : '—')}</span>` }
+];
+const LS_CTRL_COLS = 'ceta_ctrl_cols';
+function getCtrlCols(){
+  // Asesores/analista: vista fija por defecto. Solo el coordinador personaliza.
+  if (!can('config')) return CTRL_COLUMNS.filter(c => c.def).map(c => c.key);
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_CTRL_COLS) || 'null');
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch {}
+  return CTRL_COLUMNS.filter(c => c.def).map(c => c.key);
+}
+function setCtrlCols(keys){ localStorage.setItem(LS_CTRL_COLS, JSON.stringify(keys)); }
+function resetCtrlCols(){ localStorage.removeItem(LS_CTRL_COLS); }
+
 function gestionesVisibles(){
   let rows = getGestionesLocal();
   const p = perms();
@@ -480,7 +507,10 @@ function renderControl(){
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Resultado</label>
         <select id="ctrlResultado" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${ctrlFiltro.resultado===k?'selected':''}>${v}</option>`).join('')}</select></div>
       <button class="btn btn-gh" id="ctrlClear"><i class="fas fa-filter-circle-xmark"></i> Limpiar</button>
-      ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV" style="margin-left:auto"><i class="fas fa-tv"></i> Modo TV</button>`:''}
+      <div style="margin-left:auto;display:flex;gap:6px">
+        ${can('config')?`<button class="btn btn-gh" id="ctrlCols" title="Configurar columnas"><i class="fas fa-gear"></i> Columnas</button>`:''}
+        ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV"><i class="fas fa-tv"></i> Modo TV</button>`:''}
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
@@ -490,16 +520,114 @@ function renderControl(){
       ${Object.entries(porAsesor).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px"><div style="width:90px;flex-shrink:0">${esc(a)}</div><div style="flex:1;background:var(--bgs);border-radius:4px;height:14px;overflow:hidden"><div style="width:${Math.round(n/maxA*100)}%;height:100%;background:var(--ac)"></div></div><div style="width:28px;text-align:right;font-family:var(--fm)">${n}</div></div>`).join('')}
     </div>`:''}
     <div class="fb">
-      ${fil.length?`<table class="tbl"><thead><tr><th>Hora</th><th>Asesor</th><th>Placa</th><th>Cliente</th><th>Resultado</th></tr></thead><tbody>
-        ${fil.map(g=>`<tr><td style="font-family:var(--fm);font-size:11px">${esc(fmtHora(g._ts))}</td><td>${esc(g.asesorCeta||'—')}</td><td style="font-family:var(--fm)">${esc(g.placa||'—')}</td><td>${esc(g.nombre||'—')}</td><td><span class="tag" style="background:${RESULT_COLOR[g.resultado]||'var(--bgs)'}22;color:${RESULT_COLOR[g.resultado]||'var(--tx2)'}">${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}</span></td></tr>`).join('')}
-      </tbody></table>`:emptyState('fa-inbox','Sin gestiones','Aún no hay gestiones registradas. Las que guardes en el panel derecho aparecerán aquí.')}
+      ${fil.length?(() => {
+        const cols = getCtrlCols().map(k => CTRL_COLUMNS.find(c=>c.key===k)).filter(Boolean);
+        return `<table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}<th style="width:24px"></th></tr></thead><tbody>
+          ${fil.map(g=>`<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer">${cols.map(c=>`<td>${c.render(g)}</td>`).join('')}<td style="color:var(--tx3)"><i class="fas fa-chevron-right" style="font-size:10px"></i></td></tr>`).join('')}
+        </tbody></table>`;
+      })():emptyState('fa-inbox','Sin gestiones','Aún no hay gestiones registradas. Las que guardes en el panel derecho aparecerán aquí.')}
     </div>`;
   const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
   const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
   const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
+  const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
+  $$('#v-control .ctrl-row').forEach(tr => tr.addEventListener('click', () => openCaseDetail(tr.dataset.id)));
+}
+
+// ===== MODAL: configurar columnas (solo coordinador) =====
+function openColsConfig(){
+  if (!can('config')) return;
+  const active = new Set(getCtrlCols());
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-table-columns"></i> Columnas de la tabla</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Elige qué columnas se muestran. Se guarda en este navegador.</div>
+      ${CTRL_COLUMNS.map(c => `<label class="tog" style="padding:7px 0;border-bottom:1px solid var(--bd);justify-content:space-between;width:100%">
+        <span>${esc(c.label)}</span>
+        <span class="tog-sw col-tg ${active.has(c.key)?'on':''}" data-col="${c.key}"></span>
+      </label>`).join('')}
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gh" id="colsReset"><i class="fas fa-rotate-left"></i> Restaurar vista por defecto</button>
+      <button class="btn btn-ac" id="colsSave"><i class="fas fa-check"></i> Aplicar</button>
+    </div>`);
+  $$('#modal .col-tg').forEach(sw => sw.addEventListener('click', () => sw.classList.toggle('on')));
+  $('#colsReset').addEventListener('click', () => { resetCtrlCols(); modalClose(); renderControl(); toast('Vista restaurada'); });
+  $('#colsSave').addEventListener('click', () => {
+    const keys = CTRL_COLUMNS.filter(c => $(`#modal .col-tg[data-col="${c.key}"]`).classList.contains('on')).map(c => c.key);
+    if (!keys.length) { toast('Selecciona al menos una columna'); return; }
+    setCtrlCols(keys); modalClose(); renderControl(); toast('Columnas actualizadas');
+  });
+}
+
+// ===== MODAL: detalle / edición de caso =====
+const EDITABLE_RESULTS = Object.keys(RESULT_LABEL);
+function openCaseDetail(id){
+  const g = getGestionesLocal().find(x => x.id === id);
+  if (!g) { toast('Caso no encontrado'); return; }
+  const editable = canEditCase(g);
+  const ro = editable ? '' : 'disabled';
+  const hist = (g.historial||[]).slice().sort((a,b)=>a.ts-b.ts);
+
+  modalOpen(`
+    <div class="modal-head">
+      <h3><i class="fas fa-folder-open"></i> Caso ${esc(g.placa||'—')} · ${esc(g.nombre||'Sin nombre')}</h3>
+      <button class="ib" data-modal-close><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="badges" style="margin-bottom:12px">
+        <span class="badge"><i class="fas fa-user"></i> Creó: ${esc(g.createdByAlias||g.asesorCeta||'—')}</span>
+        <span class="badge"><i class="fas fa-clock"></i> ${esc(fmtFechaHora(g._ts))}</span>
+        ${!editable?'<span class="badge" style="background:var(--wrs);color:var(--wr)"><i class="fas fa-eye"></i> Solo lectura</span>':''}
+      </div>
+
+      <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
+      <div class="rr"><div class="ff"><label>Nombre</label><input value="${esc(g.nombre||'')}" disabled></div><div class="ff"><label>Placa</label><input class="mono" value="${esc(g.placa||'')}" disabled></div></div>
+      <div class="rr"><div class="ff"><label>Teléfono</label><input id="mdTelefono" value="${esc(g.telefono||'')}" ${ro}></div><div class="ff"><label>Km actual</label><input id="mdKmActual" value="${esc(g.kmActual||'')}" ${ro}></div></div>
+      <div class="rr"><div class="ff"><label>Ciudad</label><input value="${esc(g.ciudad||'')}" disabled></div><div class="ff"><label>Servicio</label><input value="${esc(g.servicio||'')}" disabled></div></div>
+
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-flag"></i>Estado / Resultado</div>
+      <div class="ff"><select id="mdResultado" ${ro}>${EDITABLE_RESULTS.map(r=>`<option value="${r}" ${g.resultado===r?'selected':''}>${esc(RESULT_LABEL[r])}</option>`).join('')}</select></div>
+
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
+      <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" id="mdFechaCita" value="${esc(g.fechaCita||'')}" ${ro}></div><div class="ff"><label>Hora cita</label><input type="time" id="mdHoraCita" value="${esc(g.horaCita||'')}" ${ro}></div></div>
+      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input id="mdAsesorTaller" value="${esc(g.asesorTaller||'')}" ${ro}></div></div>
+
+      ${editable?`<div class="sub-l" style="margin-top:10px"><i class="fas fa-pen"></i>Nueva nota / comentario</div>
+      <div class="ff"><input id="mdNota" placeholder="Ej: Cliente confirmó cita para el viernes…"></div>`:''}
+
+      <div class="sub-l" style="margin-top:14px"><i class="fas fa-clock-rotate-left"></i>Historial del caso</div>
+      <div class="case-hist">
+        ${hist.map(h=>`<div class="hist-item">
+          <div class="hist-dot" style="background:${RESULT_COLOR[h.resultado]||'var(--tx3)'}"></div>
+          <div><div style="font-size:11px"><strong>${esc(h.tipo)}</strong> · ${esc(fmtFechaHora(h.ts))} · ${esc(h.autor||'—')} <span class="tag" style="background:${RESULT_COLOR[h.resultado]||'var(--bgs)'}22;color:${RESULT_COLOR[h.resultado]||'var(--tx2)'};margin-left:4px">${esc(RESULT_LABEL[h.resultado]||h.resultado||'—')}</span></div>${h.nota?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${esc(h.nota)}</div>`:''}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gh" data-modal-close>Cerrar</button>
+      ${editable?`<button class="btn btn-ac" id="mdSave"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>`:''}
+    </div>`);
+
+  if (editable) {
+    $('#mdSave').addEventListener('click', () => {
+      const changes = {
+        telefono: $('#mdTelefono').value.trim(),
+        kmActual: $('#mdKmActual').value.trim(),
+        resultado: $('#mdResultado').value,
+        fechaCita: $('#mdFechaCita').value,
+        horaCita: $('#mdHoraCita').value,
+        asesorTaller: $('#mdAsesorTaller').value.trim()
+      };
+      const nota = $('#mdNota').value.trim();
+      updateGestionLocal(id, changes, nota);
+      modalClose(); renderControl(); toast('✅ Caso actualizado');
+    });
+  }
 }
 function fmtHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
+function fmtFechaHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
 
 // ===== MODO TV (fullscreen, auto-refresh 60s) =====
 let tvTimer = null;
@@ -839,6 +967,15 @@ function flash(b){
 }
 function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
 
+// ===== MODAL genérico =====
+function modalOpen(html){
+  const ov = $('#modal');
+  ov.querySelector('.modal-card').innerHTML = html;
+  ov.classList.add('show');
+  ov.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', modalClose));
+}
+function modalClose(){ $('#modal').classList.remove('show'); }
+
 // =============================================================
 //  TARJETA (html2canvas)
 // =============================================================
@@ -912,13 +1049,67 @@ async function saveGestion(){
 
 // ===== Persistencia local de gestiones (respaldo / fuente de Control de Gestión) =====
 const LS_GESTIONES = 'ceta_gestiones';
+function newCaseId(){ return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
 function getGestionesLocal(){
-  try { return JSON.parse(localStorage.getItem(LS_GESTIONES) || '[]'); } catch { return []; }
+  let list;
+  try { list = JSON.parse(localStorage.getItem(LS_GESTIONES) || '[]'); } catch { return []; }
+  // Migración perezosa: garantizar id, historial y _updated en gestiones antiguas (Fase 4).
+  let changed = false;
+  list.forEach(g => {
+    if (!g.id) { g.id = newCaseId(); changed = true; }
+    if (!g._updated) { g._updated = g._ts || Date.now(); changed = true; }
+    if (!Array.isArray(g.historial)) {
+      g.historial = [{ ts: g._ts || Date.now(), tipo: 'Creado', autor: g.asesorCeta || '', resultado: g.resultado, nota: g.observacion || '' }];
+      changed = true;
+    }
+  });
+  if (changed) localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
+  return list;
 }
 function pushGestionLocal(payload){
   const list = getGestionesLocal();
-  list.unshift({ ...payload, _ts: Date.now() });
+  const now = Date.now();
+  const g = {
+    ...payload,
+    id: newCaseId(),
+    createdBy: S.user?.id ?? null,        // dueño del caso (para permisos de edición)
+    createdByAlias: S.user?.alias || '',
+    _ts: now, _updated: now,
+    historial: [{ ts: now, tipo: 'Creado', autor: S.user?.alias || '', resultado: payload.resultado, nota: payload.observacion || '' }]
+  };
+  list.unshift(g);
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500))); // tope de seguridad
+}
+function updateGestionLocal(id, changes, nota){
+  const list = getGestionesLocal();
+  const i = list.findIndex(g => g.id === id);
+  if (i < 0) return null;
+  const g = list[i];
+  const now = Date.now();
+  Object.assign(g, changes);
+  g._updated = now;
+  g.historial = g.historial || [];
+  g.historial.push({
+    ts: now, tipo: 'Actualizado', autor: S.user?.alias || '',
+    resultado: changes.resultado != null ? changes.resultado : g.resultado,
+    nota: nota || ''
+  });
+  list[i] = g;
+  localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
+  // Sincronizar con backend si está configurado (no bloquea la UI).
+  const url = DATA.config.endpoints.actualizarGestion;
+  if (url) {
+    try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {}
+  }
+  return g;
+}
+// Permiso de edición de un caso: coordinador edita todo; asesor solo el suyo; analista nunca.
+function canEditCase(g){
+  if (!S.user) return false;
+  if (S.user.rol === 'coordinador') return true;
+  if (S.user.rol === 'analista') return false;
+  return g.createdBy != null && g.createdBy === S.user.id;
 }
 
 function resetPanel(){
@@ -984,6 +1175,9 @@ function init(){
   $$('.ni[data-v]').forEach(b => b.addEventListener('click', () => goTo(b.dataset.v)));
   $('#omniInput').addEventListener('input', e => omniSearch(e.target.value));
   document.addEventListener('click', e => { if (!e.target.closest('.omni')) $('#omniRes').classList.remove('show'); });
+  // Cerrar modal al click en el backdrop o con Escape
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') modalClose(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') modalClose(); });
   $('#ftVer').textContent = 'v' + DATA.config.version;
   $('#ftMode').textContent = DATA.config.endpoints.guardarGestion ? 'En línea' : 'Local';
 

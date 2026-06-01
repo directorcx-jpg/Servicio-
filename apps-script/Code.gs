@@ -1,8 +1,9 @@
 /****************************************************************
  *  Code.gs — Backend Apps Script · Consola CETA Armotor
  *  ---------------------------------------------------------------
- *  3 endpoints (Web App):
- *    · POST  ?action=guardarGestion       → escribe fila en CETA_Gestiones_2026
+ *  Endpoints (Web App):
+ *    · POST  ?action=guardarGestion       → escribe fila nueva en CETA_Gestiones_2026
+ *    · POST  ?action=actualizarGestion    → actualiza fila existente (por columna id)
  *    · GET   ?action=consultarCotizador   → lee precio del Sheet cotizador (CacheService 6 min)
  *    · GET   ?action=buscarPlaca          → busca cliente por placa
  *    · GET   ?action=listarGestiones      → tabla para Control de Gestión (coordinador)
@@ -40,7 +41,9 @@ var COLS = [
   'novedad','descNovedad','weGo','wgFecha','wgHora','wgDireccion','wgQuien','wgTrayectos',
   'telemetria','accesoriosOf','cualesAccesorios','srvAdicional',
   'resultado','asesorTaller','fechaCita','horaCita','observacion',
-  'notaQuiter','evoEstado','evoCausa','evoMotivo','evoVoz'
+  'notaQuiter','evoEstado','evoCausa','evoMotivo','evoVoz',
+  // columnas extra (41-43) para edición/trazabilidad — no forman parte de las 40 del spec
+  'id','createdByAlias','historialJSON'
 ];
 var HEADERS = [
   'Marca temporal','Asesor CETA','Nombre cliente','Teléfono','Placa','Modelo','Km actual','Ciudad','Fecha nacimiento','Origen',
@@ -48,7 +51,8 @@ var HEADERS = [
   'Novedad reportada','Descripción novedad','We Go','Fecha We Go','Hora We Go','Dirección We Go','Quién recoge','Trayectos',
   'Telemetría ofrecida','Accesorios ofrecidos','Cuáles accesorios','Servicios adicionales',
   'Resultado','Asesor servicio taller','Fecha cita','Hora cita','Observación',
-  'Nota Quiter/iVuo','Evo Estado','Evo Causa','Evo Motivo','Evo Voz cliente'
+  'Nota Quiter/iVuo','Evo Estado','Evo Causa','Evo Motivo','Evo Voz cliente',
+  'ID','Creado por','Historial (JSON)'
 ];
 
 // ----------------------------------------------------------------
@@ -60,7 +64,8 @@ function doPost(e) { return route_(e, 'POST'); }
 function route_(e, method) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
-    if (method === 'POST' && action === 'guardarGestion') return json_(guardarGestion_(e));
+    if (method === 'POST' && action === 'guardarGestion')    return json_(guardarGestion_(e));
+    if (method === 'POST' && action === 'actualizarGestion') return json_(actualizarGestion_(e));
     if (action === 'consultarCotizador') return json_(consultarCotizador_(e));
     if (action === 'buscarPlaca')        return json_(buscarPlaca_(e));
     if (action === 'listarGestiones')    return json_(listarGestiones_(e));
@@ -91,13 +96,39 @@ function guardarGestion_(e) {
   if (!data.marcaTemporal) {
     data.marcaTemporal = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
   }
-  var row = COLS.map(function (k) {
+  var row = rowFromData_(data);
+  sh.appendRow(row);
+  return { success: true, row: sh.getLastRow(), id: data.id || '' };
+}
+
+// Convierte el objeto del front en el arreglo de columnas (incluye id/historial).
+function rowFromData_(data) {
+  return COLS.map(function (k) {
+    if (k === 'historialJSON') return JSON.stringify(data.historial || []);
     var v = data[k];
     if (Array.isArray(v)) return v.join(' // ');
     return (v == null) ? '' : v;
   });
-  sh.appendRow(row);
-  return { success: true, row: sh.getLastRow() };
+}
+
+// ----------------------------------------------------------------
+//  POST /actualizarGestion  (busca por columna 'id' y reescribe la fila)
+// ----------------------------------------------------------------
+function actualizarGestion_(e) {
+  var data = JSON.parse(e.postData.contents);
+  if (!data.id) return { success: false, error: 'Falta id' };
+  var sh = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID).getSheetByName(CFG.GESTIONES_TAB);
+  if (!sh || sh.getLastRow() < 2) return { success: false, error: 'Sin datos' };
+  var idCol = COLS.indexOf('id'); // 0-based
+  var values = sh.getRange(2, idCol + 1, sh.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === String(data.id)) {
+      var rowNum = i + 2;
+      sh.getRange(rowNum, 1, 1, COLS.length).setValues([rowFromData_(data)]);
+      return { success: true, row: rowNum, id: data.id };
+    }
+  }
+  return { success: false, error: 'ID no encontrado: ' + data.id };
 }
 
 // ----------------------------------------------------------------

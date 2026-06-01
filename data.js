@@ -9,13 +9,14 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.2.0",
+    version: "1.3.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
     // el panel opera 100% local (no escribe a Google Sheet todavía).
     endpoints: {
-      guardarGestion: "",      // POST  → CETA_Gestiones_2026
+      guardarGestion: "",      // POST  → CETA_Gestiones_2026 (nueva fila)
+      actualizarGestion: "",   // POST  → actualiza fila existente por id
       consultarCotizador: "",  // GET   → Sheet cotizador
       buscarPlaca: ""          // GET   → base de clientes
     },

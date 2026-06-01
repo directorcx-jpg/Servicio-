@@ -149,6 +149,18 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 .tv-overlay.show{display:block}
 .tv-close{position:fixed;top:20px;right:20px;z-index:301}
 .tv-inner{max-width:1200px;margin:0 auto}
+/* Modal */
+.modal{position:fixed;inset:0;z-index:310;background:rgba(0,0,0,.5);display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal.show{display:flex}
+.modal-card{background:var(--bgp);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.35);animation:fi .15s ease-out}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bd)}
+.modal-head h3{font-family:var(--fd);font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.modal-body{padding:14px 16px;max-height:62vh;overflow-y:auto}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--bd)}
+.case-hist{position:relative;padding-left:4px}
+.hist-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd)}
+.hist-item:last-child{border-bottom:none}
+.hist-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
 </style>
 </head>
 <body>
@@ -418,8 +430,11 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
   <div class="tv-inner" id="tvBody"></div>
 </div>
 
+<!-- Modal genérico (detalle de caso / configurar columnas) -->
+<div class="modal" id="modal"><div class="modal-card"></div></div>
+
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.2.0"></script>
+<script type="module" src="app.js?v=1.3.0"></script>
 </body>
 </html>
