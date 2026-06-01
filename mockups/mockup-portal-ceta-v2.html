@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consola CETA Armotor — Mockup v2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  /* ============== DESIGN TOKENS ============== */
+  :root[data-theme="light"] {
+    --bg: #fafaf9;
+    --bg-panel: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-subtle: #f4f4f3;
+    --bg-hover: #efeeec;
+    --border: #e7e5e4;
+    --border-strong: #d6d3d1;
+    --text: #1c1917;
+    --text-secondary: #57534e;
+    --text-tertiary: #78716c;
+    --text-on-accent: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.08);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f0f10;
+    --bg-panel: #18181b;
+    --bg-elevated: #1f1f23;
+    --bg-subtle: #232328;
+    --bg-hover: #2a2a30;
+    --border: #2a2a30;
+    --border-strong: #3a3a42;
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-on-accent: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+  }
+  :root {
+    --accent: #e53935;
+    --accent-hover: #c62828;
+    --accent-subtle: rgba(229, 57, 53, 0.08);
+    --success: #16a34a;
+    --success-subtle: rgba(22, 163, 74, 0.10);
+    --warning: #ea580c;
+    --warning-subtle: rgba(234, 88, 12, 0.10);
+    --info: #2563eb;
+    --info-subtle: rgba(37, 99, 235, 0.10);
+    --gold: #b45309;
+    --gold-subtle: rgba(180, 83, 9, 0.10);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Manrope', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    transition: background 200ms, color 200ms;
+  }
+  /* ============== LAYOUT ============== */
+  .app { display: grid; grid-template-rows: 56px 1fr 28px; height: 100vh; }
+  .header {
+    display: grid; grid-template-columns: 240px 1fr auto;
+    align-items: center; gap: 24px;
+    padding: 0 20px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 16px; letter-spacing: -0.02em;
+  }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), #b71c1c);
+    display: grid; place-items: center;
+    color: white; font-size: 13px;
+  }
+  .logo-text .ceta { color: var(--text-tertiary); font-weight: 500; font-size: 12px; margin-left: 6px;}
+  .omnibox {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    max-width: 560px;
+    width: 100%;
+    transition: var(--transition);
+  }
+  .omnibox:focus-within {
+    border-color: var(--accent);
+    background: var(--bg-panel);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+  .omnibox input {
+    flex: 1; border: none; outline: none;
+    background: transparent; color: var(--text);
+    font-family: var(--font-sans); font-size: 13px;
+  }
+  .omnibox input::placeholder { color: var(--text-tertiary); }
+  .kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); background: var(--bg-panel); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+  .header-actions { display: flex; align-items: center; gap: 4px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border: none; background: transparent;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+  .icon-btn .badge-dot { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px 4px 4px;
+    margin-left: 8px;
+    background: var(--bg-subtle);
+    border-radius: 24px;
+    font-size: 13px; font-weight: 500;
+  }
+  .user-chip .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #7c2d12);
+    color: white;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 700;
+  }
+  /* ============== 3-COLUMN MAIN ============== */
+  .main { display: grid; grid-template-columns: 240px 1fr 340px; overflow: hidden; }
+  .col { overflow-y: auto; }
+  .col::-webkit-scrollbar { width: 8px; }
+  .col::-webkit-scrollbar-track { background: transparent; }
+  .col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .col::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+  /* SIDEBAR */
+  .sidebar { background: var(--bg-panel); border-right: 1px solid var(--border); padding: 16px 12px; }
+  .nav-group { margin-bottom: 20px; }
+  .nav-group-title {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 10px 8px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; margin-bottom: 2px;
+    border-radius: 6px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    border: none; background: none; width: 100%; text-align: left;
+    font-family: var(--font-sans);
+  }
+  .nav-item i { width: 16px; font-size: 14px; }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-subtle); color: var(--accent);
+  }
+  .nav-item .count { margin-left: auto; font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+  .nav-item.vip {
+    background: var(--gold-subtle); color: var(--gold);
+    border: 1px solid rgba(180, 83, 9, 0.18);
+  }
+  .nav-item.vip:hover { background: rgba(180, 83, 9, 0.16); }
+
+  /* CENTRAL COLUMN */
+  .central { padding: 24px 28px; background: var(--bg); }
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 200ms ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  /* RIGHT PANEL */
+  .right-panel { background: var(--bg-panel); border-left: 1px solid var(--border); padding: 20px 18px; }
+  .panel-section { margin-bottom: 24px; }
+  .panel-title {
+    font-size: 11px; font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .panel-title .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  /* Variables panel */
+  .var-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .var-row label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+  .var-row input {
+    border: 1px solid var(--border); background: var(--bg-subtle);
+    padding: 6px 8px; border-radius: 6px;
+    font-size: 12px; font-family: var(--font-sans); color: var(--text);
+    transition: var(--transition);
+  }
+  .var-row input:focus { outline: none; border-color: var(--accent); background: var(--bg-panel); }
+  /* Script activo (panel derecho) */
+  .script-active {
+    background: var(--bg-subtle);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px; border-radius: 0 6px 6px 0;
+    font-size: 13px; line-height: 1.65;
+    color: var(--text);
+    font-family: var(--font-sans);
+    margin-bottom: 10px;
+  }
+  .script-active .var {
+    background: var(--accent-subtle);
+    color: var(--accent);
+    padding: 1px 6px; border-radius: 4px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .script-active .var.filled { background: var(--success-subtle); color: var(--success); }
+
+  /* ============== HOME OPERATIVO ============== */
+  .hero {
+    background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-subtle) 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -50%; right: -10%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, var(--accent-subtle) 0%, transparent 60%);
+    z-index: 0;
+  }
+  .hero-content { position: relative; z-index: 1; }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .hero p { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+  .hero .stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat { }
+  .stat-value { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
+  .stat-value.success { color: var(--success); }
+  .stat-value.warning { color: var(--warning); }
+  .stat-label { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .quick-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+    display: flex; flex-direction: column; gap: 8px;
+    font-family: var(--font-sans);
+  }
+  .quick-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .quick-card .icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: var(--bg-subtle);
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .quick-card.accent .icon { background: var(--accent-subtle); color: var(--accent); }
+  .quick-card.success .icon { background: var(--success-subtle); color: var(--success); }
+  .quick-card.warning .icon { background: var(--warning-subtle); color: var(--warning); }
+  .quick-card.info .icon { background: var(--info-subtle); color: var(--info); }
+  .quick-card.gold .icon { background: var(--gold-subtle); color: var(--gold); }
+  .quick-card h3 { font-size: 14px; font-weight: 600; }
+  .quick-card p { font-size: 12px; color: var(--text-tertiary); margin: 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .panel-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .panel-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .activity-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 8px; flex-shrink: 0; }
+  .activity-item .dot.success { background: var(--success); }
+  .activity-item .dot.info { background: var(--info); }
+  .activity-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* ============== FICHA OPERATIVA STANDARD ============== */
+  .ficha-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px; gap: 16px;
+  }
+  .ficha-title {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+    background: var(--bg-subtle); color: var(--text-secondary);
+  }
+  .badge.brand-kia { background: rgba(187, 22, 43, 0.10); color: #bb162b; }
+  .badge.brand-honda { background: rgba(204, 0, 0, 0.10); color: #cc0000; }
+  .badge.brand-faw { background: rgba(0, 48, 135, 0.10); color: #003087; }
+  .badge.channel-voice { background: var(--info-subtle); color: var(--info); }
+  .badge.channel-whatsapp { background: rgba(37, 211, 102, 0.10); color: #25D366; }
+  .badge.vigente { background: var(--success-subtle); color: var(--success); }
+  .summary-pills {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .summary-pills li { list-style: none; display: flex; gap: 8px; align-items: flex-start; }
+  .summary-pills li::before {
+    content: '→';
+    color: var(--accent);
+    font-weight: 700; margin-top: -1px;
+  }
+  /* Bloques de la ficha */
+  .ficha-block {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .block-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+  }
+  .block-title .num {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .block-title.validate .num { background: var(--info-subtle); color: var(--info); }
+  .block-title.say .num { background: var(--success-subtle); color: var(--success); }
+  .block-title.do .num { background: rgba(124, 58, 237, 0.10); color: #7c3aed; }
+  .block-title.escalate .num { background: var(--warning-subtle); color: var(--warning); }
+  /* Bloque "Decir al cliente" — typografía +20% */
+  .speech {
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg-subtle);
+    border-left: 4px solid var(--success);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    font-family: var(--font-sans);
+  }
+  .speech .var-tag {
+    background: var(--success-subtle);
+    color: var(--success);
+    padding: 1px 8px; border-radius: 4px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li { display: flex; gap: 10px; padding: 6px 0; font-size: 13px; align-items: flex-start; }
+  .check-square {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 4px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  /* Alert / Tip box */
+  .alert {
+    display: flex; gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .alert.warning { background: var(--warning-subtle); border-left: 4px solid var(--warning); color: var(--text); }
+  .alert.info { background: var(--info-subtle); border-left: 4px solid var(--info); }
+  .alert.success { background: var(--success-subtle); border-left: 4px solid var(--success); }
+  .alert i { margin-top: 2px; }
+  .alert.warning i { color: var(--warning); }
+  .alert.info i { color: var(--info); }
+  /* Accordion */
+  details.accordion {
+    margin-top: 12px;
+    background: var(--bg-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  details.accordion summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    list-style: none;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  details.accordion summary::-webkit-details-marker { display: none; }
+  details.accordion summary::after { content: '＋'; font-family: var(--font-mono); color: var(--text-tertiary); }
+  details.accordion[open] summary::after { content: '−'; }
+  details.accordion .body { padding: 0 16px 16px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+
+  /* ============== COTIZADOR ============== */
+  .cotizador-form {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .form-field label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .form-field select, .form-field input {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--bg-subtle);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    transition: var(--transition);
+  }
+  .form-field input[type="text"] { font-family: var(--font-mono); font-size: 13px; }
+  .form-field select:focus, .form-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-panel);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+  .vin-helper { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+  .cotiz-result {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .cotiz-result-header {
+    background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+    color: white;
+    padding: 18px 22px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  [data-theme="dark"] .cotiz-result-header { background: linear-gradient(135deg, #292524 0%, #44403c 100%); }
+  .cotiz-result-header .model { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  .cotiz-result-header .km { font-family: var(--font-mono); font-size: 13px; opacity: 0.7; }
+  .cotiz-result-header .price { font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+  .cotiz-result-body { padding: 22px; }
+  .cotiz-section { margin-bottom: 20px; }
+  .cotiz-section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cotiz-section-title .count {
+    margin-left: auto;
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .cotiz-section.included .cotiz-section-title { color: var(--success); }
+  .cotiz-section.included .cotiz-section-title .count { background: var(--success-subtle); color: var(--success); }
+  .cotiz-section.excluded .cotiz-section-title { color: var(--warning); }
+  .cotiz-section.excluded .cotiz-section-title .count { background: var(--warning-subtle); color: var(--warning); }
+  .cotiz-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+    list-style: none;
+  }
+  .cotiz-list li {
+    font-size: 13px;
+    padding: 4px 0;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .cotiz-list li::before {
+    content: '';
+    width: 14px; height: 14px;
+    margin-top: 3px;
+    flex-shrink: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  .cotiz-section.included .cotiz-list li::before {
+    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2316a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpolyline points="20 6 9 17 4 12"/%3E%3C/svg%3E');
+  }
+  .cotiz-section.excluded .cotiz-list li::before {
+    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ea580c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"%3E%3Cline x1="18" y1="6" x2="6" y2="18"/%3E%3Cline x1="6" y1="6" x2="18" y2="18"/%3E%3C/svg%3E');
+  }
+  .cotiz-actions {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  /* Botones */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    background: var(--bg-subtle);
+    color: var(--text);
+  }
+  .btn:hover { background: var(--bg-hover); }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { filter: brightness(0.92); }
+  .btn-ghost { background: transparent; border-color: var(--border); }
+  .btn-ghost:hover { background: var(--bg-hover); }
+  .btn.copied { background: var(--success); color: white; }
+
+  /* ============== CALIFICADOR LEADS (SIMPLIFICADO) ============== */
+  .lead-simplified .form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .lead-q {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .lead-q-title {
+    font-size: 13px; font-weight: 600;
+    margin-bottom: 12px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .lead-q-title .num {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 700;
+    background: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .lead-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lead-pill {
+    padding: 8px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-subtle);
+    font-size: 13px;
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+    font-family: var(--font-sans);
+    color: var(--text);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .lead-pill:hover { border-color: var(--border-strong); }
+  .lead-pill.selected.s-high { background: var(--success-subtle); border-color: var(--success); color: var(--success); }
+  .lead-pill.selected.s-mid { background: var(--info-subtle); border-color: var(--info); color: var(--info); }
+  .lead-pill.selected.s-low { background: var(--warning-subtle); border-color: var(--warning); color: var(--warning); }
+  .lead-pill.selected.s-out { background: rgba(0,0,0,0.05); border-color: var(--text-tertiary); color: var(--text-tertiary); }
+  [data-theme="dark"] .lead-pill.selected.s-out { background: rgba(255,255,255,0.05); }
+  .lead-pill .pts { font-family: var(--font-mono); font-size: 11px; opacity: 0.75; }
+
+  /* Resultado sticky panel derecho */
+  .result-card {
+    background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 18px;
+    position: sticky;
+    top: 0;
+  }
+  [data-theme="dark"] .result-card { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%); border: 1px solid #2a2a30; }
+  .result-score { font-family: var(--font-display); font-size: 42px; font-weight: 800; letter-spacing: -0.03em; text-align: center; }
+  .result-score .total { font-size: 16px; opacity: 0.5; }
+  .result-class {
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 700;
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    margin: 8px 0;
+  }
+  .result-class.p1 { background: var(--accent); }
+  .result-class.p2 { background: var(--warning); }
+  .result-class.p3 { background: var(--info); }
+  .result-class.p4 { background: #525252; }
+  .result-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin: 12px 0; }
+  .result-bar-fill { height: 100%; transition: width 400ms; border-radius: 4px; }
+  .result-breakdown { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 12px; }
+  .result-pt { text-align: center; padding: 6px 4px; background: rgba(255,255,255,0.05); border-radius: 5px; }
+  .result-pt .label { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
+  .result-pt .value { font-family: var(--font-mono); font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .result-action {
+    font-size: 12px; text-align: center;
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+  }
+  .result-action strong { color: #fff; }
+
+  /* ============== FOOTER ============== */
+  .footer {
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+  .footer .sep { color: var(--border-strong); }
+  .footer .live {
+    display: flex; align-items: center; gap: 6px; margin-left: auto;
+  }
+  .footer .live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 60px; right: 24px;
+    background: var(--text); color: var(--bg);
+    padding: 12px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none;
+    transform: translateY(20px);
+    transition: var(--transition);
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- =================== HEADER =================== -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark"><i class="fas fa-car"></i></div>
+      <div class="logo-text">ARMOTOR<span class="ceta">/ CETA</span></div>
+    </div>
+    <div class="omnibox">
+      <i class="fas fa-search" style="color: var(--text-tertiary)"></i>
+      <input type="text" placeholder="Buscar guiones, plantillas, contactos, modelos…" id="globalSearch">
+      <span class="kbd">⌘ K</span>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" title="Favoritos"><i class="far fa-star"></i></button>
+      <button class="icon-btn" title="Recientes"><i class="fas fa-clock-rotate-left"></i><span class="badge-dot"></span></button>
+      <button class="icon-btn" title="Cambiar tema" id="themeToggle"><i class="fas fa-moon"></i></button>
+      <button class="icon-btn" title="Notificaciones"><i class="fas fa-bell"></i></button>
+      <div class="user-chip">
+        <div class="avatar">PR</div>
+        <span>Pablo R.</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- =================== MAIN (3 columnas) =================== -->
+  <main class="main">
+
+    <!-- SIDEBAR -->
+    <aside class="col sidebar">
+      <div class="nav-group">
+        <div class="nav-group-title">General</div>
+        <button class="nav-item active" data-view="home"><i class="fas fa-house"></i>Home Operativo</button>
+        <button class="nav-item" data-view="cotizador"><i class="fas fa-calculator"></i>Cotizador<span class="count">⚡</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Atención</div>
+        <button class="nav-item" data-view="inbound"><i class="fas fa-phone-volume"></i>Inbound Posventa</button>
+        <button class="nav-item" data-view="tipificador"><i class="fas fa-clipboard-check"></i>Tipificador Cita<span class="count">⚡</span></button>
+        <button class="nav-item" data-view="comercial"><i class="fas fa-bullseye"></i>Lead Comercial<span class="count">P1-P4</span></button>
+        <button class="nav-item"><i class="fab fa-whatsapp"></i>Plantillas WhatsApp<span class="count">24</span></button>
+        <button class="nav-item"><i class="fas fa-phone-arrow-up-right"></i>Outbound</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Gestión</div>
+        <button class="nav-item"><i class="fas fa-list-check"></i>Seguimiento casos</button>
+        <button class="nav-item"><i class="fas fa-van-shuttle"></i>Registro We Go</button>
+        <button class="nav-item"><i class="fas fa-screwdriver-wrench"></i>Registro accesorios</button>
+        <button class="nav-item"><i class="fas fa-inbox"></i>Casos internos</button>
+        <button class="nav-item"><i class="fas fa-table-columns"></i>Mis casos (control)</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Operación</div>
+        <button class="nav-item"><i class="fas fa-shield-halved"></i>Garantías</button>
+        <button class="nav-item"><i class="fas fa-bullhorn"></i>Campañas<span class="count">2</span></button>
+        <button class="nav-item"><i class="fas fa-triangle-exclamation"></i>Casos Especiales</button>
+        <button class="nav-item"><i class="fas fa-stopwatch"></i>SLA</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Base de Conocimiento</div>
+        <button class="nav-item"><i class="fas fa-book"></i>Productos &amp; Servicios</button>
+        <button class="nav-item"><i class="fas fa-address-book"></i>Contactos &amp; Sedes</button>
+        <button class="nav-item"><i class="fas fa-circle-info"></i>Manuales Mantenimiento</button>
+        <button class="nav-item vip"><i class="fas fa-crown"></i>Clientes VIP</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Personal</div>
+        <button class="nav-item"><i class="fas fa-star"></i>Favoritos<span class="count">3</span></button>
+        <button class="nav-item"><i class="fas fa-clock-rotate-left"></i>Recientes</button>
+      </div>
+    </aside>
+
+    <!-- ============ CENTRAL: VIEWS ============ -->
+    <section class="col central">
+
+      <!-- VIEW: HOME OPERATIVO -->
+      <div class="view active" data-view-content="home">
+        <div class="hero">
+          <div class="hero-content">
+            <h1>Hola Pablo 👋 ¿Qué necesitas resolver?</h1>
+            <p>Tu consola para atención telefónica, digital y operativa.</p>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value success">94<span style="font-size:14px">%</span></div>
+                <div class="stat-label">Citas confirmadas hoy</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">42</div>
+                <div class="stat-label">Casos en gestión</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value warning">3</div>
+                <div class="stat-label">SLA en riesgo</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">14</div>
+                <div class="stat-label">Leads nuevos</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-bolt"></i>Accesos rápidos</div>
+        <div class="quick-grid">
+          <button class="quick-card accent" onclick="switchView('inbound')">
+            <div class="icon"><i class="fas fa-phone-volume"></i></div>
+            <h3>Agendar cita</h3>
+            <p>Flujo Inbound 10 pasos</p>
+          </button>
+          <button class="quick-card success" onclick="switchView('cotizador')">
+            <div class="icon"><i class="fas fa-calculator"></i></div>
+            <h3>Cotizador</h3>
+            <p>Mantenimiento detallado</p>
+          </button>
+          <button class="quick-card info" onclick="switchView('comercial')">
+            <div class="icon"><i class="fas fa-bullseye"></i></div>
+            <h3>Calificar lead</h3>
+            <p>P1 · P2 · P3 · P4</p>
+          </button>
+          <button class="quick-card warning">
+            <div class="icon"><i class="fab fa-whatsapp"></i></div>
+            <h3>Plantillas WhatsApp</h3>
+            <p>24 plantillas activas</p>
+          </button>
+          <button class="quick-card accent">
+            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+            <h3>Campañas</h3>
+            <p>Seguridad · Total Confianza</p>
+          </button>
+          <button class="quick-card info">
+            <div class="icon"><i class="fas fa-address-book"></i></div>
+            <h3>Contactos</h3>
+            <p>70 corporativos · IVR</p>
+          </button>
+          <button class="quick-card success">
+            <div class="icon"><i class="fas fa-stopwatch"></i></div>
+            <h3>SLA &amp; tiempos</h3>
+            <p>Reglas del equipo</p>
+          </button>
+          <button class="quick-card gold">
+            <div class="icon"><i class="fas fa-crown"></i></div>
+            <h3>Clientes VIP</h3>
+            <p>12 prioritarios</p>
+          </button>
+        </div>
+
+        <div class="two-col">
+          <div class="panel-card">
+            <h3><i class="fas fa-fire" style="color: var(--warning)"></i>Más consultados hoy</h3>
+            <div class="activity-item">
+              <div class="dot"></div>
+              <div>
+                <div><strong>Cotizador KIA Picanto 10K</strong></div>
+                <div class="activity-meta">37 consultas · última: hace 4 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="dot success"></div>
+              <div>
+                <div><strong>Plantilla confirmación cita</strong></div>
+                <div class="activity-meta">28 usos · última: hace 12 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="dot info"></div>
+              <div>
+                <div><strong>Sedes Manizales</strong></div>
+                <div class="activity-meta">19 consultas · última: hace 28 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="dot"></div>
+              <div>
+                <div><strong>Garantías Honda CR-V</strong></div>
+                <div class="activity-meta">14 consultas · última: hace 1h</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-card">
+            <h3><i class="fas fa-bell" style="color: var(--accent)"></i>Cambios recientes</h3>
+            <div class="activity-item">
+              <div class="dot"></div>
+              <div>
+                <div><strong>Nueva campaña Total Confianza KIA</strong></div>
+                <div class="activity-meta">Vigente 19 may – 31 ago · hace 2 días</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="dot info"></div>
+              <div>
+                <div><strong>Script Telemetría actualizado</strong></div>
+                <div class="activity-meta">v2.1 con tarifa nueva · hace 4 días</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="dot success"></div>
+              <div>
+                <div><strong>Plantillas WhatsApp depuradas</strong></div>
+                <div class="activity-meta">28 → 24 plantillas · hace 1 semana</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: COTIZADOR -->
+      <div class="view" data-view-content="cotizador">
+        <div class="ficha-header">
+          <div>
+            <h1 class="ficha-title">Generador de Cotización</h1>
+            <div class="badges">
+              <span class="badge brand-kia">KIA</span>
+              <span class="badge brand-honda">Honda</span>
+              <span class="badge brand-faw">FAW</span>
+              <span class="badge channel-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</span>
+              <span class="badge vigente"><i class="fas fa-circle" style="font-size:6px"></i> Vigente</span>
+            </div>
+          </div>
+        </div>
+
+        <ul class="summary-pills">
+          <li>Selecciona Marca → Combustión → Modelo → Kilometraje y genera el mensaje detallado para WhatsApp.</li>
+          <li>Captura el VIN para autocompletar marca, modelo y combustión sin errores.</li>
+          <li>El mensaje incluye <strong>TODOS</strong> los servicios del manual para justificar el precio al cliente.</li>
+          <li>Aclaración automática de qué <strong>NO está incluido</strong> (filtros, plumillas) — sujetos a inspección.</li>
+        </ul>
+
+        <div class="cotizador-form">
+          <div class="form-field" style="margin-bottom: 14px;">
+            <label>Buscar por VIN (autocompleta)</label>
+            <input type="text" placeholder="LJD3BA1DES0005732" id="vinInput">
+            <div class="vin-helper"><i class="fas fa-info-circle"></i> Consulta el sheet de cotizador (Apps Script JSON endpoint)</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Marca</label>
+              <select id="cotizMarca" onchange="updateCotiz()">
+                <option value="KIA">KIA</option>
+                <option value="Honda">Honda</option>
+                <option value="FAW">FAW</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Combustión</label>
+              <select id="cotizFuel" onchange="updateCotiz()">
+                <option value="gasolina">Gasolina</option>
+                <option value="diesel">Diésel</option>
+                <option value="hibrido">Híbrido</option>
+                <option value="electrico">Eléctrico</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Modelo</label>
+              <select id="cotizModel" onchange="updateCotiz()">
+                <option value="Picanto">Picanto</option>
+                <option value="K3">K3</option>
+                <option value="Soluto">Soluto</option>
+                <option value="Rio">Rio</option>
+                <option value="Sportage">Sportage</option>
+                <option value="Carens">Carens (RP 2.0)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Kilometraje</label>
+              <select id="cotizKm" onchange="updateCotiz()">
+                <option value="10000">10.000 km / 12 meses</option>
+                <option value="20000">20.000 km / 24 meses</option>
+                <option value="30000">30.000 km / 36 meses</option>
+                <option value="40000">40.000 km / 48 meses</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Ciudad (sede)</label>
+              <select id="cotizCity" onchange="updateCotiz()">
+                <option>Pereira</option>
+                <option>Manizales</option>
+                <option>Armenia</option>
+                <option>Cartago</option>
+                <option>La Dorada</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Embellecimiento</label>
+              <select id="cotizEmb">
+                <option value="ninguno">No aplica</option>
+                <option value="basico">Combo básico (+ $55.000)</option>
+                <option value="premium">Combo premium (+ $120.000)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="cotiz-result" id="cotizResult">
+          <div class="cotiz-result-header">
+            <div>
+              <div class="model" id="resModel">KIA Picanto · Gasolina</div>
+              <div class="km" id="resKm">Mantenimiento 10.000 km · 12 meses</div>
+            </div>
+            <div class="price" id="resPrice">$ 788.921</div>
+          </div>
+          <div class="cotiz-result-body">
+
+            <div class="cotiz-section included">
+              <div class="cotiz-section-title">
+                <i class="fas fa-circle-check"></i>
+                INCLUYE EN EL PRECIO
+                <span class="count" id="incCount">29 servicios</span>
+              </div>
+              <ul class="cotiz-list" id="incList">
+                <li>Cambio de Aceite y Filtro de Aceite de Motor</li>
+                <li>Cambio caucho plumillas</li>
+                <li>Diagnóstico Eléctrico KDS 2.0</li>
+                <li>Diagnóstico Especializado Batería 12V</li>
+                <li>Inspección Correas Motor, Poleas y Tensor</li>
+                <li>Inspección frenos delanteros, traseros</li>
+                <li>Inspección Conductos, Mangueras frenos</li>
+                <li>Inspección funcionamiento luces (altas, bajas, stops…)</li>
+                <li>Inspección Limpiabrisas/lavavidrios</li>
+                <li>Inspección nivel y estado líquido de frenos</li>
+                <li>Inspección líquido actuador embrague DCT</li>
+                <li>Inspección mangueras vacío y ventilación Carter</li>
+                <li>Inspección manguera y conducto actuador embrague</li>
+                <li>Inspección nivel, fugas mangueras aceite Caja cambios</li>
+                <li>Inspección nivel, fugas mangueras Sist. Refrigeración</li>
+                <li>Inspección Posicionamiento Cinturones Seguridad</li>
+                <li>Inspección Radiadores motor, intercooler, condensador</li>
+                <li>Inspección Recorrido pedal Freno y Embrague</li>
+                <li>Inspección sistema A/C (Funcionamiento, Carga, Fugas)</li>
+                <li>Inspección Sistema dirección, guardapolvos, rótulas</li>
+                <li>Inspección sistema de Escape</li>
+                <li>Inspección Suspensión, soportes, revisión torques</li>
+                <li>Inspección banda rodadura Neumáticos / presiones</li>
+                <li>Alineación, Balanceo y Rotación de Llantas</li>
+                <li>Limpieza sensor MAP</li>
+                <li>Lubricación Cerraduras y Bisagras Puertas</li>
+                <li>Revisión y ajuste mecanismo techo</li>
+                <li>Realizar LDC técnico y revisar solicitudes cliente</li>
+                <li>Prueba de Ruta</li>
+              </ul>
+            </div>
+
+            <div class="cotiz-section excluded">
+              <div class="cotiz-section-title">
+                <i class="fas fa-triangle-exclamation"></i>
+                NO INCLUIDO — sujeto a inspección del técnico
+                <span class="count" id="excCount">3 ítems</span>
+              </div>
+              <ul class="cotiz-list" id="excList">
+                <li>Cambio Filtro de Aire del A/C</li>
+                <li>Cambio Filtro de Aire del Motor</li>
+                <li>Cambio caucho plumillas (validar estado)</li>
+              </ul>
+            </div>
+
+            <div class="alert info">
+              <i class="fas fa-bath"></i>
+              <div><strong>Lavado:</strong> básico (enjuague exterior + aspirado interior). Combos de embellecimiento disponibles para contratar aparte.</div>
+            </div>
+
+            <div class="alert warning" style="margin-top:8px">
+              <i class="fas fa-file-lines"></i>
+              <div><strong>Llevar:</strong> tarjeta de propiedad, manual de garantías, llave de pernos (si tiene), SOAT y tecnomecánica vigentes.</div>
+            </div>
+
+            <div class="cotiz-actions">
+              <button class="btn btn-success" onclick="copyCotizMessage(this)"><i class="fas fa-copy"></i> Copiar mensaje para WhatsApp</button>
+              <button class="btn btn-ghost"><i class="fas fa-image"></i> Ver imagen del manual</button>
+              <button class="btn btn-ghost"><i class="fas fa-print"></i> Imprimir</button>
+              <button class="btn btn-ghost" style="margin-left:auto"><i class="fas fa-pen"></i> Reportar error en datos</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: TIPIFICADOR DE CITA -->
+      <div class="view" data-view-content="tipificador">
+        <div class="ficha-header">
+          <div>
+            <h1 class="ficha-title">Tipificador Único</h1>
+            <div class="badges">
+              <span class="badge channel-voice"><i class="fas fa-phone"></i> Voz</span>
+              <span class="badge channel-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</span>
+              <span class="badge" style="background:rgba(124,58,237,0.10);color:#7c3aed"><i class="fas fa-bolt"></i> 1 captura · 3 salidas</span>
+            </div>
+          </div>
+        </div>
+
+        <ul class="summary-pills">
+          <li>Captura <strong>una sola vez</strong> y genera: nota para Quiter/iVuo, tipificación para Evolution y resumen para el cliente.</li>
+          <li>Elimina el doble proceso: lo que tipificas aquí ya queda listo para ambas plataformas.</li>
+          <li>El signo (* / ++ / ??) se asigna <strong>automáticamente</strong> según el tipo de servicio.</li>
+        </ul>
+
+        <!-- PASO 1: Resultado del contacto -->
+        <div class="cotizador-form">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">1 · Resultado del contacto</label>
+          <div class="lead-pills" style="margin-bottom:4px">
+            <button class="lead-pill selected s-high" data-result="agenda" onclick="pickResult(this)">✅ Agendamiento exitoso</button>
+            <button class="lead-pill" data-result="seguimiento" onclick="pickResult(this)">🔄 Volver a llamar</button>
+            <button class="lead-pill" data-result="nocontacto" onclick="pickResult(this)">📵 No contesta</button>
+            <button class="lead-pill" data-result="noaplica" onclick="pickResult(this)">⏳ Sin kilometraje aún</button>
+            <button class="lead-pill" data-result="otrotaller" onclick="pickResult(this)">🏃 Visita otro taller</button>
+            <button class="lead-pill" data-result="nocontactar" onclick="pickResult(this)">🚫 No volver a contactar</button>
+          </div>
+        </div>
+
+        <!-- PASO 2: Datos del caso (varía según resultado) -->
+        <div class="cotizador-form" id="tipDatos">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">2 · Datos del caso</label>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Placa</label>
+              <input type="text" id="tipPlaca" placeholder="ABC123" oninput="updateTip()">
+            </div>
+            <div class="form-field">
+              <label>Teléfono</label>
+              <input type="text" id="tipTel" placeholder="300 000 0000" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="agenda">
+              <label>Km actual del vehículo</label>
+              <input type="text" id="tipKmActual" placeholder="8.500" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="agenda">
+              <label>Tipo de servicio</label>
+              <select id="tipServicio" onchange="updateTip()">
+                <option value="MANTENIMIENTO">Mantenimiento</option>
+                <option value="REV">Revisión (REV)</option>
+                <option value="SERVICIO RÁPIDO">Servicio rápido</option>
+                <option value="GARANTÍA">Garantía</option>
+                <option value="INSPECCIÓN">Inspección preventiva</option>
+                <option value="ESPECIALIZADA">Especializada / Diagnóstico</option>
+              </select>
+            </div>
+            <div class="form-field" data-block="agenda">
+              <label>Km del servicio</label>
+              <input type="text" id="tipKm" value="10.000" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="agenda">
+              <label>Valor</label>
+              <input type="text" id="tipPrecio" value="1.068.978" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="agenda">
+              <label>IVA</label>
+              <select id="tipIva" onchange="updateTip()">
+                <option value="IVA INCLUIDO">IVA incluido</option>
+                <option value="APROX">Aproximado</option>
+              </select>
+            </div>
+            <div class="form-field" data-block="nocontacto">
+              <label>N° de marcaciones</label>
+              <select id="tipMarcaciones" onchange="updateTip()">
+                <option value="1 CONTACTO">1 contacto</option>
+                <option value="2 CONTACTOS">2 contactos</option>
+                <option value="3 MARCACIONES">3 marcaciones</option>
+              </select>
+            </div>
+            <div class="form-field" data-block="nocontacto">
+              <label>Tipo</label>
+              <select id="tipNoContacto" onchange="updateTip()">
+                <option value="NO CONTESTA">No contesta</option>
+                <option value="CORREO DE VOZ">Correo de voz</option>
+                <option value="DIRECTO A BUZON">Directo a buzón</option>
+                <option value="TELEFONO APAGADO">Teléfono apagado</option>
+                <option value="NUMERO FUERA DE SERVICIO">Número fuera de servicio</option>
+              </select>
+            </div>
+            <div class="form-field" data-block="seguimiento">
+              <label>Motivo / próxima acción</label>
+              <input type="text" id="tipMotivoSeg" placeholder="Cliente valida km / presupuesto" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="noaplica">
+              <label>Km que tiene actualmente</label>
+              <input type="text" id="tipKmNoAplica" placeholder="5.000" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="noaplica">
+              <label>Reprograma para</label>
+              <input type="text" id="tipReprograma" placeholder="Junio" oninput="updateTip()">
+            </div>
+            <div class="form-field" data-block="otrotaller">
+              <label>Razón</label>
+              <select id="tipRazonOtro" onchange="updateTip()">
+                <option value="PRECIO">Precio más económico</option>
+                <option value="UBICACION">Mayor comodidad/ubicación</option>
+                <option value="PROVEEDOR">Histórico con otro taller</option>
+              </select>
+            </div>
+            <div class="form-field" data-block="nocontactar">
+              <label>Razón</label>
+              <select id="tipRazonNo" onchange="updateTip()">
+                <option value="VENDIO VEHICULO">Vendió vehículo</option>
+                <option value="NO DESEA INFORMACION">No desea información</option>
+                <option value="CAMBIO DOMICILIO">Cambio de domicilio</option>
+              </select>
+            </div>
+          </div>
+
+          <div data-block="agenda" style="margin-top:8px">
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Novedad / Voz del cliente (opcional)</label>
+            <input type="text" id="tipNovedad" placeholder="Cliente refiere chirrido al frenar..." oninput="updateTip()" style="width:100%;border:1px solid var(--border);background:var(--bg-subtle);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;font-family:var(--font-sans);margin-bottom:12px">
+
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Validaciones para taller</label>
+            <div class="lead-pills">
+              <button class="lead-pill selected s-mid" data-chk="VALIDAR SI TIENE CAMPAÑA ACTIVA" onclick="toggleChk(this)">Campaña activa</button>
+              <button class="lead-pill selected s-mid" data-chk="VALIDAR KIT DE EMBELLECIMIENTO" onclick="toggleChk(this)">Embellecimiento</button>
+              <button class="lead-pill selected s-mid" data-chk="VALIDAR ADICIONALES" onclick="toggleChk(this)">Adicionales</button>
+              <button class="lead-pill selected s-mid" data-chk="VALIDAR ACCESORIOS" onclick="toggleChk(this)">Accesorios</button>
+              <button class="lead-pill selected s-mid" data-chk="VALIDAR QUE MAS REQUIERE EL CLIENTE" onclick="toggleChk(this)">Qué más requiere</button>
+              <button class="lead-pill" data-chk="VALIDAR TELEMETRIA" onclick="toggleChk(this)">Telemetría</button>
+              <button class="lead-pill" data-chk="VALIDAR SI REQUIERE MECANICA ESPECIALIZADA O COLISION" onclick="toggleChk(this)">Especializada/Colisión</button>
+              <button class="lead-pill" data-chk="COTIZAR TAPETES, KIT DE ACCESORIOS, RINES, LLANTAS" onclick="toggleChk(this)">Cotizar tapetes/rines/llantas</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SALIDA A: Nota Quiter/iVuo -->
+        <div class="ficha-block" style="border-color:#7c3aed">
+          <div class="block-title"><span class="num" style="background:rgba(124,58,237,0.10);color:#7c3aed">A</span>Nota para Quiter / iVuo</div>
+          <div style="background:var(--bg-subtle);border-radius:8px;padding:14px 16px;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;color:var(--text);word-break:break-word" id="notaTecnica">—</div>
+          <button class="btn btn-success" style="margin-top:10px" onclick="copyNota(this)"><i class="fas fa-copy"></i> Copiar nota</button>
+        </div>
+
+        <!-- SALIDA B: Tipificación Evolution -->
+        <div class="ficha-block" style="border-color:var(--info)">
+          <div class="block-title"><span class="num" style="background:var(--info-subtle);color:var(--info)">B</span>Tipificación para Evolution</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="evoTip">
+            <div style="background:var(--bg-subtle);border-radius:6px;padding:10px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">Estado</div><div style="font-weight:600;font-size:13px;margin-top:2px" id="evoEstado">CONTACTO</div></div>
+            <div style="background:var(--bg-subtle);border-radius:6px;padding:10px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">Causa</div><div style="font-weight:600;font-size:13px;margin-top:2px" id="evoCausa">AGENDAMIENTO EXITOSO</div></div>
+            <div style="background:var(--bg-subtle);border-radius:6px;padding:10px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">Motivo</div><div style="font-weight:600;font-size:13px;margin-top:2px" id="evoMotivo">MANTENIMIENTO</div></div>
+            <div style="background:var(--bg-subtle);border-radius:6px;padding:10px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">Voz cliente</div><div style="font-weight:600;font-size:13px;margin-top:2px" id="evoVoz">MANTENIMIENTO PREVENTIVO</div></div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px" onclick="copyEvo(this)"><i class="fas fa-copy"></i> Copiar tipificación</button>
+        </div>
+
+        <!-- SALIDA C: Resumen cliente -->
+        <div class="ficha-block">
+          <div class="block-title say"><span class="num">C</span>Resumen para el cliente (WhatsApp)</div>
+          <div class="speech" id="resumenCliente" style="font-size:15px;border-left-color:#25D366">—</div>
+          <button class="btn btn-success" style="margin-top:10px" onclick="copyResumen(this)"><i class="fab fa-whatsapp"></i> Copiar resumen</button>
+        </div>
+      </div>
+
+      <!-- VIEW: INBOUND - Paso 6 (Cotización) -->
+      <div class="view" data-view-content="inbound">
+        <div class="ficha-header">
+          <div>
+            <h1 class="ficha-title">Flujo Inbound · Paso 6 — Cotizar mantenimiento</h1>
+            <div class="badges">
+              <span class="badge brand-kia">KIA</span>
+              <span class="badge brand-honda">Honda</span>
+              <span class="badge channel-voice"><i class="fas fa-phone"></i> Voz</span>
+              <span class="badge vigente"><i class="fas fa-circle" style="font-size:6px"></i> Vigente v2.1</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-ghost"><i class="fas fa-chevron-left"></i> Paso 5</button>
+            <button class="btn btn-primary">Paso 7 <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <ul class="summary-pills">
+          <li>Después de confirmar los datos del cliente, le entregamos cotización detallada.</li>
+          <li>Siempre aclarar qué <strong>NO está incluido</strong> para evitar reclamos en taller.</li>
+          <li>Plan diferenciado: combustión / híbrido / eléctrico — confirmar siempre.</li>
+          <li>Si el cliente reporta síntoma, NO ofrecer We Go aún (paso 7 lo maneja).</li>
+        </ul>
+
+        <div class="ficha-block">
+          <div class="block-title validate"><span class="num">1</span>Qué validar</div>
+          <ul class="checklist">
+            <li><span class="check-square"></span>Confirmar tipo de combustión del vehículo</li>
+            <li><span class="check-square"></span>Verificar kilometraje actual del odómetro</li>
+            <li><span class="check-square"></span>Identificar si requiere mantenimiento por tiempo o por kilometraje (lo primero que ocurra)</li>
+            <li><span class="check-square"></span>Validar que el cliente NO haya reportado síntomas en paso 3 (afecta We Go)</li>
+            <li><span class="check-square"></span>Tener abierto el Generador de Cotización con datos correctos</li>
+          </ul>
+        </div>
+
+        <div class="ficha-block">
+          <div class="block-title say"><span class="num">2</span>Qué decir al cliente</div>
+          <div class="speech">
+            "Para el mantenimiento de los <span class="var-tag">[KM]</span> de su <span class="var-tag">[MODELO]</span> el valor es de <span class="var-tag">$[PRECIO]</span>. Le cuento qué incluye este servicio: cambio de aceite y filtro motor, diagnóstico eléctrico con equipo KDS 2.0, inspección de frenos, suspensión, dirección, sistema eléctrico, alineación, balanceo, rotación de llantas y revisión de 30 puntos de control.
+            <br><br>
+            Es importante que sepa que <strong>no incluye</strong> cambio de filtro de aire del motor, filtro de aire acondicionado ni cauchos de plumillas; estos quedan sujetos a inspección del técnico y se cotizan aparte si los requiere. El lavado incluido es un enjuague exterior y aspirado interior; si desea un lavado más completo, manejamos combos de embellecimiento.
+            <br><br>
+            ¿Le agendamos su cita?"
+          </div>
+          <div class="alert info">
+            <i class="fas fa-lightbulb"></i>
+            <div><strong>Tip:</strong> Si el cliente pregunta "¿por qué tan caro?" — apóyate en la lista detallada del Generador. Los 29 ítems justifican el precio.</div>
+          </div>
+        </div>
+
+        <div class="ficha-block">
+          <div class="block-title do"><span class="num">3</span>Qué hacer después</div>
+          <ul class="checklist">
+            <li><span class="check-square"></span>Si dice <strong>sí</strong> → pasar a Paso 7 (Ofrecer We Go antes de definir día)</li>
+            <li><span class="check-square"></span>Si dice "lo pienso" → cerrar con "le envío resumen por WhatsApp y lo llamo en 24h"</li>
+            <li><span class="check-square"></span>Enviar mensaje del Generador por WhatsApp (no la imagen sola)</li>
+            <li><span class="check-square"></span>Registrar tipificación: <em>"Cotización entregada"</em></li>
+            <li><span class="check-square"></span>Programar seguimiento en 24h si quedó pendiente</li>
+          </ul>
+        </div>
+
+        <div class="ficha-block">
+          <div class="block-title escalate"><span class="num">4</span>Cuándo escalar</div>
+          <div class="alert warning">
+            <i class="fas fa-triangle-exclamation"></i>
+            <div>
+              Escalar al <strong>Líder de Posventa</strong> ANTES de responder cuando:<br>
+              • Cliente solicita descuento mayor al 10% en el mantenimiento<br>
+              • Cliente reporta reparación previa con queja (revisar historial primero)<br>
+              • Modelo o kilometraje no aparece en el Generador<br>
+              • Cliente pertenece a lista VIP (consultar Base de Conocimiento)
+            </div>
+          </div>
+          <details class="accordion">
+            <summary>Política profunda: descuentos y excepciones</summary>
+            <div class="body">
+              Descuentos estándar autorizados: <strong>5%</strong> para clientes recurrentes (3+ visitas), <strong>10%</strong> para Junta Directiva (mano de obra) y <strong>15%</strong> en repuestos para Junta Directiva. Cualquier otro caso requiere autorización del Líder de Posventa. Documentar siempre en el sistema con motivo del descuento.
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- VIEW: COMERCIAL (Calificador simplificado) -->
+      <div class="view lead-simplified" data-view-content="comercial">
+        <div class="ficha-header">
+          <div>
+            <h1 class="ficha-title">Calificador de Leads</h1>
+            <div class="badges">
+              <span class="badge brand-kia">KIA</span>
+              <span class="badge brand-honda">Honda</span>
+              <span class="badge brand-faw">FAW</span>
+              <span class="badge channel-voice"><i class="fas fa-phone"></i> Voz</span>
+              <span class="badge channel-whatsapp"><i class="fab fa-whatsapp"></i> Digital</span>
+            </div>
+          </div>
+        </div>
+
+        <ul class="summary-pills">
+          <li>Calificador simplificado: <strong>5 preguntas</strong> con pills tappables, no formularios largos.</li>
+          <li>El resultado se calcula en vivo en el panel derecho (sticky) sin scroll.</li>
+          <li>P1 ≥ 70 pts · P2 40-69 · P3 10-39 · P4 &lt;10 pts.</li>
+          <li>Sistema de transferencia: KIA → SGC · Honda/FAW/Usados → Quiter.</li>
+        </ul>
+
+        <div class="lead-q">
+          <div class="lead-q-title"><span class="num">A</span>Intención real (máx 25 pts)</div>
+          <div class="lead-pills">
+            <button class="lead-pill" data-grp="intencion" data-pts="15" data-cls="s-high" onclick="leadPick(this)">Recuerda y confirma <span class="pts">+15</span></button>
+            <button class="lead-pill" data-grp="intencion" data-pts="10" data-cls="s-mid" onclick="leadPick(this)">Tiene modelo definido <span class="pts">+10</span></button>
+            <button class="lead-pill" data-grp="intencion" data-pts="0" data-cls="s-out" onclick="leadPick(this)">No recuerda <span class="pts">0</span></button>
+          </div>
+        </div>
+
+        <div class="lead-q">
+          <div class="lead-q-title"><span class="num">B</span>Ubicación geográfica (máx 15 pts)</div>
+          <div class="lead-pills">
+            <button class="lead-pill" data-grp="ubicacion" data-pts="15" data-cls="s-high" onclick="leadPick(this)">Eje Cafetero <span class="pts">+15</span></button>
+            <button class="lead-pill" data-grp="ubicacion" data-pts="10" data-cls="s-mid" onclick="leadPick(this)">Municipios aledaños <span class="pts">+10</span></button>
+            <button class="lead-pill" data-grp="ubicacion" data-pts="5" data-cls="s-low" onclick="leadPick(this)">Otra zona, dispuesto a venir <span class="pts">+5</span></button>
+            <button class="lead-pill" data-grp="ubicacion" data-pts="0" data-cls="s-out" onclick="leadPick(this)">No dispuesto <span class="pts">0</span></button>
+          </div>
+        </div>
+
+        <div class="lead-q">
+          <div class="lead-q-title"><span class="num">C</span>Capacidad financiera (máx 30 pts)</div>
+          <div class="lead-pills">
+            <button class="lead-pill" data-grp="financiero" data-pts="20" data-cls="s-high" onclick="leadPick(this)">Ingresos &gt; 2 SMLV <span class="pts">+20</span></button>
+            <button class="lead-pill" data-grp="financiero" data-pts="10" data-cls="s-mid" onclick="leadPick(this)">Ingresos 1.5–2 SMLV <span class="pts">+10</span></button>
+            <button class="lead-pill" data-grp="financiero" data-pts="0" data-cls="s-out" onclick="leadPick(this)">No declara / &lt;1.5 SMLV <span class="pts">0</span></button>
+          </div>
+          <div class="lead-pills" style="margin-top:8px">
+            <button class="lead-pill" data-grp="extra1" data-pts="5" data-cls="s-mid" onclick="leadPick(this)">+ Cuota inicial ≥10% <span class="pts">+5</span></button>
+            <button class="lead-pill" data-grp="extra2" data-pts="5" data-cls="s-mid" onclick="leadPick(this)">+ Vehículo para retoma <span class="pts">+5</span></button>
+          </div>
+        </div>
+
+        <div class="lead-q">
+          <div class="lead-q-title"><span class="num">D</span>Perfil crediticio (máx 15 pts)</div>
+          <div class="lead-pills">
+            <button class="lead-pill" data-grp="credito" data-pts="15" data-cls="s-high" onclick="leadPick(this)">Sin reporte <span class="pts">+15</span></button>
+            <button class="lead-pill" data-grp="credito" data-pts="8" data-cls="s-mid" onclick="leadPick(this)">Saldada (Ley Borrón) <span class="pts">+8</span></button>
+            <button class="lead-pill" data-grp="credito" data-pts="3" data-cls="s-low" onclick="leadPick(this)">Vigente, dispuesto <span class="pts">+3</span></button>
+            <button class="lead-pill" data-grp="credito" data-pts="0" data-cls="s-out" onclick="leadPick(this)">Sin solución <span class="pts">0</span></button>
+          </div>
+        </div>
+
+        <div class="lead-q">
+          <div class="lead-q-title"><span class="num">E</span>Urgencia de compra (máx 15 pts)</div>
+          <div class="lead-pills">
+            <button class="lead-pill" data-grp="urgencia" data-pts="15" data-cls="s-high" onclick="leadPick(this)">&lt; 30 días <span class="pts">+15</span></button>
+            <button class="lead-pill" data-grp="urgencia" data-pts="10" data-cls="s-mid" onclick="leadPick(this)">1-3 meses <span class="pts">+10</span></button>
+            <button class="lead-pill" data-grp="urgencia" data-pts="5" data-cls="s-low" onclick="leadPick(this)">3-6 meses <span class="pts">+5</span></button>
+            <button class="lead-pill" data-grp="urgencia" data-pts="0" data-cls="s-out" onclick="leadPick(this)">Solo mirando <span class="pts">0</span></button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:18px;">
+          <button class="btn btn-primary" onclick="copyLeadResult(this)"><i class="fas fa-copy"></i> Copiar resumen</button>
+          <button class="btn btn-ghost" onclick="resetLead()"><i class="fas fa-arrow-rotate-left"></i> Limpiar</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============ RIGHT PANEL ============ -->
+    <aside class="col right-panel" id="rightPanel">
+      <!-- Panel para Home + Inbound + Cotizador -->
+      <div class="panel-section" id="varsPanel">
+        <div class="panel-title"><span class="live-dot"></span>VARIABLES EN VIVO</div>
+        <div class="var-row">
+          <label>Nombre</label>
+          <input type="text" id="varNombre" placeholder="Sr./Sra." oninput="updateVars()">
+        </div>
+        <div class="var-row">
+          <label>Placa</label>
+          <input type="text" id="varPlaca" placeholder="ABC-123" oninput="updateVars()">
+        </div>
+        <div class="var-row">
+          <label>Modelo</label>
+          <input type="text" id="varModelo" placeholder="Picanto" oninput="updateVars()">
+        </div>
+        <div class="var-row">
+          <label>Km</label>
+          <input type="text" id="varKm" placeholder="10.000" oninput="updateVars()">
+        </div>
+        <div class="var-row">
+          <label>Asesor</label>
+          <input type="text" id="varAsesor" placeholder="Pablo R." oninput="updateVars()" value="Pablo R.">
+        </div>
+      </div>
+
+      <div class="panel-section" id="scriptPanel">
+        <div class="panel-title"><i class="fas fa-quote-right"></i>SCRIPT ACTIVO</div>
+        <div class="script-active" id="scriptActive">
+          "Armotor, muy buenos días, le habla <span class="var filled">Pablo R.</span>, asesor de servicio. ¿En qué le puedo ayudar?"
+        </div>
+        <button class="btn btn-success" style="width:100%" onclick="copyScript(this)"><i class="fas fa-copy"></i> Copiar script</button>
+      </div>
+
+      <!-- Resultado lead (solo visible en vista comercial) -->
+      <div class="panel-section" id="resultPanel" style="display:none;">
+        <div class="panel-title"><span class="live-dot"></span>RESULTADO EN VIVO</div>
+        <div class="result-card">
+          <div class="result-score"><span id="rScore">0</span><span class="total">/100</span></div>
+          <div class="result-class p4" id="rClass">P4 · No aplica</div>
+          <div class="result-bar"><div class="result-bar-fill" id="rBar" style="width:0%; background:#525252;"></div></div>
+          <div class="result-breakdown">
+            <div class="result-pt"><div class="label">A. Int</div><div class="value" id="rIntencion">0</div></div>
+            <div class="result-pt"><div class="label">B. Ubi</div><div class="value" id="rUbicacion">0</div></div>
+            <div class="result-pt"><div class="label">C. Fin</div><div class="value" id="rFinanciero">0</div></div>
+            <div class="result-pt"><div class="label">D. Cre</div><div class="value" id="rCredito">0</div></div>
+            <div class="result-pt"><div class="label">E. Urg</div><div class="value" id="rUrgencia">0</div></div>
+          </div>
+          <div class="result-action" id="rAction">❌ No asignar en plataforma</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title"><i class="fas fa-bookmark"></i>SIGUIENTE PASO</div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          <strong style="color: var(--text)">Paso 7:</strong> Ofrecer We Go antes de definir día.
+          <br><br>
+          <em>Razón:</em> si el cliente elige un día con el servicio de We Go ya copado, no se puede agendar.
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- =================== FOOTER =================== -->
+  <footer class="footer">
+    <span>v2.0-mockup</span><span class="sep">·</span>
+    <span>Última actualización: 2026-05-16</span><span class="sep">·</span>
+    <span>Owner: Pablo Rincón</span><span class="sep">·</span>
+    <span>Director CX Armotor</span>
+    <div class="live"><div class="dot"></div>Sistema activo</div>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast">Copiado al portapapeles</div>
+
+<script>
+// ============== DATA ==============
+const MAINTENANCE_DATA = {
+  "KIA-gasolina-Picanto-10000": {
+    label: "KIA Picanto · Gasolina",
+    km: "Mantenimiento 10.000 km · 12 meses",
+    price: 788921,
+    included: [
+      "Cambio de Aceite y Filtro de Aceite de Motor","Diagnóstico Eléctrico KDS 2.0","Diagnóstico Especializado Batería 12V",
+      "Inspección Correas Motor, Poleas y Tensor","Inspección frenos delanteros y traseros","Inspección Conductos y Mangueras",
+      "Inspección funcionamiento luces (altas, bajas, stops)","Inspección Limpiabrisas/lavavidrios","Inspección nivel líquido de frenos",
+      "Inspección líquido actuador embrague DCT","Inspección mangueras vacío y ventilación Carter","Inspección manguera actuador embrague",
+      "Inspección Caja de cambios MT y AT","Inspección Sist. Refrigeración","Inspección Posicionamiento Cinturones Seguridad",
+      "Inspección Radiadores motor","Inspección Recorrido pedal Freno y Embrague","Inspección sistema A/C",
+      "Inspección Sistema dirección y rótulas","Inspección sistema de Escape","Inspección Suspensión y soportes",
+      "Inspección banda rodadura Neumáticos","Alineación, Balanceo y Rotación de Llantas","Limpieza sensor MAP",
+      "Lubricación Cerraduras y Bisagras Puertas","Revisión y ajuste mecanismo techo","LDC técnico y revisión solicitudes",
+      "Prueba de Ruta","Lavado exterior y aspirado interior"
+    ],
+    excluded: ["Cambio Filtro de Aire del A/C","Cambio Filtro de Aire del Motor","Cambio caucho plumillas (validar estado)"]
+  },
+  "KIA-gasolina-Picanto-20000": {
+    label: "KIA Picanto · Gasolina",
+    km: "Mantenimiento 20.000 km · 24 meses",
+    price: 950000,
+    included: [
+      "Cambio de Aceite y Filtro de Aceite de Motor","Cambio Líquido de frenos","Diagnóstico Eléctrico KDS 2.0",
+      "Diagnóstico Especializado Batería 12V","Inspección Correas Motor","Inspección frenos delanteros y traseros",
+      "Inspección Conductos y Mangueras","Inspección luces","Inspección Limpiabrisas","Inspección nivel líquido de frenos",
+      "Inspección líquido actuador embrague DCT","Inspección mangueras vacío y Carter","Inspección actuador embrague",
+      "Inspección Caja de cambios MT y AT","Inspección Sist. Refrigeración","Inspección Cinturones Seguridad",
+      "Inspección Radiadores","Inspección Recorrido pedal","Inspección sistema A/C","Inspección Sistema dirección",
+      "Inspección sistema de Escape","Inspección Suspensión","Inspección banda rodadura","Alineación, Balanceo y Rotación",
+      "Limpieza sensor MAP","Lubricación Cerraduras","Revisión mecanismo techo","LDC técnico","Prueba de Ruta",
+      "Lavado exterior y aspirado interior"
+    ],
+    excluded: ["Cambio Filtro de Aire del A/C","Cambio Filtro de Aire del Motor","Cambio caucho plumillas (validar estado)"]
+  },
+  "KIA-gasolina-Sportage-10000": {
+    label: "KIA Sportage · Gasolina",
+    km: "Mantenimiento 10.000 km · 12 meses",
+    price: 1068978,
+    included: [
+      "Cambio de Aceite y Filtro de Aceite de Motor","Diagnóstico Eléctrico KDS 2.0","Diagnóstico Especializado Batería 12V",
+      "Inspección Correas Motor","Inspección frenos delanteros y traseros","Inspección Conductos","Inspección luces",
+      "Inspección Limpiabrisas","Inspección nivel líquido de frenos","Inspección líquido actuador embrague DCT",
+      "Inspección mangueras Carter","Inspección actuador embrague","Inspección Caja de cambios","Inspección Refrigeración",
+      "Inspección Cinturones Seguridad","Inspección Radiadores","Inspección Recorrido pedal","Inspección sistema A/C",
+      "Inspección Sistema dirección","Inspección sistema de Escape","Inspección Suspensión","Inspección banda rodadura",
+      "Alineación, Balanceo y Rotación","Limpieza sensor MAP","Lubricación Cerraduras","Revisión mecanismo techo",
+      "LDC técnico","Prueba de Ruta","Lavado exterior y aspirado interior"
+    ],
+    excluded: ["Cambio Filtro de Aire del A/C","Cambio Filtro de Aire del Motor","Cambio caucho plumillas (validar estado)"]
+  }
+};
+
+// ============== THEME TOGGLE ==============
+const themeBtn = document.getElementById('themeToggle');
+const themeIcon = themeBtn.querySelector('i');
+const savedTheme = localStorage.getItem('ceta-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+
+themeBtn.addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  themeIcon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  localStorage.setItem('ceta-theme', next);
+});
+
+// ============== NAVIGATION ==============
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => switchView(item.dataset.view));
+});
+
+function switchView(view) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const targetNav = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector(`[data-view-content="${view}"]`).classList.add('active');
+  // Show/hide result panel for lead view
+  document.getElementById('resultPanel').style.display = (view === 'comercial') ? 'block' : 'none';
+  document.getElementById('varsPanel').style.display = (view === 'comercial' || view === 'tipificador') ? 'none' : 'block';
+  document.getElementById('scriptPanel').style.display = (view === 'comercial' || view === 'tipificador') ? 'none' : 'block';
+}
+
+// ============== VARS LIVE UPDATE ==============
+function updateVars() {
+  const nombre = document.getElementById('varNombre').value || '[NOMBRE]';
+  const placa = document.getElementById('varPlaca').value || '[PLACA]';
+  const modelo = document.getElementById('varModelo').value || '[MODELO]';
+  const km = document.getElementById('varKm').value || '[KM]';
+  const asesor = document.getElementById('varAsesor').value || '[ASESOR]';
+  const script = document.getElementById('scriptActive');
+  const wrap = v => `<span class="var ${v.startsWith('[') ? '' : 'filled'}">${v}</span>`;
+  script.innerHTML = `"Armotor, muy buenos días, le habla ${wrap(asesor)}, asesor de servicio. ¿En qué le puedo ayudar?<br><br>Le confirmo: vehículo placa ${wrap(placa)}, modelo ${wrap(modelo)} con ${wrap(km)} km, a nombre de ${wrap(nombre)}, ¿correcto?"`;
+}
+
+// ============== COTIZADOR ==============
+function updateCotiz() {
+  const marca = document.getElementById('cotizMarca').value;
+  const fuel = document.getElementById('cotizFuel').value;
+  const model = document.getElementById('cotizModel').value;
+  const km = document.getElementById('cotizKm').value;
+  const key = `${marca}-${fuel}-${model}-${km}`;
+  const data = MAINTENANCE_DATA[key];
+
+  if (!data) {
+    // demo: usar Picanto 10K como fallback
+    document.getElementById('resModel').textContent = `${marca} ${model} · ${fuel.charAt(0).toUpperCase() + fuel.slice(1)}`;
+    document.getElementById('resKm').textContent = `Mantenimiento ${parseInt(km).toLocaleString('es-CO')} km`;
+    document.getElementById('resPrice').textContent = `$ —`;
+    document.getElementById('incList').innerHTML = '<li style="color:var(--text-tertiary)">Modelo aún no cargado en el cotizador</li>';
+    document.getElementById('excList').innerHTML = '';
+    document.getElementById('incCount').textContent = '— servicios';
+    document.getElementById('excCount').textContent = '— ítems';
+    return;
+  }
+
+  document.getElementById('resModel').textContent = data.label;
+  document.getElementById('resKm').textContent = data.km;
+  document.getElementById('resPrice').textContent = `$ ${data.price.toLocaleString('es-CO')}`;
+  document.getElementById('incList').innerHTML = data.included.map(s => `<li>${s}</li>`).join('');
+  document.getElementById('excList').innerHTML = data.excluded.map(s => `<li>${s}</li>`).join('');
+  document.getElementById('incCount').textContent = `${data.included.length} servicios`;
+  document.getElementById('excCount').textContent = `${data.excluded.length} ítems`;
+}
+
+function copyCotizMessage(btn) {
+  const marca = document.getElementById('cotizMarca').value;
+  const fuel = document.getElementById('cotizFuel').value;
+  const model = document.getElementById('cotizModel').value;
+  const km = document.getElementById('cotizKm').value;
+  const key = `${marca}-${fuel}-${model}-${km}`;
+  const data = MAINTENANCE_DATA[key];
+  if (!data) { showToast('Modelo aún no cargado'); return; }
+
+  const includedTxt = data.included.map(s => `• ${s}`).join('\n');
+  const excludedTxt = data.excluded.map(s => `• ${s}`).join('\n');
+  const msg = `*Mantenimiento ${model} - ${parseInt(km).toLocaleString('es-CO')} km*
+
+✅ *Incluye en el precio (${data.included.length} servicios):*
+${includedTxt}
+
+⚠️ *NO incluido* - sujeto a inspección del técnico:
+${excludedTxt}
+
+💰 *Valor aproximado:* $${data.price.toLocaleString('es-CO')}
+
+🛁 Lavado básico (enjuague exterior + aspirado interior). Combos de embellecimiento disponibles aparte.
+
+📋 *Llevar:* tarjeta de propiedad, manual de garantías, llave de pernos (si tiene), SOAT y tecnomecánica vigentes.
+
+¿Le agendamos su cita? 📅`;
+
+  navigator.clipboard.writeText(msg).then(() => {
+    btn.classList.add('copied');
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1800);
+    showToast('Mensaje listo para WhatsApp');
+  });
+}
+
+function copyScript(btn) {
+  const text = document.getElementById('scriptActive').innerText;
+  navigator.clipboard.writeText(text.replace(/"/g, ''));
+  btn.classList.add('copied');
+  const o = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+  setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = o; }, 1500);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ============== LEAD CALIFICADOR ==============
+const leadState = {};
+
+function leadPick(btn) {
+  const grp = btn.dataset.grp;
+  const pts = parseInt(btn.dataset.pts);
+  const cls = btn.dataset.cls;
+  // Para grupos single-select (extra1/2 son independientes — toggle)
+  if (grp === 'extra1' || grp === 'extra2') {
+    if (leadState[grp]) {
+      btn.classList.remove('selected', cls);
+      delete leadState[grp];
+    } else {
+      btn.classList.add('selected', cls);
+      leadState[grp] = pts;
+    }
+  } else {
+    document.querySelectorAll(`.lead-pill[data-grp="${grp}"]`).forEach(p => p.classList.remove('selected','s-high','s-mid','s-low','s-out'));
+    btn.classList.add('selected', cls);
+    leadState[grp] = pts;
+  }
+  recalcLead();
+}
+
+function recalcLead() {
+  const intencion = leadState.intencion || 0;
+  const ubicacion = leadState.ubicacion || 0;
+  const financiero = (leadState.financiero || 0) + (leadState.extra1 || 0) + (leadState.extra2 || 0);
+  const credito = leadState.credito || 0;
+  const urgencia = leadState.urgencia || 0;
+  const total = intencion + ubicacion + financiero + credito + urgencia;
+
+  document.getElementById('rIntencion').textContent = intencion;
+  document.getElementById('rUbicacion').textContent = ubicacion;
+  document.getElementById('rFinanciero').textContent = financiero;
+  document.getElementById('rCredito').textContent = credito;
+  document.getElementById('rUrgencia').textContent = urgencia;
+  document.getElementById('rScore').textContent = total;
+  document.getElementById('rBar').style.width = total + '%';
+
+  const rClass = document.getElementById('rClass');
+  const rBar = document.getElementById('rBar');
+  const rAction = document.getElementById('rAction');
+  rClass.className = 'result-class';
+  if (total >= 70) {
+    rClass.classList.add('p1'); rClass.textContent = 'P1 · Alta prioridad';
+    rBar.style.background = 'var(--accent)';
+    rAction.innerHTML = '✅ Asignar en <strong>SGC/Quiter</strong> con prioridad';
+  } else if (total >= 40) {
+    rClass.classList.add('p2'); rClass.textContent = 'P2 · Media prioridad';
+    rBar.style.background = 'var(--warning)';
+    rAction.innerHTML = '✅ Asignar en <strong>SGC/Quiter</strong>';
+  } else if (total >= 10) {
+    rClass.classList.add('p3'); rClass.textContent = 'P3 · Baja prioridad';
+    rBar.style.background = 'var(--info)';
+    rAction.innerHTML = '✅ Asignar – Compra futura';
+  } else {
+    rClass.classList.add('p4'); rClass.textContent = 'P4 · No aplica';
+    rBar.style.background = '#525252';
+    rAction.innerHTML = '❌ No asignar en plataforma';
+  }
+}
+
+function resetLead() {
+  document.querySelectorAll('.lead-pill').forEach(p => p.classList.remove('selected','s-high','s-mid','s-low','s-out'));
+  Object.keys(leadState).forEach(k => delete leadState[k]);
+  recalcLead();
+}
+
+function copyLeadResult(btn) {
+  const total = document.getElementById('rScore').textContent;
+  const cls = document.getElementById('rClass').textContent;
+  const txt = `Lead calificado: ${total}/100 pts · ${cls}\nAcción: ${document.getElementById('rAction').innerText}`;
+  navigator.clipboard.writeText(txt);
+  btn.classList.add('copied');
+  const o = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+  setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = o; }, 1500);
+}
+
+// ============== TIPIFICADOR ÚNICO ==============
+// Mapa de tipo de servicio → signo automático + tipificación Evolution
+const SERVICE_MAP = {
+  'MANTENIMIENTO': { signo: ' ++', motivo: 'CAMBIO DE ACEITE', voz: 'MANTENIMIENTO PREVENTIVO' },
+  'REV':           { signo: ' *',  motivo: 'INSPECCIÓN', voz: 'REVISIÓN 1000KM-5000KM' },
+  'SERVICIO RÁPIDO':{ signo: ' *', motivo: 'CAMBIO DE ACEITE', voz: 'MANTENIMIENTO PREVENTIVO' },
+  'GARANTÍA':      { signo: ' ??', motivo: 'GARANTÍA', voz: 'LUZ CHECK ENGINE' },
+  'INSPECCIÓN':    { signo: '',    motivo: 'INSPECCIÓN', voz: 'REVISIÓN PREVIA A VIAJE' },
+  'ESPECIALIZADA': { signo: ' ??', motivo: 'MECANICA ESPECIALIZADA', voz: 'FALLA CAJA AUTOMÁTICA' }
+};
+// Mapa de resultado → Estado + Causa Evolution
+const RESULT_MAP = {
+  'agenda':       { estado: 'CONTACTO', causa: 'AGENDAMIENTO EXITOSO' },
+  'seguimiento':  { estado: 'CONTACTO', causa: 'VOLVER A LLAMAR' },
+  'nocontacto':   { estado: 'NO CONTACTO', causa: 'NO CONTESTA' },
+  'noaplica':     { estado: 'CONTACTO', causa: 'NO TIENE KILOMETRAJE' },
+  'otrotaller':   { estado: 'CONTACTO', causa: 'VISITA OTRO TALLER' },
+  'nocontactar':  { estado: 'CONTACTO', causa: 'NO VOLVER A CONTACTAR' }
+};
+
+let tipResult = 'agenda';
+const tipChecks = new Set([
+  'VALIDAR SI TIENE CAMPAÑA ACTIVA','VALIDAR KIT DE EMBELLECIMIENTO',
+  'VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE EL CLIENTE'
+]);
+
+// Selección del resultado del contacto: muestra/oculta los bloques relevantes
+function pickResult(btn) {
+  document.querySelectorAll('.lead-pill[data-result]').forEach(p => p.classList.remove('selected','s-high'));
+  btn.classList.add('selected','s-high');
+  tipResult = btn.dataset.result;
+  // Mostrar solo los campos del bloque activo
+  document.querySelectorAll('[data-block]').forEach(el => {
+    el.style.display = (el.dataset.block === tipResult) ? '' : 'none';
+  });
+  updateTip();
+}
+
+function toggleChk(btn) {
+  const chk = btn.dataset.chk;
+  if (tipChecks.has(chk)) { tipChecks.delete(chk); btn.classList.remove('selected','s-mid'); }
+  else { tipChecks.add(chk); btn.classList.add('selected','s-mid'); }
+  updateTip();
+}
+
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function updateTip() {
+  const placa = val('tipPlaca').toUpperCase();
+  const tel = val('tipTel');
+  let nota = '', resumen = '', estado = '', causa = '', motivo = '', voz = '';
+  const pre = [placa, tel].filter(Boolean).join(' // ');
+  const rmap = RESULT_MAP[tipResult];
+  estado = rmap.estado; causa = rmap.causa;
+
+  if (tipResult === 'agenda') {
+    const servicio = val('tipServicio');
+    const smap = SERVICE_MAP[servicio];
+    const kmActual = val('tipKmActual');
+    const km = val('tipKm');
+    const precio = val('tipPrecio');
+    const iva = val('tipIva');
+    const novedad = val('tipNovedad');
+    motivo = smap.motivo;
+    voz = novedad ? novedad.toUpperCase() : smap.voz;
+
+    // Nota técnica estandarizada
+    const parts = [];
+    if (pre) parts.push(pre);
+    if (kmActual) parts.push(`${kmActual} KM`);
+    parts.push(`${servicio} ${km}KM $ ${precio} ${iva}`);
+    if (novedad) parts.push(novedad.toUpperCase());
+    Array.from(tipChecks).forEach(c => parts.push(c));
+    nota = parts.join(' // ') + ` // CALL CENTER${smap.signo}`;
+
+    // Resumen cliente cercano
+    const servCliente = { 'MANTENIMIENTO':'el mantenimiento','REV':'la revisión','SERVICIO RÁPIDO':'el servicio rápido','GARANTÍA':'la atención de garantía','INSPECCIÓN':'la inspección preventiva','ESPECIALIZADA':'el diagnóstico especializado' }[servicio];
+    const ivaTxt = iva === 'IVA INCLUIDO' ? ' (IVA incluido)' : ' (valor aproximado)';
+    resumen = `Le confirmamos lo que realizaremos en su cita:<br><br>🔧 ${servCliente.charAt(0).toUpperCase()+servCliente.slice(1)} de los ${km} km<br>💰 Valor: $${precio}${ivaTxt}`;
+    const cc = [];
+    if (tipChecks.has('VALIDAR ACCESORIOS')) cc.push('accesorios');
+    if (tipChecks.has('VALIDAR KIT DE EMBELLECIMIENTO')) cc.push('opciones de embellecimiento');
+    if (tipChecks.has('VALIDAR ADICIONALES') || tipChecks.has('VALIDAR QUE MAS REQUIERE EL CLIENTE')) cc.push('servicios adicionales que requiera');
+    if (cc.length) resumen += `<br><br>Durante la atención validaremos con usted ${cc.join(', ')}, para cuidar su vehículo como se merece. 🚗`;
+    resumen += `<br><br>¡Lo esperamos!`;
+
+  } else if (tipResult === 'nocontacto') {
+    const tipo = val('tipNoContacto');
+    const marc = val('tipMarcaciones');
+    motivo = 'SIN RESPUESTA'; voz = 'BUZÓN DE VOZ';
+    nota = [pre, tipo, `${marc} ENVIO PLANTILLA POR CHAT`].filter(Boolean).join(' // ');
+    resumen = `Hola 👋 Intentamos comunicarnos contigo sin éxito. Cuando estés disponible, escríbenos y con gusto retomamos tu solicitud. ¡Estamos atentos!`;
+
+  } else if (tipResult === 'seguimiento') {
+    const motivoSeg = val('tipMotivoSeg');
+    motivo = 'CLIENTE VA A REALIZAR VALIDACION'; voz = 'VA A VALIDAR KM, PRESUPUESTO, OTRO';
+    nota = [pre, motivoSeg ? motivoSeg.toUpperCase() : 'CLIENTE SOLICITA VOLVER A LLAMAR', 'SE REPROGRAMA CONTACTO'].filter(Boolean).join(' // ');
+    resumen = `Quedamos en contacto. Cuando lo prefiera retomamos su solicitud para agendar su cita. 😊`;
+
+  } else if (tipResult === 'noaplica') {
+    const kmNa = val('tipKmNoAplica');
+    const repro = val('tipReprograma');
+    motivo = 'SERVICIO NO APLICA'; voz = 'AÚN NO CUMPLE KMS';
+    nota = [pre, kmNa ? `SOLO ${kmNa} KMS` : 'CLIENTE NO CUENTA CON EL KILOMETRAJE', repro ? `SE REPROGRAMA CONTACTO PARA ${repro.toUpperCase()}` : 'SE REPROGRAMA CONTACTO', 'SE ENVIA PLANTILLA POR CHAT'].filter(Boolean).join(' // ');
+    resumen = `Le recordaremos cuando su vehículo se acerque al kilometraje del próximo mantenimiento. Mientras tanto, cualquier duda aquí estamos. 🚗`;
+
+  } else if (tipResult === 'otrotaller') {
+    const razon = val('tipRazonOtro');
+    const rzMap = { 'PRECIO':{c:'PRECIO ALTO',v:'OFERTA MÁS ECONÓMICA'}, 'UBICACION':{c:'UBICACIÓN',v:'MAYOR COMODIDAD'}, 'PROVEEDOR':{c:'PREFERENCIA PROVEEDOR',v:'HISTÓRICO CON OTRO TALLER'} }[razon];
+    causa = 'VISITA OTRO TALLER'; motivo = rzMap.c; voz = rzMap.v;
+    nota = [pre, `VISITA OTRO TALLER POR ${razon}`].filter(Boolean).join(' // ');
+    resumen = `Agradecemos su tiempo. Si en algún momento desea conocer nuestras condiciones, con gusto le atendemos. ¡Que tenga un excelente día!`;
+
+  } else if (tipResult === 'nocontactar') {
+    const razon = val('tipRazonNo');
+    const rzMap = { 'VENDIO VEHICULO':{c:'CLIENTE NO INTERESADO',v:'VENDIÓ VEHÍCULO'}, 'NO DESEA INFORMACION':{c:'CLIENTE NO INTERESADO',v:'NO DESEA RECIBIR INFORMACIÓN'}, 'CAMBIO DOMICILIO':{c:'CAMBIO DOMICILIO',v:'RESIDE FUERA DEL ÁREA'} }[razon];
+    causa = rzMap.c; motivo = razon === 'CAMBIO DOMICILIO' ? 'CAMBIO DOMICILIO' : 'CLIENTE NO INTERESADO'; voz = rzMap.v;
+    nota = [pre, razon].filter(Boolean).join(' // ');
+    resumen = `Gracias por su atención. Quedamos atentos si en el futuro requiere nuestros servicios.`;
+  }
+
+  document.getElementById('notaTecnica').textContent = nota || '—';
+  document.getElementById('resumenCliente').innerHTML = resumen || '—';
+  document.getElementById('evoEstado').textContent = estado;
+  document.getElementById('evoCausa').textContent = causa;
+  document.getElementById('evoMotivo').textContent = motivo;
+  document.getElementById('evoVoz').textContent = voz;
+}
+
+function copyNota(btn) {
+  navigator.clipboard.writeText(document.getElementById('notaTecnica').textContent);
+  flashBtn(btn, '<i class="fas fa-check"></i> ¡Copiado!'); showToast('Nota lista para Quiter/iVuo');
+}
+function copyEvo(btn) {
+  const t = `${document.getElementById('evoEstado').textContent} | ${document.getElementById('evoCausa').textContent} | ${document.getElementById('evoMotivo').textContent} | ${document.getElementById('evoVoz').textContent}`;
+  navigator.clipboard.writeText(t);
+  flashBtn(btn, '<i class="fas fa-check"></i> ¡Copiado!'); showToast('Tipificación lista para Evolution');
+}
+function copyResumen(btn) {
+  navigator.clipboard.writeText(document.getElementById('resumenCliente').innerText);
+  flashBtn(btn, '<i class="fas fa-check"></i> ¡Copiado!'); showToast('Resumen listo para el cliente');
+}
+function flashBtn(btn, html) {
+  btn.classList.add('copied'); const o = btn.innerHTML; btn.innerHTML = html;
+  setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = o; }, 1600);
+}
+
+// Inicializar
+updateCotiz();
+updateVars();
+pickResult(document.querySelector('.lead-pill[data-result="agenda"]'));
+
+// Atajo de teclado para omnibox
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('globalSearch').focus();
+  }
+});
+</script>
+</body>
+</html>

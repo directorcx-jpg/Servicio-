@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consola CETA Armotor — v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root[data-theme="light"]{--bg:#fafaf9;--bgp:#fff;--bgs:#f4f4f3;--bgh:#efeeec;--bd:#e7e5e4;--bd2:#d6d3d1;--tx:#1c1917;--tx2:#57534e;--tx3:#78716c}
+:root[data-theme="dark"]{--bg:#0f0f10;--bgp:#18181b;--bgs:#232328;--bgh:#2a2a30;--bd:#2a2a30;--bd2:#3a3a42;--tx:#f4f4f5;--tx2:#a1a1aa;--tx3:#71717a}
+:root{--ac:#e53935;--ac2:#c62828;--acs:rgba(229,57,53,.08);--ok:#16a34a;--oks:rgba(22,163,74,.1);--wr:#ea580c;--wrs:rgba(234,88,12,.1);--in:#2563eb;--ins:rgba(37,99,235,.1);--gd:#b45309;--r:8px;--f:'Inter',system-ui,sans-serif;--fd:'Manrope',sans-serif;--fm:'JetBrains Mono',monospace;--t:all 180ms ease}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+.app{display:grid;grid-template-rows:52px 1fr 26px;height:100vh}
+.hd{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:16px;padding:0 16px;background:var(--bgp);border-bottom:1px solid var(--bd);z-index:10}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--fd);font-weight:800;font-size:15px}
+.logo-m{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,var(--ac),#b71c1c);display:grid;place-items:center;color:#fff;font-size:12px}
+.logo .c{color:var(--tx3);font-weight:500;font-size:11px;margin-left:4px}
+.omni{display:flex;align-items:center;gap:8px;background:var(--bgs);border:1px solid var(--bd);border-radius:7px;padding:7px 12px;max-width:480px;width:100%}
+.omni:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acs)}
+.omni input{flex:1;border:none;outline:none;background:transparent;color:var(--tx);font-family:var(--f);font-size:12px}
+.omni input::placeholder{color:var(--tx3)}
+.hd-act{display:flex;align-items:center;gap:2px}
+.ib{width:34px;height:34px;display:grid;place-items:center;border:none;background:transparent;color:var(--tx2);border-radius:7px;cursor:pointer;transition:var(--t);font-size:14px}
+.ib:hover{background:var(--bgh);color:var(--tx)}
+.mn{display:grid;grid-template-columns:220px 1fr 380px;overflow:hidden}
+.col{overflow-y:auto;scrollbar-width:thin}.col::-webkit-scrollbar{width:6px}.col::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+.view{display:none}.view.active{display:block;animation:fi .15s ease-out}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+/* Sidebar */
+.sb{background:var(--bgp);border-right:1px solid var(--bd);padding:12px 10px}
+.ng{margin-bottom:16px}.ng-t{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:0 8px 6px}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:1px;border-radius:5px;font-size:12px;font-weight:500;color:var(--tx2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--f);transition:var(--t)}
+.ni i{width:15px;font-size:13px}.ni:hover{background:var(--bgh);color:var(--tx)}.ni.active{background:var(--acs);color:var(--ac)}
+.ni.vip{background:rgba(180,83,9,.08);color:var(--gd);border:1px solid rgba(180,83,9,.15)}
+/* Central */
+.cn{padding:20px 24px;background:var(--bg)}
+.ft-title{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:var(--bgs);color:var(--tx2)}
+.badge.kia{background:rgba(187,22,43,.1);color:#bb162b}.badge.voz{background:var(--ins);color:var(--in)}.badge.vig{background:var(--oks);color:var(--ok)}
+.fb{background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.bt{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;color:var(--tx2)}
+.bt .n{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;font-family:var(--fm);font-size:11px}
+.bt.val .n{background:var(--ins);color:var(--in)}.bt.say .n{background:var(--oks);color:var(--ok)}
+.bt.do .n{background:rgba(124,58,237,.1);color:#7c3aed}.bt.esc .n{background:var(--wrs);color:var(--wr)}
+.sp{font-size:15px;line-height:1.65;background:var(--bgs);border-left:3px solid var(--ok);padding:12px 14px;border-radius:0 6px 6px 0}
+.sp .v{background:var(--oks);color:var(--ok);padding:1px 5px;border-radius:3px;font-weight:600;font-family:var(--fm);font-size:12px}
+.al{display:flex;gap:10px;padding:10px 12px;border-radius:6px;margin-top:8px;font-size:12px;line-height:1.5}
+.al.wr{background:var(--wrs);border-left:3px solid var(--wr)}.al.in{background:var(--ins);border-left:3px solid var(--in)}
+.cl{list-style:none}.cl li{display:flex;gap:8px;padding:4px 0;font-size:12px}.ck{width:14px;height:14px;border:1.5px solid var(--bd2);border-radius:3px;flex-shrink:0;margin-top:2px}
+/* RIGHT PANEL */
+.rp{background:var(--bgp);border-left:1px solid var(--bd);display:flex;flex-direction:column}
+.rp-head{padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.rp-head h3{font-family:var(--fd);font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.live{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pu 2s infinite;display:inline-block}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+.rp-body{flex:1;overflow-y:auto;padding:10px 12px}
+.rp-s{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.rp-s:last-child{border-bottom:none}
+.rp-l{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.rp-l .nm{width:16px;height:16px;border-radius:3px;display:grid;place-items:center;font-family:var(--fm);font-size:9px;font-weight:700;background:var(--acs);color:var(--ac)}
+.rr{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px}
+.rr.full{grid-template-columns:1fr}.rr.tri{grid-template-columns:1fr 1fr 1fr}
+.ff{display:flex;flex-direction:column;gap:2px}
+.ff label{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.ff input,.ff select{border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px 7px;border-radius:5px;font-size:11px;font-family:var(--f);transition:var(--t);width:100%}
+.ff input:focus,.ff select:focus{outline:none;border-color:var(--ac);background:var(--bgp)}
+.ff input.mono{font-family:var(--fm)}
+/* Pills */
+.pills{display:flex;gap:3px;flex-wrap:wrap}
+.pill{padding:5px 9px;border:1.5px solid var(--bd);border-radius:14px;background:var(--bgs);font-size:10px;cursor:pointer;transition:var(--t);user-select:none;font-family:var(--f);color:var(--tx);display:inline-flex;align-items:center;gap:3px}
+.pill:hover{border-color:var(--bd2)}.pill.on{background:var(--oks);border-color:var(--ok);color:var(--ok)}
+.pill.off{background:var(--wrs);border-color:var(--wr);color:var(--wr)}.pill.gray{background:var(--bgh);border-color:var(--tx3);color:var(--tx3)}
+/* Toggle */
+.tog{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer}
+.tog-sw{width:32px;height:18px;border-radius:9px;background:var(--bd2);position:relative;transition:var(--t);flex-shrink:0}
+.tog-sw::after{content:'';width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:var(--t)}
+.tog-sw.on{background:var(--ok)}.tog-sw.on::after{left:16px}
+.tog-sw.warn{background:var(--wr)}.tog-sw.warn::after{left:16px}
+/* Output tabs */
+.out-tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:8px}
+.out-tab{flex:1;padding:6px 4px;text-align:center;font-size:10px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:var(--t)}
+.out-tab:hover{color:var(--tx)}.out-tab.active{color:var(--ac);border-bottom-color:var(--ac)}
+.out-pane{display:none}.out-pane.active{display:block}
+.out-box{background:var(--bgs);border-radius:5px;padding:8px 10px;font-size:11px;line-height:1.6;word-break:break-word;max-height:100px;overflow-y:auto;margin-bottom:6px}
+.out-box.mono{font-family:var(--fm);font-size:10px}
+.out-evo{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px}
+.out-evo div{background:var(--bgs);border-radius:4px;padding:5px}
+.out-evo .l{font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+.out-evo .v{font-weight:600;font-size:10px;margin-top:1px}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid transparent;border-radius:5px;font-family:var(--f);font-size:10px;font-weight:600;cursor:pointer;transition:var(--t);background:var(--bgs);color:var(--tx)}
+.btn:hover{background:var(--bgh)}.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{filter:brightness(.9)}
+.btn-ac{background:var(--ac);color:#fff}.btn-ac:hover{background:var(--ac2)}
+.btn-gh{background:transparent;border-color:var(--bd)}.btn-gh:hover{background:var(--bgh)}
+.btn.cp{background:var(--ok);color:#fff}
+.btn-big{width:100%;padding:10px;font-size:12px;justify-content:center;border-radius:7px}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(1)}
+/* Price */
+.price-box{text-align:center;padding:10px;background:linear-gradient(135deg,#1c1917,#292524);border-radius:7px;color:#fff;margin:6px 0}
+[data-theme="dark"] .price-box{background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid var(--bd)}
+.price-box .val{font-family:var(--fd);font-size:24px;font-weight:800;letter-spacing:-.02em}
+.price-box .lbl{font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.05em}
+/* Semáforo */
+.semaforo{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--tx3);margin-bottom:8px;padding:6px 8px;background:var(--bgs);border-radius:5px}
+.semaforo .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.semaforo .dot.red{background:#ef4444}.semaforo .dot.yellow{background:#eab308}.semaforo .dot.green{background:var(--ok)}
+.semaforo.ok{color:var(--ok)}.semaforo.ok .msg{font-weight:600}
+/* Sub labels */
+.sub-l{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:8px 0 4px;display:flex;align-items:center;gap:4px}
+.sub-l i{font-size:10px}
+.hidden{display:none!important}
+/* Tarjeta (oculta) */
+.tarjeta{position:fixed;left:-9999px;top:0;width:600px;background:#fff;color:#1c1917;font-family:'Inter',sans-serif;padding:0}
+.tarjeta *{color:#1c1917}
+.tarjeta-hd{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
+.tarjeta-hd *{color:#fff}.tarjeta-hd .lt{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px}
+.tarjeta-body{padding:20px}
+.tarjeta-pr{text-align:center;padding:14px;background:#f5f5f5;border-radius:8px;margin-bottom:14px}
+.tarjeta-pr .v{font-family:'Manrope',sans-serif;font-size:32px;font-weight:800;color:#e53935}
+.tarjeta-pr .l{font-size:11px;color:#666}
+.tarjeta-ft{background:#f9f9f9;padding:12px 22px;font-size:9px;color:#999;text-align:center;border-top:1px solid #eee}
+/* Footer */
+.ft-bar{display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bgp);border-top:1px solid var(--bd);font-size:10px;color:var(--tx3);font-family:var(--fm)}
+.ft-bar .li{display:flex;align-items:center;gap:4px;margin-left:auto}
+.toast{position:fixed;bottom:50px;right:20px;background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transform:translateY(16px);transition:var(--t);z-index:100}
+.toast.show{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="hd">
+  <div class="logo"><div class="logo-m"><i class="fas fa-car"></i></div>ARMOTOR<span class="c">/ CETA</span></div>
+  <div class="omni"><i class="fas fa-search" style="color:var(--tx3);font-size:12px"></i><input placeholder="Buscar guiones, contactos, modelos…"></div>
+  <div class="hd-act"><button class="ib" onclick="togTheme()"><i class="fas fa-sun" id="thIco"></i></button><button class="ib"><i class="fas fa-bell"></i></button></div>
+</header>
+<main class="mn">
+<aside class="col sb">
+  <div class="ng"><div class="ng-t">General</div>
+    <button class="ni active" data-v="home"><i class="fas fa-house"></i>Home Operativo</button>
+  </div>
+  <div class="ng"><div class="ng-t">Atención</div>
+    <button class="ni" data-v="inbound"><i class="fas fa-phone-volume"></i>Inbound Posventa</button>
+    <button class="ni" data-v="outbound"><i class="fas fa-phone-arrow-up-right"></i>Outbound</button>
+    <button class="ni" data-v="leads"><i class="fas fa-bullseye"></i>Lead Comercial</button>
+    <button class="ni" data-v="whatsapp"><i class="fab fa-whatsapp"></i>Plantillas WhatsApp</button>
+  </div>
+  <div class="ng"><div class="ng-t">Gestión</div>
+    <button class="ni"><i class="fas fa-inbox"></i>Casos internos</button>
+    <button class="ni"><i class="fas fa-table-columns"></i>Control gestión</button>
+  </div>
+  <div class="ng"><div class="ng-t">Base de Conocimiento</div>
+    <button class="ni"><i class="fas fa-book"></i>Productos y Servicios</button>
+    <button class="ni"><i class="fas fa-address-book"></i>Contactos y Sedes</button>
+    <button class="ni"><i class="fas fa-wrench"></i>Manuales Mantenimiento</button>
+    <button class="ni"><i class="fas fa-bullhorn"></i>Campañas</button>
+    <button class="ni vip"><i class="fas fa-crown"></i>Clientes VIP</button>
+  </div>
+</aside>
+
+<section class="col cn">
+
+  <!-- HOME OPERATIVO -->
+  <div class="view active" id="v-home">
+    <div style="background:linear-gradient(135deg,var(--bgp),var(--bgs));border:1px solid var(--bd);border-radius:10px;padding:28px;margin-bottom:20px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-50%;right:-10%;width:350px;height:350px;background:radial-gradient(circle,var(--acs),transparent 60%);z-index:0"></div>
+      <div style="position:relative;z-index:1">
+        <h1 style="font-family:var(--fd);font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px">Hola Pablo 👋 ¿Qué necesitas resolver?</h1>
+        <p style="color:var(--tx2);font-size:13px;margin-bottom:18px">Tu consola para atención telefónica, digital y operativa.</p>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div><div style="font-family:var(--fd);font-weight:700;font-size:20px;color:var(--ok)">94%</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Citas confirmadas</div></div>
+          <div><div style="font-family:var(--fd);font-weight:700;font-size:20px">42</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Casos en gestión</div></div>
+          <div><div style="font-family:var(--fd);font-weight:700;font-size:20px;color:var(--wr)">3</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">SLA en riesgo</div></div>
+          <div><div style="font-family:var(--fd);font-weight:700;font-size:20px">14</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Leads nuevos</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-family:var(--fd);font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-bolt"></i>Accesos rápidos</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px">
+      <button onclick="goTo('inbound')" style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--acs);display:grid;place-items:center;color:var(--ac);font-size:14px"><i class="fas fa-phone-volume"></i></div>
+        <div style="font-size:13px;font-weight:600">Agendar cita</div>
+        <div style="font-size:11px;color:var(--tx3)">Flujo Inbound 10 pasos</div>
+      </button>
+      <button onclick="goTo('inbound')" style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--oks);display:grid;place-items:center;color:var(--ok);font-size:14px"><i class="fas fa-calculator"></i></div>
+        <div style="font-size:13px;font-weight:600">Cotizador</div>
+        <div style="font-size:11px;color:var(--tx3)">Integrado en panel derecho</div>
+      </button>
+      <button onclick="goTo('leads')" style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--ins);display:grid;place-items:center;color:var(--in);font-size:14px"><i class="fas fa-bullseye"></i></div>
+        <div style="font-size:13px;font-weight:600">Calificar lead</div>
+        <div style="font-size:11px;color:var(--tx3)">P1 · P2 · P3 · P4</div>
+      </button>
+      <button style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--wrs);display:grid;place-items:center;color:var(--wr);font-size:14px"><i class="fab fa-whatsapp"></i></div>
+        <div style="font-size:13px;font-weight:600">Plantillas WhatsApp</div>
+        <div style="font-size:11px;color:var(--tx3)">25 plantillas activas</div>
+      </button>
+      <button style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--acs);display:grid;place-items:center;color:var(--ac);font-size:14px"><i class="fas fa-bullhorn"></i></div>
+        <div style="font-size:13px;font-weight:600">Campañas</div>
+        <div style="font-size:11px;color:var(--tx3)">Seguridad · Total Confianza</div>
+      </button>
+      <button style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--ins);display:grid;place-items:center;color:var(--in);font-size:14px"><i class="fas fa-address-book"></i></div>
+        <div style="font-size:13px;font-weight:600">Contactos y Sedes</div>
+        <div style="font-size:11px;color:var(--tx3)">70 corporativos · IVR</div>
+      </button>
+      <button style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:var(--oks);display:grid;place-items:center;color:var(--ok);font-size:14px"><i class="fas fa-stopwatch"></i></div>
+        <div style="font-size:13px;font-weight:600">SLA y tiempos</div>
+        <div style="font-size:11px;color:var(--tx3)">Reglas del equipo</div>
+      </button>
+      <button style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;font-family:var(--f);transition:var(--t);color:var(--tx);border-color:rgba(180,83,9,.2);background:rgba(180,83,9,.04)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:32px;height:32px;border-radius:6px;background:rgba(180,83,9,.1);display:grid;place-items:center;color:var(--gd);font-size:14px"><i class="fas fa-crown"></i></div>
+        <div style="font-size:13px;font-weight:600">Clientes VIP</div>
+        <div style="font-size:11px;color:var(--tx3)">12 prioritarios</div>
+      </button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <h3 style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-fire" style="color:var(--wr)"></i>Más consultados hoy</h3>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ac);margin-top:6px;flex-shrink:0"></div><div><strong>Cotizador KIA Picanto 10K</strong><div style="font-size:10px;color:var(--tx3)">37 consultas · hace 4 min</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);margin-top:6px;flex-shrink:0"></div><div><strong>Plantilla confirmación cita</strong><div style="font-size:10px;color:var(--tx3)">28 usos · hace 12 min</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--in);margin-top:6px;flex-shrink:0"></div><div><strong>Sedes Manizales</strong><div style="font-size:10px;color:var(--tx3)">19 consultas · hace 28 min</div></div></div>
+      </div>
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <h3 style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-bell" style="color:var(--ac)"></i>Cambios recientes</h3>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ac);margin-top:6px;flex-shrink:0"></div><div><strong>We Go ahora sin costo</strong><div style="font-size:10px;color:var(--tx3)">Política permanente · mayo 2026</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--in);margin-top:6px;flex-shrink:0"></div><div><strong>Campaña Total Confianza KIA</strong><div style="font-size:10px;color:var(--tx3)">Vigente 19 may – 31 ago · nueva</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);margin-top:6px;flex-shrink:0"></div><div><strong>Plantillas WhatsApp depuradas</strong><div style="font-size:10px;color:var(--tx3)">53 → 25 plantillas · optimizado</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INBOUND POSVENTA -->
+  <div class="view" id="v-inbound">
+  <h1 class="ft-title">Flujo Inbound · Paso 6 — Cotizar</h1>
+  <div class="badges"><span class="badge kia">KIA</span><span class="badge voz"><i class="fas fa-phone"></i> Voz</span><span class="badge vig"><i class="fas fa-circle" style="font-size:5px"></i> v2.1</span></div>
+  <div class="fb"><div class="bt val"><span class="n">1</span>Qué validar</div>
+    <ul class="cl"><li><span class="ck"></span>Confirmar tipo de combustión</li><li><span class="ck"></span>Verificar km actual</li><li><span class="ck"></span>Validar si hay síntomas reportados (afecta We Go)</li><li><span class="ck"></span>Datos del cliente ya en el panel derecho →</li></ul>
+  </div>
+  <div class="fb"><div class="bt say"><span class="n">2</span>Qué decir al cliente</div>
+    <div class="sp">"Para el mantenimiento de los <span class="v">[KM]</span> de su <span class="v">[MODELO]</span> el valor es de <span class="v">$[PRECIO]</span>. Incluye cambio de aceite y filtro, diagnóstico eléctrico, inspección multipunto, alineación, balanceo y rotación de llantas.<br><br><strong>No incluye</strong> filtro de aire motor, filtro A/C ni plumillas (sujetos a inspección del técnico).<br><br>¿Le agendamos su cita?"</div>
+    <div class="al in"><i class="fas fa-lightbulb"></i><div><strong>Tip:</strong> Si pregunta "¿por qué tan caro?" — muéstrale la lista de 29 servicios del cotizador.</div></div>
+  </div>
+  <div class="fb"><div class="bt do"><span class="n">3</span>Qué hacer después</div>
+    <ul class="cl"><li><span class="ck"></span>Si dice sí → Paso 7 (We Go)</li><li><span class="ck"></span>Si dice "lo pienso" → enviar resumen WhatsApp</li><li><span class="ck"></span>Enviar tarjeta + mensaje desde panel derecho</li></ul>
+  </div>
+  <div class="fb"><div class="bt esc"><span class="n">4</span>Cuándo escalar</div>
+    <div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>Descuento >10% · modelo no en cotizador · cliente VIP · reclamo previo → <strong>Líder Posventa</strong></div></div>
+  </div>
+  <div style="display:flex;gap:6px;margin-top:14px">
+    <button class="btn btn-gh"><i class="fas fa-chevron-left"></i> Paso 5</button>
+    <button class="btn btn-ac">Paso 7 · We Go <i class="fas fa-chevron-right"></i></button>
+  </div>
+  </div>
+</section>
+
+<!-- =============== RIGHT PANEL v4 =============== -->
+<aside class="col rp">
+  <div class="rp-head"><h3><span class="live"></span>Panel de gestión</h3><button class="btn" onclick="resetPanel()" style="font-size:9px;padding:3px 7px"><i class="fas fa-arrow-rotate-left"></i></button></div>
+  <div class="rp-body" id="rpBody">
+
+    <!-- S1: DATOS -->
+    <div class="rp-s">
+      <div class="rp-l"><span class="nm">1</span>DATOS DEL CLIENTE</div>
+      <div class="rr"><div class="ff"><label>Nombre</label><input data-f="nombre" placeholder="Sr./Sra." oninput="u()"></div><div class="ff"><label>Teléfono</label><input data-f="telefono" placeholder="300 000 0000" oninput="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Placa</label><input data-f="placa" class="mono" placeholder="ABC123" oninput="u()" style="text-transform:uppercase"></div><div class="ff"><label>Km actual</label><input data-f="kmActual" placeholder="8.500" oninput="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Ciudad</label><select data-f="ciudad" onchange="u()"><option>Pereira</option><option>Manizales</option><option>Armenia</option><option>Cartago</option><option>La Dorada</option></select></div><div class="ff"><label>Origen</label><select data-f="origen" onchange="u()"><option>Inbound</option><option>Base</option><option>Formulario</option><option>Chat MTIC</option><option>Otros</option></select></div></div>
+      <div class="rr full" style="margin-top:4px"><div class="ff"><label>Motivo del contacto</label><select data-f="motivo" onchange="u()"><option value="">— Se define en la llamada —</option><option>Mantenimiento</option><option>Garantía</option><option>Cotización</option><option>Información</option><option>Queja</option><option>Inspección</option><option>Accesorios</option></select></div></div>
+    </div>
+
+    <!-- S2: RESULTADO -->
+    <div class="rp-s">
+      <div class="rp-l"><span class="nm">2</span>RESULTADO</div>
+      <div class="pills" id="resP">
+        <button class="pill on" data-r="agenda" onclick="pickRes(this)">✅ Agendado</button>
+        <button class="pill" data-r="seg" onclick="pickRes(this)">🔄 Seguimiento</button>
+        <button class="pill" data-r="noc" onclick="pickRes(this)">📵 No contesta</button>
+        <button class="pill" data-r="sinKm" onclick="pickRes(this)">⏳ Sin km</button>
+        <button class="pill" data-r="otroTaller" onclick="pickRes(this)">🏃 Otro taller</button>
+        <button class="pill" data-r="noContactar" onclick="pickRes(this)">🚫 No contactar</button>
+      </div>
+      <div id="noc-f" class="hidden" style="margin-top:6px">
+        <div class="rr"><div class="ff"><label>Marcaciones</label><select data-f="marcaciones" onchange="u()"><option>1 CONTACTO</option><option>2 CONTACTOS</option><option>3 MARCACIONES</option></select></div><div class="ff"><label>Tipo</label><select data-f="tipoNoc" onchange="u()"><option>NO CONTESTA</option><option>CORREO DE VOZ</option><option>DIRECTO A BUZON</option><option>TELEFONO APAGADO</option></select></div></div>
+        <div class="al in" style="margin:4px 0 0;padding:6px 8px;font-size:10px"><i class="fas fa-info-circle"></i>Este resultado solo requiere registrar la llamada.</div>
+      </div>
+      <div id="sinKm-f" class="hidden" style="margin-top:6px">
+        <div class="rr"><div class="ff"><label>Km que tiene</label><input data-f="kmNoAplica" placeholder="4.500" oninput="u()"></div><div class="ff"><label>Reprograma para</label><input data-f="reprograma" placeholder="Junio" oninput="u()"></div></div>
+      </div>
+      <div id="otroTaller-f" class="hidden" style="margin-top:6px">
+        <div class="ff"><label>Razón</label><select data-f="razonOtro" onchange="u()"><option value="PRECIO">Precio</option><option value="UBICACION">Ubicación</option><option value="PROVEEDOR">Histórico otro taller</option></select></div>
+      </div>
+    </div>
+
+    <!-- S3: COTIZACIÓN (solo agendado) -->
+    <div class="rp-s" id="sCotiz">
+      <div class="rp-l"><span class="nm">3</span>COTIZACIÓN</div>
+      <div class="rr tri"><div class="ff"><label>Marca</label><select data-f="marca" onchange="u()"><option>KIA</option><option>Honda</option><option>FAW</option></select></div><div class="ff"><label>Combustión</label><select data-f="combustion" onchange="u()"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option></select></div><div class="ff"><label>Modelo</label><select data-f="modelo" onchange="u()"><option>Picanto</option><option>Sportage</option><option>Sonet</option><option>K3</option></select></div></div>
+      <div class="rr tri"><div class="ff"><label>Servicio</label><select data-f="servicio" onchange="u()"><option>Mantenimiento</option><option>Revisión</option><option>Garantía</option><option>Inspección</option><option>Especializada</option></select></div><div class="ff"><label>Km servicio</label><select data-f="kmServicio" onchange="u()"><option>10.000</option><option>20.000</option><option>30.000</option><option>40.000</option><option>50.000</option></select></div><div class="ff"><label>Descuento</label><select data-f="descuento"><option>0%</option><option>5%</option><option>10%</option></select></div></div>
+      <div class="price-box"><div class="lbl">Valor estimado</div><div class="val" id="pPrecio">$ 1.068.978</div></div>
+      <div style="display:flex;gap:3px"><button class="btn btn-ok" onclick="copyMsg(this)"><i class="fas fa-copy"></i> WhatsApp</button><button class="btn btn-gh" onclick="downloadCard()"><i class="fas fa-image"></i> Tarjeta</button></div>
+    </div>
+
+    <!-- S4: NOVEDAD -->
+    <div class="rp-s" id="sNovedad">
+      <div class="rp-l"><span class="nm">4</span>NOVEDAD / SÍNTOMA</div>
+      <label class="tog" onclick="togNovedad()"><span class="tog-sw" id="novSw"></span>¿Reporta novedad?</label>
+      <div id="novedadF" class="hidden" style="margin-top:4px"><div class="ff"><label>Describir</label><input data-f="novedad" placeholder="Chirrido al frenar..." oninput="u()"></div></div>
+    </div>
+
+    <!-- S5: WE GO -->
+    <div class="rp-s" id="sWego">
+      <div class="rp-l"><span class="nm">5</span>WE GO <span style="font-size:8px;color:var(--ok);margin-left:3px;font-weight:700">SIN COSTO</span></div>
+      <div id="wegoOk">
+        <label class="tog" onclick="togWego()"><span class="tog-sw" id="wgSw"></span>¿Aplica We Go?</label>
+        <div id="wgF" class="hidden" style="margin-top:6px">
+          <div class="rr"><div class="ff"><label>Fecha</label><input type="date" data-f="wgFecha"></div><div class="ff"><label>Hora</label><input type="time" data-f="wgHora"></div></div>
+          <div class="rr full"><div class="ff"><label>Dirección</label><input data-f="wgDireccion" placeholder="Cra 23 #45-12"></div></div>
+          <div class="rr"><div class="ff"><label>Quién recoge</label><select data-f="wgQuien"><option>Alfred</option><option>Taller Manizales</option><option>Taller Armenia</option></select></div><div class="ff"><label>Trayectos</label><select data-f="wgTrayectos"><option>2</option><option>1</option></select></div></div>
+        </div>
+      </div>
+      <div id="wegoBlocked" class="hidden"><div class="al wr" style="margin:0;padding:6px 8px;font-size:10px"><i class="fas fa-ban"></i><div>Bloqueado — novedad reportada, se requiere diagnóstico presencial.</div></div></div>
+    </div>
+
+    <!-- S6: ADICIONALES (split) -->
+    <div class="rp-s" id="sAdic">
+      <div class="rp-l"><span class="nm">6</span>ADICIONALES</div>
+      <div class="sub-l"><i class="fas fa-user"></i>Para el cliente</div>
+      <div class="pills">
+        <button class="pill" data-ad="telemetria" onclick="togAd(this)">📡 Telemetría</button>
+        <button class="pill" data-ad="accesorios" onclick="togAd(this)">🔧 Accesorios</button>
+      </div>
+      <div id="accF" class="hidden" style="margin-top:4px"><div class="ff"><label>Cuáles accesorios</label><input data-f="accesorios" placeholder="Tapetes, rines, kit seguridad" oninput="u()"></div></div>
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-wrench"></i>Para el taller</div>
+      <div class="pills">
+        <button class="pill on" data-chk="VALIDAR CAMPAÑA ACTIVA" onclick="togChk(this)">Campaña</button>
+        <button class="pill on" data-chk="VALIDAR EMBELLECIMIENTO" onclick="togChk(this)">Embellecimiento</button>
+        <button class="pill on" data-chk="VALIDAR ADICIONALES" onclick="togChk(this)">Adicionales</button>
+        <button class="pill on" data-chk="VALIDAR ACCESORIOS" onclick="togChk(this)">Accesorios</button>
+        <button class="pill on" data-chk="VALIDAR QUE MAS REQUIERE" onclick="togChk(this)">Qué más requiere</button>
+        <button class="pill" data-chk="ESPECIALIZADA O COLISION" onclick="togChk(this)">Especializada</button>
+        <button class="pill" data-chk="COTIZAR TAPETES RINES LLANTAS" onclick="togChk(this)">Cotizar tapetes/rines</button>
+      </div>
+      <div class="rr full" style="margin-top:6px"><div class="ff"><label>Servicios adicionales</label><input data-f="srvAdicional" placeholder="Instalación luces, elevavidrios..." oninput="u()"></div></div>
+      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input data-f="asesorTaller" placeholder="Lina Clemencia López" oninput="u()"></div></div>
+    </div>
+
+    <!-- OUTPUTS con TABS -->
+    <div class="rp-s" style="border-bottom:none">
+      <div class="rp-l" style="color:var(--ac)"><i class="fas fa-wand-magic-sparkles"></i>SALIDAS</div>
+
+      <!-- Semáforo -->
+      <div class="semaforo" id="semaforo"><div class="dot red"></div><span class="msg">Faltan campos obligatorios</span></div>
+
+      <div class="out-tabs">
+        <div class="out-tab active" onclick="switchTab(this,'tabQuiter')">Quiter/iVuo</div>
+        <div class="out-tab" onclick="switchTab(this,'tabEvo')">Evolution</div>
+        <div class="out-tab" onclick="switchTab(this,'tabCli')">Cliente</div>
+      </div>
+
+      <div class="out-pane active" id="tabQuiter">
+        <div class="out-box mono" id="outNota">—</div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpText('outNota',this)"><i class="fas fa-copy"></i> Copiar nota</button>
+      </div>
+      <div class="out-pane" id="tabEvo">
+        <div class="out-evo">
+          <div><div class="l">Estado</div><div class="v" id="eEst">—</div></div>
+          <div><div class="l">Causa</div><div class="v" id="eCau">—</div></div>
+          <div><div class="l">Motivo</div><div class="v" id="eMot">—</div></div>
+          <div><div class="l">Voz</div><div class="v" id="eVoz">—</div></div>
+        </div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpEvo(this)"><i class="fas fa-copy"></i> Copiar tipificación</button>
+      </div>
+      <div class="out-pane" id="tabCli">
+        <div class="out-box" id="outCli">—</div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpText('outCli',this)"><i class="fab fa-whatsapp"></i> Copiar resumen</button>
+      </div>
+
+      <button class="btn btn-ac btn-big" id="btnSave" onclick="saveGestion()" disabled style="margin-top:10px"><i class="fas fa-lock"></i> Completar campos para guardar</button>
+    </div>
+  </div>
+</aside>
+</main>
+<footer class="ft-bar"><span>v4.0</span><span>·</span><span>Mayo 2026</span><span>·</span><span>Pablo Rincón</span><div class="li"><div class="d" style="width:5px;height:5px;border-radius:50%;background:var(--ok);animation:pu 2s infinite"></div>Activo</div></footer>
+</div>
+
+<div class="tarjeta" id="tarjeta">
+  <div class="tarjeta-hd"><div class="lt">ARMOTOR</div><div style="font-size:10px;opacity:.8">Cotización de servicio</div></div>
+  <div class="tarjeta-body">
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px"><div><strong id="tCli">Cliente</strong><br><span style="color:#666" id="tVeh">Modelo</span></div><div style="text-align:right;color:#666;font-size:11px" id="tFe"></div></div>
+    <div class="tarjeta-pr"><div class="l" id="tSrv">Mantenimiento 10.000 km</div><div class="v" id="tPr">$ 1.068.978</div></div>
+    <div style="margin-bottom:12px"><h4 style="font-size:12px;color:#16a34a;margin-bottom:6px;border-bottom:2px solid #e8f5e9;padding-bottom:4px">✅ Incluye (29 servicios)</h4><ul style="list-style:none;font-size:10px;columns:2;column-gap:12px" id="tInc"><li>• Cambio aceite y filtro motor</li><li>• Diagnóstico eléctrico KDS</li><li>• Alineación y balanceo</li><li>• Inspección multipunto 30+</li><li>• Prueba de ruta</li><li>• Lavado exterior + aspirado</li></ul></div>
+    <div><h4 style="font-size:12px;color:#ea580c;margin-bottom:6px;border-bottom:2px solid #fff3e0;padding-bottom:4px">⚠️ No incluido (sujeto a inspección)</h4><ul style="list-style:none;font-size:10px" id="tExc"><li>• Filtro aire motor</li><li>• Filtro aire A/C</li><li>• Cauchos plumillas</li></ul></div>
+    <div style="background:#f0fdf4;border-radius:5px;padding:6px 10px;font-size:10px;color:#15803d;margin-top:10px">📋 Llevar: tarjeta de propiedad, manual de garantías, llave de pernos</div>
+  </div>
+  <div class="tarjeta-ft">Precios sujetos a variación · ARMOTOR le pone motor a su vida</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ======== STATE OBJECT ========
+const S = {
+  resultado: 'agenda', hasNovedad: false, hasWG: false,
+  adicionales: new Set(), checks: new Set(['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE']),
+  f: {} // form fields
+};
+
+// Read all data-f inputs into state
+function syncState(){
+  document.querySelectorAll('[data-f]').forEach(el=>{S.f[el.dataset.f]=el.value?.trim()||''});
+}
+
+// ======== THEME ========
+function togTheme(){const h=document.documentElement,c=h.getAttribute('data-theme')==='light'?'dark':'light';h.setAttribute('data-theme',c);document.getElementById('thIco').className=c==='dark'?'fas fa-sun':'fas fa-moon';localStorage.setItem('ct',c)}
+(()=>{const s=localStorage.getItem('ct');if(s){document.documentElement.setAttribute('data-theme',s);document.getElementById('thIco').className=s==='dark'?'fas fa-sun':'fas fa-moon'}})();
+
+// ======== RESULT PICKER ========
+function pickRes(b){
+  document.querySelectorAll('#resP .pill').forEach(p=>p.classList.remove('on'));
+  b.classList.add('on'); S.resultado=b.dataset.r;
+  ['noc-f','sinKm-f','otroTaller-f'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  const agSec=['sCotiz','sNovedad','sWego','sAdic'];
+  if(S.resultado==='agenda'){agSec.forEach(s=>document.getElementById(s).classList.remove('hidden'))}
+  else{agSec.forEach(s=>document.getElementById(s).classList.add('hidden'));
+    if(S.resultado==='noc')document.getElementById('noc-f').classList.remove('hidden');
+    if(S.resultado==='sinKm')document.getElementById('sinKm-f').classList.remove('hidden');
+    if(S.resultado==='otroTaller')document.getElementById('otroTaller-f').classList.remove('hidden');
+  }
+  u();
+}
+
+// ======== TOGGLES ========
+function togNovedad(){
+  S.hasNovedad=!S.hasNovedad;
+  const sw=document.getElementById('novSw');
+  sw.classList.toggle('warn',S.hasNovedad); sw.classList.remove('on');
+  document.getElementById('novedadF').classList.toggle('hidden',!S.hasNovedad);
+  if(S.hasNovedad){document.getElementById('wegoOk').classList.add('hidden');document.getElementById('wegoBlocked').classList.remove('hidden');S.hasWG=false;document.getElementById('wgSw').classList.remove('on');document.getElementById('wgF').classList.add('hidden')}
+  else{document.getElementById('wegoOk').classList.remove('hidden');document.getElementById('wegoBlocked').classList.add('hidden')}
+  u();
+}
+function togWego(){
+  S.hasWG=!S.hasWG;
+  document.getElementById('wgSw').classList.toggle('on',S.hasWG);
+  document.getElementById('wgF').classList.toggle('hidden',!S.hasWG);
+  u();
+}
+function togAd(b){const k=b.dataset.ad;if(S.adicionales.has(k)){S.adicionales.delete(k);b.classList.remove('on')}else{S.adicionales.add(k);b.classList.add('on')}
+document.getElementById('accF').classList.toggle('hidden',!S.adicionales.has('accesorios'));u()}
+function togChk(b){const k=b.dataset.chk;if(S.checks.has(k)){S.checks.delete(k);b.classList.remove('on')}else{S.checks.add(k);b.classList.add('on')}u()}
+
+// ======== OUTPUT TABS ========
+function switchTab(tab,paneId){
+  document.querySelectorAll('.out-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.out-pane').forEach(p=>p.classList.remove('active'));
+  tab.classList.add('active');document.getElementById(paneId).classList.add('active');
+}
+
+// ======== MASTER UPDATE (called on every input) ========
+function u(){
+  syncState();
+  const f=S.f, r=S.resultado;
+  const pla=f.placa?.toUpperCase()||'', tel=f.telefono||'', pre=[pla,tel].filter(Boolean).join(' // ');
+  const signos={Mantenimiento:' ++',Revisión:' *',Garantía:' ??',Inspección:'',Especializada:' ??'};
+  let nota='',est='',cau='',mot='',voz='',cli='';
+
+  if(r==='agenda'){
+    const serv=(f.servicio||'Mantenimiento').toUpperCase();
+    const signo=signos[f.servicio]||'';
+    est='CONTACTO';cau='AGENDAMIENTO EXITOSO';
+    mot=serv==='MANTENIMIENTO'?'CAMBIO DE ACEITE':serv;
+    voz=S.hasNovedad&&f.novedad?f.novedad.toUpperCase():'MANTENIMIENTO PREVENTIVO';
+    const pts=[pre,f.kmActual?f.kmActual+' KM':'',`${serv} ${f.kmServicio||'10.000'}KM $ ${document.getElementById('pPrecio')?.textContent?.replace('$ ','')||'—'} IVA INCLUIDO`];
+    if(S.hasNovedad&&f.novedad)pts.push(f.novedad.toUpperCase());
+    S.checks.forEach(c=>pts.push(c));
+    if(S.adicionales.has('telemetria'))pts.push('VALIDAR TELEMETRIA');
+    nota=pts.filter(Boolean).join(' // ')+` // CALL CENTER${signo}`;
+    const svCli={Mantenimiento:'el mantenimiento',Revisión:'la revisión',Garantía:'la atención de garantía',Inspección:'la inspección',Especializada:'el diagnóstico'}[f.servicio]||'el servicio';
+    cli=`Le confirmamos lo que realizaremos en su cita:\n\n🔧 ${svCli.charAt(0).toUpperCase()+svCli.slice(1)} de los ${f.kmServicio||'—'} km\n💰 Valor: ${document.getElementById('pPrecio')?.textContent||'—'} (IVA incluido)\n\nValidaremos accesorios, embellecimiento y servicios adicionales para su vehículo. 🚗\n\n¡Lo esperamos!`;
+  }else if(r==='noc'){
+    est='NO CONTACTO';cau='NO CONTESTA';mot='SIN RESPUESTA';voz='BUZÓN DE VOZ';
+    nota=[pre,f.tipoNoc||'NO CONTESTA',f.marcaciones||'1 CONTACTO','ENVIO PLANTILLA'].filter(Boolean).join(' // ');
+    cli='Hola 👋 Intentamos comunicarnos sin éxito. Cuando estés disponible, escríbenos.';
+  }else if(r==='seg'){
+    est='CONTACTO';cau='VOLVER A LLAMAR';mot='CLIENTE OCUPADO';voz='SOLICITA LLAMAR EN OTRO MOMENTO';
+    nota=[pre,'SE REPROGRAMA CONTACTO'].filter(Boolean).join(' // ');
+    cli='Quedamos en contacto. Cuando lo prefiera retomamos. 😊';
+  }else if(r==='sinKm'){
+    est='CONTACTO';cau='NO TIENE KILOMETRAJE';mot='SERVICIO NO APLICA';voz='AÚN NO CUMPLE KMS';
+    nota=[pre,f.kmNoAplica?`SOLO ${f.kmNoAplica} KMS`:'NO CUMPLE KM',f.reprograma?`SE REPROGRAMA PARA ${f.reprograma.toUpperCase()}`:'SE REPROGRAMA','SE ENVIA PLANTILLA'].filter(Boolean).join(' // ');
+    cli='Le recordaremos cuando se acerque al kilometraje. 🚗';
+  }else if(r==='otroTaller'){
+    est='CONTACTO';cau='VISITA OTRO TALLER';const rz=f.razonOtro||'PRECIO';
+    mot=rz==='PRECIO'?'PRECIO ALTO':rz==='UBICACION'?'UBICACIÓN':'PREFERENCIA PROVEEDOR';
+    voz=rz==='PRECIO'?'OFERTA MÁS ECONÓMICA':rz==='UBICACION'?'MAYOR COMODIDAD':'HISTÓRICO CON OTRO TALLER';
+    nota=[pre,`VISITA OTRO TALLER POR ${rz}`].filter(Boolean).join(' // ');
+    cli='Si desea conocer nuestras condiciones, con gusto le atendemos. ¡Buen día!';
+  }else if(r==='noContactar'){
+    est='CONTACTO';cau='NO VOLVER A CONTACTAR';mot='CLIENTE NO INTERESADO';voz='NO DESEA RECIBIR INFORMACIÓN';
+    nota=[pre,'NO VOLVER A CONTACTAR'].filter(Boolean).join(' // ');
+    cli='Gracias por su atención. Quedamos atentos si requiere nuestros servicios.';
+  }
+
+  document.getElementById('outNota').textContent=nota||'—';
+  document.getElementById('outCli').textContent=cli||'—';
+  document.getElementById('eEst').textContent=est;
+  document.getElementById('eCau').textContent=cau;
+  document.getElementById('eMot').textContent=mot;
+  document.getElementById('eVoz').textContent=voz;
+  validateSemaforo();
+}
+
+// ======== VALIDATION / SEMÁFORO ========
+function validateSemaforo(){
+  const f=S.f, r=S.resultado;
+  let required=[];
+  // Always required
+  if(!f.nombre) required.push('Nombre');
+  if(!f.placa) required.push('Placa');
+  // By result
+  if(r==='agenda'){
+    if(!f.kmActual) required.push('Km actual');
+    if(!f.asesorTaller) required.push('Asesor taller');
+  }
+  const sem=document.getElementById('semaforo');
+  const btn=document.getElementById('btnSave');
+  const dot=sem.querySelector('.dot');
+  const msg=sem.querySelector('.msg');
+  if(required.length===0){
+    dot.className='dot green'; msg.textContent='Listo para guardar';
+    sem.classList.add('ok');
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> GUARDAR GESTIÓN';
+  }else if(required.length<=2){
+    dot.className='dot yellow'; msg.textContent=`Falta: ${required.join(', ')}`;
+    sem.classList.remove('ok');
+    btn.disabled=true; btn.innerHTML=`<i class="fas fa-lock"></i> Falta: ${required.join(', ')}`;
+  }else{
+    dot.className='dot red'; msg.textContent=`${required.length} campos pendientes`;
+    sem.classList.remove('ok');
+    btn.disabled=true; btn.innerHTML=`<i class="fas fa-lock"></i> ${required.length} campos pendientes`;
+  }
+}
+
+// ======== COPY FUNCTIONS (bug-fixed: uses textContent) ========
+function cpText(id,btn){const txt=document.getElementById(id).textContent;navigator.clipboard.writeText(txt);flash(btn)}
+function cpEvo(btn){
+  const t=[document.getElementById('eEst').textContent,document.getElementById('eCau').textContent,document.getElementById('eMot').textContent,document.getElementById('eVoz').textContent].join(' | ');
+  navigator.clipboard.writeText(t);flash(btn);
+}
+function copyMsg(btn){cpText('outCli',btn)}
+function flash(b){b.classList.add('cp');const o=b.innerHTML;b.innerHTML='<i class="fas fa-check"></i> ¡Copiado!';setTimeout(()=>{b.classList.remove('cp');b.innerHTML=o},1400);toast('Copiado')}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
+
+// ======== TARJETA ========
+function downloadCard(){
+  syncState();const f=S.f;const t=document.getElementById('tarjeta');
+  t.querySelector('#tCli').textContent=f.nombre||'Cliente';
+  t.querySelector('#tVeh').textContent=`${f.marca||'KIA'} ${f.modelo||'—'} · ${(f.placa||'—').toUpperCase()}`;
+  t.querySelector('#tSrv').textContent=`${f.servicio||'Mantenimiento'} ${f.kmServicio||'—'} km`;
+  t.querySelector('#tPr').textContent=document.getElementById('pPrecio').textContent;
+  t.querySelector('#tFe').textContent=new Date().toLocaleDateString('es-CO');
+  t.style.left='0';
+  html2canvas(t,{scale:2}).then(c=>{t.style.left='-9999px';const a=document.createElement('a');a.download=`Armotor_${(f.placa||'srv').toUpperCase()}.png`;a.href=c.toDataURL();a.click();toast('Tarjeta descargada')}).catch(()=>{t.style.left='-9999px';toast('Error')});
+}
+
+// ======== SAVE ========
+function saveGestion(){toast('✅ Gestión guardada');setTimeout(resetPanel,600)}
+function resetPanel(){
+  document.querySelectorAll('[data-f]').forEach(i=>{if(i.tagName==='SELECT')i.selectedIndex=0;else i.value=''});
+  S.hasNovedad=false;S.hasWG=false;S.adicionales.clear();
+  S.checks=new Set(['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE']);
+  document.getElementById('novSw').classList.remove('warn');document.getElementById('wgSw').classList.remove('on');
+  document.getElementById('novedadF').classList.add('hidden');document.getElementById('wgF').classList.add('hidden');document.getElementById('accF').classList.add('hidden');
+  document.getElementById('wegoOk').classList.remove('hidden');document.getElementById('wegoBlocked').classList.add('hidden');
+  document.querySelectorAll('.pill[data-ad]').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.pill[data-chk]').forEach(p=>{S.checks.has(p.dataset.chk)?p.classList.add('on'):p.classList.remove('on')});
+  pickRes(document.querySelector('#resP .pill[data-r="agenda"]'));
+}
+
+// ======== NAVIGATION ========
+document.querySelectorAll('.ni[data-v]').forEach(btn=>{
+  btn.addEventListener('click',()=>goTo(btn.dataset.v));
+});
+function goTo(v){
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  const nav=document.querySelector(`.ni[data-v="${v}"]`);
+  if(nav)nav.classList.add('active');
+  document.querySelectorAll('.view').forEach(vw=>vw.classList.remove('active'));
+  const target=document.getElementById('v-'+v);
+  if(target)target.classList.add('active');
+}
+
+// Init
+pickRes(document.querySelector('#resP .pill[data-r="agenda"]'));
+</script>
+</body>
+</html>

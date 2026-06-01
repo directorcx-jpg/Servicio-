@@ -1,1121 +1,414 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Armotor Sistema - Escalamiento y Mejora Continua</title>
+<title>Consola CETA Armotor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-html {
-    scroll-behavior: smooth;
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    padding: 20px 10px;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 25px;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: fadeIn 0.8s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.header {
-    background: linear-gradient(135deg, #191726 0%, #2d2b3d 100%);
-    padding: 40px 20px;
-    text-align: center;
-    color: white;
-    position: relative;
-    overflow: hidden;
-}
-
-.logo {
-    font-size: 3em;
-    font-weight: bold;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-}
-
-.logo::before {
-    content: "⚙";
-    color: #D32F2F;
-    font-size: 1.2em;
-}
-
-.tagline {
-    color: #B9B8BF;
-    font-size: 1em;
-    margin-top: 5px;
-}
-
-.title {
-    font-size: 1.8em;
-    margin: 25px 0 15px;
-    font-weight: 300;
-}
-
-.subtitle {
-    font-size: 1.1em;
-    opacity: 0.9;
-}
-
-.subtitle::before {
-    content: "💬 ";
-    margin-right: 5px;
-}
-
-.interno {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 10px;
-    font-size: 0.9em;
-    display: inline-block;
-    backdrop-filter: blur(5px);
-}
-
-.interno::before {
-    content: "🔒 ";
-    margin-right: 5px;
-}
-
-.section {
-    padding: 40px 20px;
-}
-
-.gray {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-.dark {
-    background: linear-gradient(135deg, #6A6873 0%, #4a485f 100%);
-    color: white;
-}
-
-.black {
-    background: linear-gradient(135deg, #0D0D0D 0%, #1a1a1a 100%);
-    color: white;
-    text-align: center;
-}
-
-h2 {
-    text-align: center;
-    font-size: 2em;
-    margin-bottom: 30px;
-    color: #191726;
-    font-weight: 600;
-    position: relative;
-    padding-bottom: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-h2::before {
-    content: "📋";
-    font-size: 0.9em;
-}
-
-h2::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 3px;
-    background: linear-gradient(90deg, #D32F2F, #764ba2);
-    border-radius: 2px;
-}
-
-.dark h2, .black h2 {
-    color: white;
-}
-
-.dark h2::after, .black h2::after {
-    background: linear-gradient(90deg, #fff, #B9B8BF);
-}
-
-/* Botón CTA principal */
-.cta-button-container {
-    text-align: center;
-    margin: 30px 0;
-}
-
-.cta-button {
-    display: inline-block;
-    padding: 18px 45px;
-    background: linear-gradient(135deg, #D32F2F, #f44336);
-    color: white;
-    text-decoration: none;
-    border-radius: 50px;
-    font-size: 1.1em;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 5px 20px rgba(211, 47, 47, 0.3);
-    position: relative;
-    overflow: hidden;
-}
-
-.cta-button::after {
-    content: " →";
-    margin-left: 5px;
-}
-
-.cta-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(211, 47, 47, 0.4);
-}
-
-/* Grid de cards */
-.grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: stretch;
-    gap: 20px;
-    margin: 0 auto;
-    max-width: 1100px;
-}
-
-.card {
-    background: white;
-    padding: 30px 20px;
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    flex: 1;
-    min-width: 240px;
-    max-width: 260px;
-}
-
-.card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #D32F2F, #764ba2);
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-}
-
-.icon {
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 15px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 30px;
-    transition: transform 0.3s ease;
-}
-
-.card:hover .icon {
-    transform: scale(1.1) rotate(5deg);
-}
-
-.card:nth-child(1) .icon::before { content: "⭐"; }
-.card:nth-child(2) .icon::before { content: "📈"; }
-.card:nth-child(3) .icon::before { content: "✅"; }
-.card:nth-child(4) .icon::before { content: "💡"; }
-
-.text {
-    color: #353440;
-    font-size: 0.95em;
-    line-height: 1.5;
-}
-
-/* Tips acordeón */
-#tips-section h2::before {
-    content: "ℹ️";
-}
-
-.tips-container {
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.accordion-item {
-    margin-bottom: 15px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-}
-
-.accordion-header {
-    background: white;
-    padding: 20px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-left: 5px solid #D32F2F;
-    user-select: none;
-}
-
-.accordion-header:hover {
-    background: #f8f8f8;
-}
-
-.accordion-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #191726;
-}
-
-.accordion-icon {
-    font-size: 1.3em;
-}
-
-.accordion-arrow {
-    font-size: 1.5em;
-    transition: transform 0.3s ease;
-    color: #6A6873;
-}
-
-.accordion-item.active .accordion-arrow {
-    transform: rotate(180deg);
-}
-
-.accordion-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.5s ease;
-    background: #f9f9f9;
-}
-
-.accordion-item.active .accordion-content {
-    max-height: 1000px;
-}
-
-.tips {
-    padding: 20px;
-    display: grid;
-    gap: 15px;
-}
-
-.tip {
-    display: flex;
-    align-items: center;
-    padding: 15px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.tip:hover {
-    transform: translateX(5px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-}
-
-.tip-icon {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #D32F2F, #f44336);
-    color: white;
-    margin-right: 15px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.tip-text {
-    color: #353440;
-    font-size: 0.95em;
-    line-height: 1.5;
-}
-
-.accordion-item.reclamaciones .accordion-header {
-    border-left-color: #D32F2F;
-}
-
-.accordion-item.reconocimientos .accordion-header {
-    border-left-color: #28a745;
-}
-.accordion-item.reconocimientos .tip-icon {
-    background: linear-gradient(135deg, #28a745, #4caf50);
-}
-
-.accordion-item.oportunidades .accordion-header {
-    border-left-color: #007bff;
-}
-.accordion-item.oportunidades .tip-icon {
-    background: linear-gradient(135deg, #007bff, #2196f3);
-}
-
-.accordion-item.sugerencias .accordion-header {
-    border-left-color: #ffc107;
-}
-.accordion-item.sugerencias .tip-icon {
-    background: linear-gradient(135deg, #ffc107, #ffeb3b);
-    color: #191726;
-}
-
-/* Canales de Escalamiento */
-#canales-section h2::before {
-    content: "📡";
-}
-
-.contacts {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: stretch;
-    gap: 25px;
-    max-width: 1000px;
-    margin: 0 auto;
-}
-
-.contact {
-    background: rgba(255,255,255,0.95);
-    border-radius: 15px;
-    padding: 30px 25px;
-    text-align: center;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-    flex: 1;
-    min-width: 280px;
-    max-width: 320px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-}
-
-.contact:hover {
-    transform: translateY(-5px);
-    background: white;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-/* Estilo especial para la tarjeta de Formulario Digital CON BOTÓN DENTRO */
-.contact.formulario-digital {
-    border: 2px solid rgba(211, 47, 47, 0.2);
-    padding-bottom: 25px;
-}
-
-.contact.formulario-digital::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #D32F2F, #f44336);
-}
-
-/* Botón DENTRO de la tarjeta Formulario Digital */
-.btn-form-card {
-    margin-top: 20px;
-    padding: 12px 25px;
-    background: linear-gradient(135deg, #D32F2F, #f44336);
-    color: white;
-    text-decoration: none;
-    border-radius: 25px;
-    font-size: 0.95em;
-    font-weight: bold;
-    display: inline-block;
-    transition: all 0.3s ease;
-    box-shadow: 0 3px 10px rgba(211, 47, 47, 0.3);
-}
-
-.btn-form-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(211, 47, 47, 0.5);
-}
-
-.contact-icon {
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 20px;
-    background: linear-gradient(135deg, #191726, #2d2b3d);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 30px;
-    transition: transform 0.3s ease;
-}
-
-.contact:hover .contact-icon {
-    transform: scale(1.1) rotate(5deg);
-}
-
-.contact:nth-child(1) .contact-icon::before { content: "📝"; }
-.contact:nth-child(2) .contact-icon::before { content: "📞"; }
-.contact:nth-child(3) .contact-icon::before { content: "✉️"; }
-
-.contact-name {
-    color: #191726;
-    font-size: 1.3em;
-    font-weight: bold;
-    margin-bottom: 15px;
-}
-
-.contact-info {
-    font-size: 1em;
-    line-height: 1.6;
-    color: #353440;
-}
-
-.contact:first-child .contact-info::before {
-    content: "🕐 ";
-    font-size: 0.9em;
-}
-
-.phone {
-    font-weight: bold;
-    color: #D32F2F;
-    font-size: 1.2em;
-    margin: 10px 0;
-    display: block;
-    transition: all 0.3s ease;
-}
-
-.phone::before {
-    content: "📱 ";
-    margin-right: 5px;
-}
-
-.email {
-    font-weight: bold;
-    color: #D32F2F;
-    font-size: 1.1em;
-    margin: 10px 0;
-    display: block;
-    word-break: break-all;
-}
-
-.email::before {
-    content: "✉️ ";
-    margin-right: 5px;
-}
-
-/* 7 Pasos */
-#pasos-section h2::before {
-    content: "📝";
-}
-
-#pasos-section h2 {
-    font-size: 1.8em;
-    line-height: 1.3;
-}
-
-.subtitle-pasos {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #6A6873;
-    font-size: 1em;
-}
-
-.steps {
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.step {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 25px;
-    gap: 20px;
-    animation: slideIn 0.6s ease-out;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-30px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-.step-num {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #191726, #2d2b3d);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: bold;
-    flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-.step:nth-child(1) .step-num::before { content: "1"; }
-.step:nth-child(2) .step-num::before { content: "2"; }
-.step:nth-child(3) .step-num::before { content: "3"; }
-.step:nth-child(4) .step-num::before { content: "4"; }
-.step:nth-child(5) .step-num::before { content: "5"; }
-.step:nth-child(6) .step-num::before { content: "6"; }
-.step:nth-child(7) .step-num::before { content: "7"; }
-
-.step-content {
-    flex: 1;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-    border-left: 4px solid #6A6873;
-    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
-}
-
-.step:hover .step-content {
-    transform: translateX(5px);
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-}
-
-.step-title {
-    color: #191726;
-    font-size: 1.1em;
-    font-weight: bold;
-    margin-bottom: 8px;
-}
-
-.step-desc {
-    color: #6A6873;
-    font-size: 0.95em;
-    line-height: 1.5;
-}
-
-/* Sección Final */
-#final-section h2::before {
-    content: "🤝";
-}
-
-/* Botón de volver arriba */
-.back-to-top {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #191726, #2d2b3d);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    z-index: 998;
-}
-
-.back-to-top.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-.back-to-top:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-}
-
-.back-to-top::before {
-    content: "↑";
-}
-
-/* Pulse animation */
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.pulse {
-    animation: pulse 2s infinite;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .logo {
-        font-size: 2.2em;
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .title {
-        font-size: 1.4em;
-    }
-    
-    h2 {
-        font-size: 1.6em;
-    }
-    
-    #pasos-section h2 {
-        font-size: 1.4em;
-    }
-    
-    .grid {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .card {
-        max-width: 100%;
-        width: 100%;
-    }
-    
-    .contacts {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .contact {
-        max-width: 100%;
-        width: 100%;
-    }
-    
-    .step {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-    
-    .step-content {
-        border-left: none;
-        border-top: 4px solid #6A6873;
-    }
-    
-    .cta-button {
-        padding: 15px 35px;
-        font-size: 1em;
-    }
-}
-
-@media (max-width: 480px) {
-    body {
-        padding: 10px 5px;
-    }
-    
-    .container {
-        border-radius: 15px;
-    }
-    
-    .header {
-        padding: 30px 15px;
-    }
-    
-    .section {
-        padding: 30px 15px;
-    }
-    
-    .logo {
-        font-size: 1.8em;
-    }
-    
-    .logo::before {
-        font-size: 1em;
-    }
-    
-    .title {
-        font-size: 1.2em;
-    }
-    
-    .subtitle {
-        font-size: 0.95em;
-    }
-    
-    h2 {
-        font-size: 1.4em;
-    }
-    
-    #pasos-section h2 {
-        font-size: 1.2em;
-    }
-    
-    .card {
-        padding: 25px 15px;
-        min-width: auto;
-    }
-    
-    .tip {
-        padding: 12px;
-    }
-    
-    .contact {
-        padding: 25px 20px;
-        min-width: auto;
-    }
-    
-    .back-to-top {
-        bottom: 20px;
-        right: 20px;
-        width: 45px;
-        height: 45px;
-    }
-}
-
-/* Asegurar que los emojis se vean bien */
-.icon::before,
-.step-num::before,
-.contact-icon::before,
-.accordion-icon {
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiOne Color", "Twemoji Mozilla", sans-serif;
-}
+:root[data-theme="light"]{--bg:#fafaf9;--bgp:#fff;--bgs:#f4f4f3;--bgh:#efeeec;--bd:#e7e5e4;--bd2:#d6d3d1;--tx:#1c1917;--tx2:#57534e;--tx3:#78716c}
+:root[data-theme="dark"]{--bg:#0f0f10;--bgp:#18181b;--bgs:#232328;--bgh:#2a2a30;--bd:#2a2a30;--bd2:#3a3a42;--tx:#f4f4f5;--tx2:#a1a1aa;--tx3:#71717a}
+:root{--ac:#e53935;--ac2:#c62828;--acs:rgba(229,57,53,.08);--ok:#16a34a;--oks:rgba(22,163,74,.1);--wr:#ea580c;--wrs:rgba(234,88,12,.1);--in:#2563eb;--ins:rgba(37,99,235,.1);--gd:#b45309;--r:8px;--f:'Inter',system-ui,sans-serif;--fd:'Manrope',sans-serif;--fm:'JetBrains Mono',monospace;--t:all 180ms ease}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+.app{display:grid;grid-template-rows:52px 1fr 26px;height:100vh}
+.hd{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:16px;padding:0 16px;background:var(--bgp);border-bottom:1px solid var(--bd);z-index:10}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--fd);font-weight:800;font-size:15px}
+.logo-m{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,var(--ac),#b71c1c);display:grid;place-items:center;color:#fff;font-size:12px}
+.logo .c{color:var(--tx3);font-weight:500;font-size:11px;margin-left:4px}
+.omni{display:flex;align-items:center;gap:8px;background:var(--bgs);border:1px solid var(--bd);border-radius:7px;padding:7px 12px;max-width:480px;width:100%;position:relative}
+.omni:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acs)}
+.omni input{flex:1;border:none;outline:none;background:transparent;color:var(--tx);font-family:var(--f);font-size:12px}
+.omni input::placeholder{color:var(--tx3)}
+.omni-res{position:absolute;top:42px;left:0;right:0;background:var(--bgp);border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:340px;overflow-y:auto;z-index:30;display:none}
+.omni-res.show{display:block}
+.omni-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--bd)}
+.omni-item:hover{background:var(--bgh)}.omni-item .k{font-size:9px;color:var(--tx3);text-transform:uppercase;margin-left:auto}
+.hd-act{display:flex;align-items:center;gap:6px}
+.ib{width:34px;height:34px;display:grid;place-items:center;border:none;background:transparent;color:var(--tx2);border-radius:7px;cursor:pointer;transition:var(--t);font-size:14px}
+.ib:hover{background:var(--bgh);color:var(--tx)}
+.userchip{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;border:1px solid var(--bd);border-radius:20px;background:var(--bgs);cursor:pointer}
+.userchip .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#b71c1c);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px;font-family:var(--fd)}
+.userchip .un{font-size:11px;font-weight:600;line-height:1.1}.userchip .ur{font-size:9px;color:var(--tx3)}
+.mn{display:grid;grid-template-columns:220px 1fr 380px;overflow:hidden}
+.col{overflow-y:auto;scrollbar-width:thin}.col::-webkit-scrollbar{width:6px}.col::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+.view{display:none}.view.active{display:block;animation:fi .15s ease-out}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.sb{background:var(--bgp);border-right:1px solid var(--bd);padding:12px 10px}
+.ng{margin-bottom:16px}.ng-t{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:0 8px 6px}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:1px;border-radius:5px;font-size:12px;font-weight:500;color:var(--tx2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--f);transition:var(--t)}
+.ni i{width:15px;font-size:13px}.ni:hover{background:var(--bgh);color:var(--tx)}.ni.active{background:var(--acs);color:var(--ac)}
+.ni.vip{background:rgba(180,83,9,.08);color:var(--gd);border:1px solid rgba(180,83,9,.15)}
+.cn{padding:20px 24px;background:var(--bg)}
+.ft-title{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:var(--bgs);color:var(--tx2)}
+.badge.kia{background:rgba(187,22,43,.1);color:#bb162b}.badge.voz{background:var(--ins);color:var(--in)}.badge.vig{background:var(--oks);color:var(--ok)}
+.fb{background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.bt{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;color:var(--tx2)}
+.bt .n{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;font-family:var(--fm);font-size:11px}
+.bt.val .n{background:var(--ins);color:var(--in)}.bt.say .n{background:var(--oks);color:var(--ok)}
+.bt.do .n{background:rgba(124,58,237,.1);color:#7c3aed}.bt.esc .n{background:var(--wrs);color:var(--wr)}
+.sp{font-size:15px;line-height:1.65;background:var(--bgs);border-left:3px solid var(--ok);padding:12px 14px;border-radius:0 6px 6px 0}
+.sp .v{background:var(--oks);color:var(--ok);padding:1px 5px;border-radius:3px;font-weight:600;font-family:var(--fm);font-size:12px}
+.al{display:flex;gap:10px;padding:10px 12px;border-radius:6px;margin-top:8px;font-size:12px;line-height:1.5}
+.al.wr{background:var(--wrs);border-left:3px solid var(--wr)}.al.in{background:var(--ins);border-left:3px solid var(--in)}
+.cl{list-style:none}.cl li{display:flex;gap:8px;padding:4px 0;font-size:12px}.ck{width:14px;height:14px;border:1.5px solid var(--bd2);border-radius:3px;flex-shrink:0;margin-top:2px}
+.empty{text-align:center;padding:60px 20px;color:var(--tx3)}.empty i{font-size:34px;margin-bottom:12px;opacity:.5}
+.empty h2{font-family:var(--fd);font-size:16px;color:var(--tx2);margin-bottom:6px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th,.tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd)}
+.tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);font-weight:600}
+.tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase}
+.tag.coordinador{background:var(--acs);color:var(--ac)}.tag.analista{background:var(--ins);color:var(--in)}
+.tag.asesor_cc{background:var(--oks);color:var(--ok)}.tag.asesor_digital{background:rgba(124,58,237,.1);color:#7c3aed}
+.rp{background:var(--bgp);border-left:1px solid var(--bd);display:flex;flex-direction:column}
+.rp-head{padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.rp-head h3{font-family:var(--fd);font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.live{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pu 2s infinite;display:inline-block}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+.rp-body{flex:1;overflow-y:auto;padding:10px 12px}
+.rp-locked{padding:40px 20px;text-align:center;color:var(--tx3);font-size:12px;display:none}
+.rp-locked i{font-size:28px;margin-bottom:10px;opacity:.5}
+.rp-s{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.rp-s:last-child{border-bottom:none}
+.rp-l{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.rp-l .nm{width:16px;height:16px;border-radius:3px;display:grid;place-items:center;font-family:var(--fm);font-size:9px;font-weight:700;background:var(--acs);color:var(--ac)}
+.rr{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px}
+.rr.full{grid-template-columns:1fr}.rr.tri{grid-template-columns:1fr 1fr 1fr}
+.ff{display:flex;flex-direction:column;gap:2px}
+.ff label{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.ff input,.ff select{border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px 7px;border-radius:5px;font-size:11px;font-family:var(--f);transition:var(--t);width:100%}
+.ff input:focus,.ff select:focus{outline:none;border-color:var(--ac);background:var(--bgp)}
+.ff input.mono{font-family:var(--fm)}
+.pills{display:flex;gap:3px;flex-wrap:wrap}
+.pill{padding:5px 9px;border:1.5px solid var(--bd);border-radius:14px;background:var(--bgs);font-size:10px;cursor:pointer;transition:var(--t);user-select:none;font-family:var(--f);color:var(--tx);display:inline-flex;align-items:center;gap:3px}
+.pill:hover{border-color:var(--bd2)}.pill.on{background:var(--oks);border-color:var(--ok);color:var(--ok)}
+.pill.off{background:var(--wrs);border-color:var(--wr);color:var(--wr)}.pill.gray{background:var(--bgh);border-color:var(--tx3);color:var(--tx3)}
+.tog{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer}
+.tog-sw{width:32px;height:18px;border-radius:9px;background:var(--bd2);position:relative;transition:var(--t);flex-shrink:0}
+.tog-sw::after{content:'';width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:var(--t)}
+.tog-sw.on{background:var(--ok)}.tog-sw.on::after{left:16px}
+.tog-sw.warn{background:var(--wr)}.tog-sw.warn::after{left:16px}
+.out-tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:8px}
+.out-tab{flex:1;padding:6px 4px;text-align:center;font-size:10px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:var(--t)}
+.out-tab:hover{color:var(--tx)}.out-tab.active{color:var(--ac);border-bottom-color:var(--ac)}
+.out-pane{display:none}.out-pane.active{display:block}
+.out-box{background:var(--bgs);border-radius:5px;padding:8px 10px;font-size:11px;line-height:1.6;word-break:break-word;max-height:120px;overflow-y:auto;margin-bottom:6px;white-space:pre-wrap}
+.out-box.mono{font-family:var(--fm);font-size:10px}
+.out-evo{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px}
+.out-evo div{background:var(--bgs);border-radius:4px;padding:5px}
+.out-evo .l{font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+.out-evo .v{font-weight:600;font-size:10px;margin-top:1px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid transparent;border-radius:5px;font-family:var(--f);font-size:10px;font-weight:600;cursor:pointer;transition:var(--t);background:var(--bgs);color:var(--tx)}
+.btn:hover{background:var(--bgh)}.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{filter:brightness(.9)}
+.btn-ac{background:var(--ac);color:#fff}.btn-ac:hover{background:var(--ac2)}
+.btn-gh{background:transparent;border-color:var(--bd)}.btn-gh:hover{background:var(--bgh)}
+.btn.cp{background:var(--ok);color:#fff}
+.btn-big{width:100%;padding:10px;font-size:12px;justify-content:center;border-radius:7px}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(1)}
+.price-box{text-align:center;padding:10px;background:linear-gradient(135deg,#1c1917,#292524);border-radius:7px;color:#fff;margin:6px 0}
+[data-theme="dark"] .price-box{background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid var(--bd)}
+.price-box .val{font-family:var(--fd);font-size:24px;font-weight:800;letter-spacing:-.02em}
+.price-box .lbl{font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.05em}
+.semaforo{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--tx3);margin-bottom:8px;padding:6px 8px;background:var(--bgs);border-radius:5px}
+.semaforo .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.semaforo .dot.red{background:#ef4444}.semaforo .dot.yellow{background:#eab308}.semaforo .dot.green{background:var(--ok)}
+.semaforo.ok{color:var(--ok)}.semaforo.ok .msg{font-weight:600}
+.sub-l{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:8px 0 4px;display:flex;align-items:center;gap:4px}
+.sub-l i{font-size:10px}
+.hidden{display:none!important}
+.tarjeta{position:fixed;left:-9999px;top:0;width:600px;background:#fff;color:#1c1917;font-family:'Inter',sans-serif;padding:0}
+.tarjeta *{color:#1c1917}
+.tarjeta-hd{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
+.tarjeta-hd *{color:#fff}.tarjeta-hd .lt{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px}
+.tarjeta-body{padding:20px}
+.tarjeta-pr{text-align:center;padding:14px;background:#f5f5f5;border-radius:8px;margin-bottom:14px}
+.tarjeta-pr .v{font-family:'Manrope',sans-serif;font-size:32px;font-weight:800;color:#e53935}
+.tarjeta-pr .l{font-size:11px;color:#666}
+.tarjeta-ft{background:#f9f9f9;padding:12px 22px;font-size:9px;color:#999;text-align:center;border-top:1px solid #eee}
+.ft-bar{display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bgp);border-top:1px solid var(--bd);font-size:10px;color:var(--tx3);font-family:var(--fm)}
+.ft-bar .li{display:flex;align-items:center;gap:4px;margin-left:auto}
+.toast{position:fixed;bottom:50px;right:20px;background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transform:translateY(16px);transition:var(--t);z-index:100}
+.toast.show{opacity:1;transform:none}
+.login{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:340px;background:var(--bgp);border:1px solid var(--bd);border-radius:14px;padding:30px 26px;box-shadow:0 16px 48px rgba(0,0,0,.25)}
+.login-logo{display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:18px;margin-bottom:4px}
+.login-sub{text-align:center;color:var(--tx3);font-size:11px;margin-bottom:22px}
+.login label{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;margin-top:14px}
+.login select,.login input{width:100%;border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:10px 12px;border-radius:8px;font-size:14px;font-family:var(--f)}
+.login input{font-family:var(--fm);letter-spacing:.5em;text-align:center}
+.login select:focus,.login input:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--acs)}
+.login-err{color:var(--ac);font-size:11px;margin-top:10px;text-align:center;min-height:14px}
+.login .btn-big{margin-top:18px}
+.login-note{margin-top:16px;font-size:10px;color:var(--tx3);text-align:center;line-height:1.5;border-top:1px solid var(--bd);padding-top:12px}
 </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header" id="inicio">
-        <div class="logo">armotor</div>
-        <div class="tagline">Le pone motor a tu vida</div>
-        <div class="title">Sistema de Retroalimentación y Mejora Continua</div>
-        <div class="subtitle">Tu voz impulsa la excelencia en el servicio al cliente</div>
-        <div class="interno">Ten presente que esta información es solo para uso interno</div>
-    </div>
-
-    <div class="section gray" id="formulario">
-        <h2>Para qué usamos el formulario</h2>
-        <div class="grid">
-            <div class="card">
-                <div class="icon"></div>
-                <div class="text">Capturar retroalimentación positiva y reconocimientos</div>
-            </div>
-            <div class="card">
-                <div class="icon"></div>
-                <div class="text">Identificar oportunidades de mejora en procesos</div>
-            </div>
-            <div class="card">
-                <div class="icon"></div>
-                <div class="text">Gestionar PQRs de manera eficiente</div>
-            </div>
-            <div class="card">
-                <div class="icon"></div>
-                <div class="text">Documentar sugerencias valiosas del equipo</div>
-            </div>
-        </div>
-        
-        <div class="cta-button-container">
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
-               target="_blank" 
-               class="cta-button pulse">
-                ACCEDER AL FORMULARIO
-            </a>
-        </div>
-    </div>
-
-    <div class="section" id="tips">
-        <h2>Tips por Tipo de Registro</h2>
-        
-        <div class="tips-container">
-            <div class="accordion-item reclamaciones">
-                <div class="accordion-header" onclick="toggleAccordion(this)">
-                    <div class="accordion-title">
-                        <span class="accordion-icon">⚠️</span>
-                        <span>RECLAMACIONES</span>
-                    </div>
-                    <span class="accordion-arrow">▼</span>
-                </div>
-                <div class="accordion-content">
-                    <div class="tips">
-                        <div class="tip">
-                            <div class="tip-icon">1</div>
-                            <div class="tip-text">Escucha completa: No interrumpas, toma nota de todos los detalles</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">2</div>
-                            <div class="tip-text">Empatía primero: "Entiendo su molestia, vamos a solucionarlo"</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">3</div>
-                            <div class="tip-text">Intenta resolver: Usa tu conocimiento y autoridad al máximo</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">4</div>
-                            <div class="tip-text">Tiempo máximo: 10 minutos para decidir si resolver o escalar</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="accordion-item reconocimientos">
-                <div class="accordion-header" onclick="toggleAccordion(this)">
-                    <div class="accordion-title">
-                        <span class="accordion-icon">🏆</span>
-                        <span>RECONOCIMIENTOS</span>
-                    </div>
-                    <span class="accordion-arrow">▼</span>
-                </div>
-                <div class="accordion-content">
-                    <div class="tips">
-                        <div class="tip">
-                            <div class="tip-icon">1</div>
-                            <div class="tip-text">Sé específico: Describe exactamente qué hizo bien el compañero</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">2</div>
-                            <div class="tip-text">Documenta siempre: Los reconocimientos motivan al equipo</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">3</div>
-                            <div class="tip-text">Comparte ejemplos: Ayuda a otros a replicar buenas prácticas</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">4</div>
-                            <div class="tip-text">Cliente feliz = Registro: Si un cliente te felicita, regístralo</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="accordion-item oportunidades">
-                <div class="accordion-header" onclick="toggleAccordion(this)">
-                    <div class="accordion-title">
-                        <span class="accordion-icon">🚀</span>
-                        <span>OPORTUNIDADES DE MEJORA</span>
-                    </div>
-                    <span class="accordion-arrow">▼</span>
-                </div>
-                <div class="accordion-content">
-                    <div class="tips">
-                        <div class="tip">
-                            <div class="tip-icon">1</div>
-                            <div class="tip-text">No hay ideas pequeñas: Toda mejora cuenta</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">2</div>
-                            <div class="tip-text">Piensa en el cliente: ¿Cómo facilitaría su experiencia?</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">3</div>
-                            <div class="tip-text">Cuantifica si puedes: Tiempo o dinero que se ahorraría</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">4</div>
-                            <div class="tip-text">Propón soluciones: No solo identifiques problemas</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="accordion-item sugerencias">
-                <div class="accordion-header" onclick="toggleAccordion(this)">
-                    <div class="accordion-title">
-                        <span class="accordion-icon">💬</span>
-                        <span>SUGERENCIAS</span>
-                    </div>
-                    <span class="accordion-arrow">▼</span>
-                </div>
-                <div class="accordion-content">
-                    <div class="tips">
-                        <div class="tip">
-                            <div class="tip-icon">1</div>
-                            <div class="tip-text">Cliente interno importa: El bienestar del equipo mejora el servicio</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">2</div>
-                            <div class="tip-text">Observa patrones: Si varios clientes piden lo mismo, repórtalo</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">3</div>
-                            <div class="tip-text">Innovación bienvenida: Propón nuevas formas de hacer las cosas</div>
-                        </div>
-                        <div class="tip">
-                            <div class="tip-icon">4</div>
-                            <div class="tip-text">Benchmark: Si viste algo bueno en otro lado, sugiérelo</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section dark" id="canales">
-        <h2>Canales de Escalamiento</h2>
-        <div class="contacts">
-            <div class="contact formulario-digital">
-                <div class="contact-icon"></div>
-                <div class="contact-name">Formulario Digital</div>
-                <div class="contact-info">
-                    Google Forms<br>
-                    Disponible 24/7
-                </div>
-                <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
-                   target="_blank" 
-                   class="btn-form-card">
-                    ACCEDER AL FORMULARIO →
-                </a>
-            </div>
-            <div class="contact">
-                <div class="contact-icon"></div>
-                <div class="contact-name">Líneas Telefónicas</div>
-                <div class="contact-info">
-                    <strong>Reclamaciones (PQRs):</strong>
-                    <span class="phone">300 339 9204</span>
-                    <strong>Agendamientos:</strong>
-                    <span class="phone">310 451 7716</span>
-                </div>
-            </div>
-            <div class="contact">
-                <div class="contact-icon"></div>
-                <div class="contact-name">Correo Electrónico</div>
-                <div class="contact-info">
-                    <strong>Servicio al Cliente:</strong>
-                    <span class="email">servicioalcliente@armotor.com</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section gray" id="pasos">
-        <h2>7 Pasos para Gestionar Exitosamente la Retroalimentación del Cliente</h2>
-        <p class="subtitle-pasos">
-            Protocolo efectivo para reclamaciones, reconocimientos, sugerencias y oportunidades de mejora
-        </p>
-        <div class="steps">
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">ESCUCHA ACTIVA</div>
-                    <div class="step-desc">Presta atención completa al cliente. Identifica si es una felicitación, sugerencia o situación a resolver.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">EVALÚA LA SITUACIÓN</div>
-                    <div class="step-desc">Determina el tipo de retroalimentación y si puedes resolverla inmediatamente.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">INTENTA RESOLVER</div>
-                    <div class="step-desc">Si está en tu alcance, brinda una solución inmediata y efectiva.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">ACCEDE AL FORMULARIO</div>
-                    <div class="step-desc">Ingresa a Google Forms mediante el enlace en la intranet o solicítalo a tu supervisor.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">DOCUMENTA CON PRECISIÓN</div>
-                    <div class="step-desc">Completa todos los campos. Especifica si es retroalimentación positiva, mejora o PQR.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">INFORMA AL CLIENTE</div>
-                    <div class="step-desc">Comunica que su caso está siendo gestionado. Tiempo de respuesta: 24-48 horas.</div>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num"></div>
-                <div class="step-content">
-                    <div class="step-title">HAZ SEGUIMIENTO</div>
-                    <div class="step-desc">Verifica el estado a las 24 horas. Asegura que el cliente reciba respuesta oportuna.</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section black" id="final">
-        <h2>Juntos Construimos la Excelencia</h2>
-        <p style="margin-bottom: 30px; font-size: 1.1em; opacity: 0.9;">
-            <span style="font-size: 1.2em;">👥</span> Tu participación activa marca la diferencia en cada experiencia
-        </p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfdqH87t5o70yF1HGZpgATbWHJ-_zyqXDByHafB_VHfRzM56w/viewform" 
-           target="_blank" 
-           class="cta-button pulse">
-            COMPLETAR FORMULARIO AHORA
-        </a>
-    </div>
+<!-- ===================== LOGIN ===================== -->
+<div class="login" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><div class="logo-m" style="width:30px;height:30px"><i class="fas fa-car"></i></div>ARMOTOR <span style="color:var(--tx3);font-weight:500;font-size:13px">/ CETA</span></div>
+    <div class="login-sub">Consola operativa · Call Center CETA</div>
+    <label for="loginUser">Usuario</label>
+    <select id="loginUser"></select>
+    <label for="loginPin">PIN (4 dígitos)</label>
+    <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn btn-ac btn-big" id="loginBtn"><i class="fas fa-right-to-bracket"></i> Entrar</button>
+    <div class="login-note">PINs temporales sembrados para arranque. El coordinador los cambia en <strong>Configuración → Usuarios</strong>.</div>
+  </div>
 </div>
 
-<div class="back-to-top" id="backToTop" onclick="scrollToTop()"></div>
+<!-- ===================== APP ===================== -->
+<div class="app" id="appRoot" style="display:none">
+<header class="hd">
+  <div class="logo"><div class="logo-m"><i class="fas fa-car"></i></div>ARMOTOR<span class="c">/ CETA</span></div>
+  <div class="omni">
+    <i class="fas fa-search" style="color:var(--tx3);font-size:12px"></i>
+    <input id="omniInput" placeholder="Buscar guiones, contactos, modelos, sedes…" autocomplete="off">
+    <div class="omni-res" id="omniRes"></div>
+  </div>
+  <div class="hd-act">
+    <button class="ib" id="themeBtn" title="Tema"><i class="fas fa-sun" id="thIco"></i></button>
+    <button class="ib" title="Notificaciones"><i class="fas fa-bell"></i></button>
+    <div class="userchip" id="userChip" title="Cerrar sesión">
+      <div class="av" id="userAv">··</div>
+      <div><div class="un" id="userName">—</div><div class="ur" id="userRole">—</div></div>
+      <i class="fas fa-right-from-bracket" style="font-size:11px;color:var(--tx3);margin-left:2px"></i>
+    </div>
+  </div>
+</header>
 
-<script>
-// Función para el acordeón
-function toggleAccordion(header) {
-    const item = header.parentElement;
-    const allItems = document.querySelectorAll('.accordion-item');
-    
-    allItems.forEach(otherItem => {
-        if (otherItem !== item && otherItem.classList.contains('active')) {
-            otherItem.classList.remove('active');
-        }
-    });
-    
-    item.classList.toggle('active');
-}
+<main class="mn">
+<aside class="col sb" id="sidebar">
+  <div class="ng"><div class="ng-t">General</div>
+    <button class="ni active" data-v="home"><i class="fas fa-house"></i>Home Operativo</button>
+  </div>
+  <div class="ng"><div class="ng-t">Atención</div>
+    <button class="ni" data-v="inbound"><i class="fas fa-phone-volume"></i>Inbound Posventa</button>
+    <button class="ni" data-v="outbound"><i class="fas fa-arrow-up-from-bracket"></i>Outbound</button>
+    <button class="ni" data-v="leads"><i class="fas fa-bullseye"></i>Lead Comercial</button>
+    <button class="ni" data-v="whatsapp"><i class="fab fa-whatsapp"></i>Plantillas WhatsApp</button>
+  </div>
+  <div class="ng"><div class="ng-t">Gestión</div>
+    <button class="ni" data-v="internos"><i class="fas fa-inbox"></i>Casos internos</button>
+    <button class="ni" data-v="control" data-perm="controlGestion"><i class="fas fa-table-columns"></i>Control gestión</button>
+  </div>
+  <div class="ng"><div class="ng-t">Base de Conocimiento</div>
+    <button class="ni" data-v="productos"><i class="fas fa-book"></i>Productos y Servicios</button>
+    <button class="ni" data-v="contactos"><i class="fas fa-address-book"></i>Contactos y Sedes</button>
+    <button class="ni" data-v="manuales"><i class="fas fa-wrench"></i>Manuales Mantenimiento</button>
+    <button class="ni" data-v="campanias"><i class="fas fa-bullhorn"></i>Campañas</button>
+    <button class="ni vip" data-v="vip"><i class="fas fa-crown"></i>Clientes VIP</button>
+  </div>
+  <div class="ng" data-perm="config"><div class="ng-t">Administración</div>
+    <button class="ni" data-v="config"><i class="fas fa-gear"></i>Configuración</button>
+  </div>
+</aside>
 
-// Mostrar/ocultar botón de volver arriba
-window.addEventListener('scroll', () => {
-    const scrolled = window.scrollY;
-    const backToTop = document.getElementById('backToTop');
-    
-    if (scrolled > 300) {
-        backToTop.classList.add('visible');
-    } else {
-        backToTop.classList.remove('visible');
-    }
-});
+<section class="col cn">
 
-// Función para volver arriba
-function scrollToTop() {
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
-}
+  <!-- HOME -->
+  <div class="view active" id="v-home">
+    <div style="background:linear-gradient(135deg,var(--bgp),var(--bgs));border:1px solid var(--bd);border-radius:10px;padding:28px;margin-bottom:20px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-50%;right:-10%;width:350px;height:350px;background:radial-gradient(circle,var(--acs),transparent 60%);z-index:0"></div>
+      <div style="position:relative;z-index:1">
+        <h1 style="font-family:var(--fd);font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px" id="homeHello">Hola 👋</h1>
+        <p style="color:var(--tx2);font-size:13px;margin-bottom:18px" id="homeSub">Tu consola para atención telefónica, digital y operativa.</p>
+        <div style="display:flex;gap:20px;flex-wrap:wrap" id="homeStats"></div>
+      </div>
+    </div>
+    <div style="font-family:var(--fd);font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-bolt"></i>Accesos rápidos</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px" id="homeQuick"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <h3 style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-fire" style="color:var(--wr)"></i>Más consultados hoy</h3>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ac);margin-top:6px;flex-shrink:0"></div><div><strong>Cotizador KIA Picanto 10K</strong><div style="font-size:10px;color:var(--tx3)">$ 1.068.978 · IVA incluido</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);margin-top:6px;flex-shrink:0"></div><div><strong>We Go sin costo</strong><div style="font-size:10px;color:var(--tx3)">Gancho de cierre · mayo 2026</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--in);margin-top:6px;flex-shrink:0"></div><div><strong>Saludo: solo "Armotor"</strong><div style="font-size:10px;color:var(--tx3)">Nunca mencionar marca en apertura</div></div></div>
+      </div>
+      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px">
+        <h3 style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-bell" style="color:var(--ac)"></i>Cambios recientes</h3>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ac);margin-top:6px;flex-shrink:0"></div><div><strong>We Go ahora sin costo</strong><div style="font-size:10px;color:var(--tx3)">Política permanente · mayo 2026</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--in);margin-top:6px;flex-shrink:0"></div><div><strong>Campaña Total Confianza KIA</strong><div style="font-size:10px;color:var(--tx3)">Vigente 19 may – 31 ago</div></div></div>
+        <div style="display:flex;gap:8px;padding:7px 0;font-size:12px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);margin-top:6px;flex-shrink:0"></div><div><strong>Consola CETA v1.0</strong><div style="font-size:10px;color:var(--tx3)">Panel de cierre unificado activo</div></div></div>
+      </div>
+    </div>
+  </div>
 
-// Abrir el primer acordeón por defecto
-document.addEventListener('DOMContentLoaded', () => {
-    const firstAccordion = document.querySelector('.accordion-item');
-    if (firstAccordion) {
-        firstAccordion.classList.add('active');
-    }
-});
-</script>
+  <!-- INBOUND (render desde DATA por app.js) -->
+  <div class="view" id="v-inbound"><div id="inboundWrap"></div></div>
+
+  <!-- CONFIG (solo coordinador) -->
+  <div class="view" id="v-config">
+    <h1 class="ft-title">Configuración · Usuarios</h1>
+    <div class="badges"><span class="badge"><i class="fas fa-shield-halved"></i> Solo coordinador</span></div>
+    <div class="fb"><div id="usersTable"></div></div>
+    <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios de PIN se guardan en este navegador (localStorage). La sincronización con Google Sheet llega en una fase posterior.</div></div>
+  </div>
+
+  <!-- Vistas placeholder (Fase 3) -->
+  <div class="view" id="v-outbound"></div>
+  <div class="view" id="v-leads"></div>
+  <div class="view" id="v-whatsapp"></div>
+  <div class="view" id="v-internos"></div>
+  <div class="view" id="v-control"></div>
+  <div class="view" id="v-productos"></div>
+  <div class="view" id="v-contactos"></div>
+  <div class="view" id="v-manuales"></div>
+  <div class="view" id="v-campanias"></div>
+  <div class="view" id="v-vip"></div>
+</section>
+
+<!-- =============== RIGHT PANEL =============== -->
+<aside class="col rp">
+  <div class="rp-head"><h3><span class="live"></span>Panel de gestión</h3><button class="btn" id="resetBtn" style="font-size:9px;padding:3px 7px"><i class="fas fa-arrow-rotate-left"></i></button></div>
+
+  <div class="rp-locked" id="rpLocked"><i class="fas fa-lock"></i><div>Tu rol es de <strong>solo lectura</strong>.<br>El registro de gestiones está disponible para asesores y coordinador.</div></div>
+
+  <div class="rp-body" id="rpBody">
+
+    <!-- S1: DATOS -->
+    <div class="rp-s">
+      <div class="rp-l"><span class="nm">1</span>DATOS DEL CLIENTE</div>
+      <div class="rr"><div class="ff"><label>Nombre</label><input data-f="nombre" placeholder="Sr./Sra." oninput="u()"></div><div class="ff"><label>Teléfono</label><input data-f="telefono" placeholder="300 000 0000" oninput="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Placa</label><input data-f="placa" class="mono" placeholder="ABC123" oninput="u()" style="text-transform:uppercase"></div><div class="ff"><label>Km actual</label><input data-f="kmActual" placeholder="8.500" oninput="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Ciudad</label><select data-f="ciudad" onchange="u()"><option>Pereira</option><option>Manizales</option><option>Armenia</option><option>Cartago</option><option>La Dorada</option></select></div><div class="ff"><label>Fecha nacimiento</label><input type="date" data-f="fechaNac"></div></div>
+      <div class="rr"><div class="ff"><label>Origen</label><select data-f="origen" onchange="u()"><option>Inbound</option><option>Base</option><option>Formulario</option><option>Chat MTIC</option><option>Otros</option></select></div><div class="ff"><label>Motivo del contacto</label><select data-f="motivo" onchange="u()"><option value="">— Se define en la llamada —</option><option>Mantenimiento</option><option>Garantía</option><option>Cotización</option><option>Información</option><option>Queja</option><option>Inspección</option><option>Accesorios</option></select></div></div>
+    </div>
+
+    <!-- S2: RESULTADO -->
+    <div class="rp-s">
+      <div class="rp-l"><span class="nm">2</span>RESULTADO</div>
+      <div class="pills" id="resP">
+        <button class="pill on" data-r="agenda" onclick="pickRes(this)">✅ Agendado</button>
+        <button class="pill" data-r="seg" onclick="pickRes(this)">🔄 Seguimiento</button>
+        <button class="pill" data-r="noc" onclick="pickRes(this)">📵 No contesta</button>
+        <button class="pill" data-r="sinKm" onclick="pickRes(this)">⏳ Sin km</button>
+        <button class="pill" data-r="otroTaller" onclick="pickRes(this)">🏃 Otro taller</button>
+        <button class="pill" data-r="noContactar" onclick="pickRes(this)">🚫 No contactar</button>
+      </div>
+      <div id="noc-f" class="hidden" style="margin-top:6px">
+        <div class="rr"><div class="ff"><label>Marcaciones</label><select data-f="marcaciones" onchange="u()"><option>1 CONTACTO</option><option>2 CONTACTOS</option><option>3 MARCACIONES</option></select></div><div class="ff"><label>Tipo</label><select data-f="tipoNoc" onchange="u()"><option>NO CONTESTA</option><option>CORREO DE VOZ</option><option>DIRECTO A BUZON</option><option>TELEFONO APAGADO</option><option>FUERA DE SERVICIO</option></select></div></div>
+        <div class="al in" style="margin:4px 0 0;padding:6px 8px;font-size:10px"><i class="fas fa-info-circle"></i>Este resultado solo requiere registrar la llamada.</div>
+      </div>
+      <div id="sinKm-f" class="hidden" style="margin-top:6px">
+        <div class="rr"><div class="ff"><label>Km que tiene</label><input data-f="kmNoAplica" placeholder="4.500" oninput="u()"></div><div class="ff"><label>Reprograma para</label><input data-f="reprograma" placeholder="Junio" oninput="u()"></div></div>
+      </div>
+      <div id="otroTaller-f" class="hidden" style="margin-top:6px">
+        <div class="ff"><label>Razón</label><select data-f="razonOtro" onchange="u()"><option value="PRECIO">Precio</option><option value="UBICACION">Ubicación</option><option value="PROVEEDOR">Histórico otro taller</option></select></div>
+      </div>
+    </div>
+
+    <!-- S3: COTIZACIÓN -->
+    <div class="rp-s" id="sCotiz">
+      <div class="rp-l"><span class="nm">3</span>COTIZACIÓN</div>
+      <div class="rr tri"><div class="ff"><label>Marca</label><select data-f="marca" onchange="u()"><option>KIA</option><option>Honda</option><option>FAW</option></select></div><div class="ff"><label>Combustión</label><select data-f="combustion" onchange="u()"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option></select></div><div class="ff"><label>Modelo</label><select data-f="modelo" onchange="u()"><option>Picanto</option><option>Sportage</option><option>Sonet</option><option>K3</option><option>Seltos</option><option>Rio</option></select></div></div>
+      <div class="rr tri"><div class="ff"><label>Servicio</label><select data-f="servicio" onchange="u()"><option>Mantenimiento</option><option>Revisión</option><option>Garantía</option><option>Inspección</option><option>Especializada</option></select></div><div class="ff"><label>Km servicio</label><select data-f="kmServicio" onchange="u()"><option>5.000</option><option selected>10.000</option><option>20.000</option><option>30.000</option><option>40.000</option><option>50.000</option></select></div><div class="ff"><label>Descuento</label><select data-f="descuento" onchange="u()"><option>0%</option><option>5%</option><option>10%</option></select></div></div>
+      <div class="rr"><div class="ff"><label>Alineación</label><select data-f="alineacion" onchange="u()"><option>Sí</option><option>No</option></select></div><div class="ff"><label>Embellecimiento</label><select data-f="embellecimiento" onchange="u()"><option>No aplica</option><option>Básico</option><option>Premium</option></select></div></div>
+      <div class="price-box"><div class="lbl">Valor estimado</div><div class="val" id="pPrecio">$ —</div></div>
+      <div style="display:flex;gap:3px"><button class="btn btn-ok" onclick="copyMsg(this)"><i class="fas fa-copy"></i> WhatsApp</button><button class="btn btn-gh" onclick="downloadCard()"><i class="fas fa-image"></i> Tarjeta</button></div>
+    </div>
+
+    <!-- S4: NOVEDAD -->
+    <div class="rp-s" id="sNovedad">
+      <div class="rp-l"><span class="nm">4</span>NOVEDAD / SÍNTOMA</div>
+      <label class="tog" onclick="togNovedad()"><span class="tog-sw" id="novSw"></span>¿Reporta novedad?</label>
+      <div id="novedadF" class="hidden" style="margin-top:4px"><div class="ff"><label>Describir</label><input data-f="novedad" placeholder="Chirrido al frenar..." oninput="u()"></div></div>
+    </div>
+
+    <!-- S5: WE GO -->
+    <div class="rp-s" id="sWego">
+      <div class="rp-l"><span class="nm">5</span>WE GO <span style="font-size:8px;color:var(--ok);margin-left:3px;font-weight:700">SIN COSTO</span></div>
+      <div id="wegoOk">
+        <label class="tog" onclick="togWego()"><span class="tog-sw" id="wgSw"></span>¿Aplica We Go?</label>
+        <div id="wgF" class="hidden" style="margin-top:6px">
+          <div class="rr"><div class="ff"><label>Fecha</label><input type="date" data-f="wgFecha"></div><div class="ff"><label>Hora</label><input type="time" data-f="wgHora"></div></div>
+          <div class="rr full"><div class="ff"><label>Dirección</label><input data-f="wgDireccion" placeholder="Cra 23 #45-12"></div></div>
+          <div class="rr"><div class="ff"><label>Quién recoge</label><select data-f="wgQuien"><option>Alfred</option><option>Taller Manizales</option><option>Taller Armenia</option></select></div><div class="ff"><label>Trayectos</label><select data-f="wgTrayectos"><option>2</option><option>1</option></select></div></div>
+        </div>
+      </div>
+      <div id="wegoBlocked" class="hidden"><div class="al wr" style="margin:0;padding:6px 8px;font-size:10px"><i class="fas fa-ban"></i><div>Bloqueado — novedad reportada, se requiere diagnóstico presencial.</div></div></div>
+    </div>
+
+    <!-- S6: ADICIONALES -->
+    <div class="rp-s" id="sAdic">
+      <div class="rp-l"><span class="nm">6</span>ADICIONALES Y CIERRE</div>
+      <div class="sub-l"><i class="fas fa-user"></i>Para el cliente</div>
+      <div class="pills">
+        <button class="pill" data-ad="telemetria" onclick="togAd(this)">📡 Telemetría</button>
+        <button class="pill" data-ad="accesorios" onclick="togAd(this)">🔧 Accesorios</button>
+      </div>
+      <div id="accF" class="hidden" style="margin-top:4px"><div class="ff"><label>Cuáles accesorios</label><input data-f="accesorios" placeholder="Tapetes, rines, kit seguridad" oninput="u()"></div></div>
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-wrench"></i>Para el taller</div>
+      <div class="pills">
+        <button class="pill on" data-chk="VALIDAR CAMPAÑA ACTIVA" onclick="togChk(this)">Campaña</button>
+        <button class="pill on" data-chk="VALIDAR EMBELLECIMIENTO" onclick="togChk(this)">Embellecimiento</button>
+        <button class="pill on" data-chk="VALIDAR ADICIONALES" onclick="togChk(this)">Adicionales</button>
+        <button class="pill on" data-chk="VALIDAR ACCESORIOS" onclick="togChk(this)">Accesorios</button>
+        <button class="pill on" data-chk="VALIDAR QUE MAS REQUIERE" onclick="togChk(this)">Qué más requiere</button>
+        <button class="pill" data-chk="ESPECIALIZADA O COLISION" onclick="togChk(this)">Especializada</button>
+        <button class="pill" data-chk="COTIZAR TAPETES RINES LLANTAS" onclick="togChk(this)">Cotizar tapetes/rines</button>
+      </div>
+      <div class="rr full" style="margin-top:6px"><div class="ff"><label>Servicios adicionales</label><input data-f="srvAdicional" placeholder="Instalación luces, elevavidrios..." oninput="u()"></div></div>
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
+      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input data-f="asesorTaller" placeholder="Lina Clemencia López" oninput="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" data-f="fechaCita" onchange="u()"></div><div class="ff"><label>Hora cita</label><input type="time" data-f="horaCita" onchange="u()"></div></div>
+      <div class="rr full"><div class="ff"><label>Observación</label><input data-f="observacion" placeholder="Nota adicional..." oninput="u()"></div></div>
+    </div>
+
+    <!-- SALIDAS -->
+    <div class="rp-s" style="border-bottom:none">
+      <div class="rp-l" style="color:var(--ac)"><i class="fas fa-wand-magic-sparkles"></i>SALIDAS</div>
+      <div class="semaforo" id="semaforo"><div class="dot red"></div><span class="msg">Faltan campos obligatorios</span></div>
+      <div class="out-tabs">
+        <div class="out-tab active" onclick="switchTab(this,'tabQuiter')">Quiter/iVuo</div>
+        <div class="out-tab" onclick="switchTab(this,'tabEvo')">Evolution</div>
+        <div class="out-tab" onclick="switchTab(this,'tabCli')">Cliente</div>
+      </div>
+      <div class="out-pane active" id="tabQuiter">
+        <div class="out-box mono" id="outNota">—</div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpText('outNota',this)"><i class="fas fa-copy"></i> Copiar nota</button>
+      </div>
+      <div class="out-pane" id="tabEvo">
+        <div class="out-evo">
+          <div><div class="l">Estado</div><div class="v" id="eEst">—</div></div>
+          <div><div class="l">Causa</div><div class="v" id="eCau">—</div></div>
+          <div><div class="l">Motivo</div><div class="v" id="eMot">—</div></div>
+          <div><div class="l">Voz</div><div class="v" id="eVoz">—</div></div>
+        </div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpEvo(this)"><i class="fas fa-copy"></i> Copiar tipificación</button>
+      </div>
+      <div class="out-pane" id="tabCli">
+        <div class="out-box" id="outCli">—</div>
+        <button class="btn btn-gh" style="width:100%;font-size:10px" onclick="cpText('outCli',this)"><i class="fab fa-whatsapp"></i> Copiar resumen</button>
+      </div>
+      <button class="btn btn-ac btn-big" id="btnSave" onclick="saveGestion()" disabled style="margin-top:10px"><i class="fas fa-lock"></i> Completar campos para guardar</button>
+    </div>
+  </div>
+</aside>
+</main>
+<footer class="ft-bar"><span id="ftVer">v1.0</span><span>·</span><span>Mayo 2026</span><span>·</span><span id="ftUser">—</span><div class="li"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);animation:pu 2s infinite"></div><span id="ftMode">Local</span></div></footer>
+</div>
+
+<!-- Tarjeta oculta -->
+<div class="tarjeta" id="tarjeta">
+  <div class="tarjeta-hd"><div class="lt">ARMOTOR</div><div style="font-size:10px;opacity:.8">Cotización de servicio</div></div>
+  <div class="tarjeta-body">
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px"><div><strong id="tCli">Cliente</strong><br><span style="color:#666" id="tVeh">Modelo</span></div><div style="text-align:right;color:#666;font-size:11px" id="tFe"></div></div>
+    <div class="tarjeta-pr"><div class="l" id="tSrv">Mantenimiento 10.000 km</div><div class="v" id="tPr">$ —</div></div>
+    <div style="margin-bottom:12px"><h4 style="font-size:12px;color:#16a34a;margin-bottom:6px;border-bottom:2px solid #e8f5e9;padding-bottom:4px">✅ Incluye</h4><ul style="list-style:none;font-size:10px;columns:2;column-gap:12px" id="tInc"></ul></div>
+    <div><h4 style="font-size:12px;color:#ea580c;margin-bottom:6px;border-bottom:2px solid #fff3e0;padding-bottom:4px">⚠️ No incluido (sujeto a inspección)</h4><ul style="list-style:none;font-size:10px" id="tExc"></ul></div>
+    <div style="background:#f0fdf4;border-radius:5px;padding:6px 10px;font-size:10px;color:#15803d;margin-top:10px">📋 Llevar: tarjeta de propiedad, manual de garantías, llave de pernos</div>
+  </div>
+  <div class="tarjeta-ft">Precios sujetos a variación · Armotor le pone motor a su vida</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

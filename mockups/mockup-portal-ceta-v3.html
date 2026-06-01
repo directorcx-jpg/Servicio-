@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consola CETA Armotor — v3 Panel Unificado</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root[data-theme="light"]{--bg:#fafaf9;--bg-p:#fff;--bg-s:#f4f4f3;--bg-h:#efeeec;--bd:#e7e5e4;--bd2:#d6d3d1;--tx:#1c1917;--tx2:#57534e;--tx3:#78716c;--sh:0 1px 3px rgba(0,0,0,.06)}
+:root[data-theme="dark"]{--bg:#0f0f10;--bg-p:#18181b;--bg-s:#232328;--bg-h:#2a2a30;--bd:#2a2a30;--bd2:#3a3a42;--tx:#f4f4f5;--tx2:#a1a1aa;--tx3:#71717a;--sh:0 1px 3px rgba(0,0,0,.4)}
+:root{--ac:#e53935;--ac2:#c62828;--acs:rgba(229,57,53,.08);--ok:#16a34a;--oks:rgba(22,163,74,.1);--wr:#ea580c;--wrs:rgba(234,88,12,.1);--in:#2563eb;--ins:rgba(37,99,235,.1);--gd:#b45309;--gds:rgba(180,83,9,.1);--r:8px;--f:'Inter',system-ui,sans-serif;--fd:'Manrope',sans-serif;--fm:'JetBrains Mono',monospace;--t:all 180ms ease}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+.app{display:grid;grid-template-rows:52px 1fr 26px;height:100vh}
+/* HEADER */
+.hd{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:16px;padding:0 16px;background:var(--bg-p);border-bottom:1px solid var(--bd);z-index:10}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--fd);font-weight:800;font-size:15px}
+.logo-m{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,var(--ac),#b71c1c);display:grid;place-items:center;color:#fff;font-size:12px}
+.logo .c{color:var(--tx3);font-weight:500;font-size:11px;margin-left:4px}
+.omni{display:flex;align-items:center;gap:8px;background:var(--bg-s);border:1px solid var(--bd);border-radius:7px;padding:7px 12px;max-width:480px;width:100%}
+.omni:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acs)}
+.omni input{flex:1;border:none;outline:none;background:transparent;color:var(--tx);font-family:var(--f);font-size:12px}
+.omni input::placeholder{color:var(--tx3)}
+.hd-act{display:flex;align-items:center;gap:2px}
+.ib{width:34px;height:34px;display:grid;place-items:center;border:none;background:transparent;color:var(--tx2);border-radius:7px;cursor:pointer;transition:var(--t);font-size:14px}
+.ib:hover{background:var(--bg-h);color:var(--tx)}
+/* MAIN 3 COL */
+.mn{display:grid;grid-template-columns:220px 1fr 380px;overflow:hidden}
+.col{overflow-y:auto;scrollbar-width:thin}
+.col::-webkit-scrollbar{width:6px}.col::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+/* SIDEBAR */
+.sb{background:var(--bg-p);border-right:1px solid var(--bd);padding:12px 10px}
+.ng{margin-bottom:16px}
+.ng-t{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:0 8px 6px}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:1px;border-radius:5px;font-size:12px;font-weight:500;color:var(--tx2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--f);transition:var(--t)}
+.ni i{width:15px;font-size:13px}.ni:hover{background:var(--bg-h);color:var(--tx)}
+.ni.active{background:var(--acs);color:var(--ac)}
+.ni .ct{margin-left:auto;font-size:10px;color:var(--tx3);font-family:var(--fm)}
+.ni.vip{background:var(--gds);color:var(--gd);border:1px solid rgba(180,83,9,.15)}
+/* CENTRAL */
+.cn{padding:20px 24px;background:var(--bg)}
+.view{display:none}.view.active{display:block;animation:fi .15s ease-out}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+/* Ficha standard */
+.ft{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:var(--bg-s);color:var(--tx2)}
+.badge.kia{background:rgba(187,22,43,.1);color:#bb162b}.badge.honda{background:rgba(204,0,0,.1);color:#c00}
+.badge.voz{background:var(--ins);color:var(--in)}.badge.wa{background:rgba(37,211,102,.1);color:#25D366}
+.badge.vig{background:var(--oks);color:var(--ok)}
+.fb{background:var(--bg-p);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.bt{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;color:var(--tx2)}
+.bt .n{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;font-family:var(--fm);font-size:11px}
+.bt.val .n{background:var(--ins);color:var(--in)}.bt.say .n{background:var(--oks);color:var(--ok)}
+.bt.do .n{background:rgba(124,58,237,.1);color:#7c3aed}.bt.esc .n{background:var(--wrs);color:var(--wr)}
+.sp{font-size:15px;line-height:1.65;background:var(--bg-s);border-left:3px solid var(--ok);padding:12px 14px;border-radius:0 6px 6px 0}
+.sp .v{background:var(--oks);color:var(--ok);padding:1px 5px;border-radius:3px;font-weight:600;font-family:var(--fm);font-size:12px}
+.al{display:flex;gap:10px;padding:10px 12px;border-radius:6px;margin-top:8px;font-size:12px;line-height:1.5}
+.al.wr{background:var(--wrs);border-left:3px solid var(--wr)}.al.in{background:var(--ins);border-left:3px solid var(--in)}
+.al i{margin-top:2px}
+.cl{list-style:none}.cl li{display:flex;gap:8px;padding:4px 0;font-size:12px;align-items:flex-start}
+.ck{width:14px;height:14px;border:1.5px solid var(--bd2);border-radius:3px;flex-shrink:0;margin-top:2px}
+
+/* RIGHT PANEL — UNIFIED */
+.rp{background:var(--bg-p);border-left:1px solid var(--bd);padding:0;display:flex;flex-direction:column}
+.rp-head{padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.rp-head h3{font-family:var(--fd);font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.rp-head .live{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pu 2s infinite}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+.rp-body{flex:1;overflow-y:auto;padding:12px 14px}
+.rp-section{margin-bottom:14px;border-bottom:1px solid var(--bd);padding-bottom:12px}
+.rp-section:last-child{border-bottom:none}
+.rp-label{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.rp-label .num{width:18px;height:18px;border-radius:4px;display:grid;place-items:center;font-family:var(--fm);font-size:10px;font-weight:700;background:var(--acs);color:var(--ac)}
+.rp-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.rp-row.full{grid-template-columns:1fr}
+.rp-row.tri{grid-template-columns:1fr 1fr 1fr}
+.ff{display:flex;flex-direction:column;gap:3px}
+.ff label{font-size:10px;color:var(--tx3);font-weight:500}
+.ff input,.ff select{border:1px solid var(--bd);background:var(--bg-s);color:var(--tx);padding:7px 8px;border-radius:6px;font-size:12px;font-family:var(--f);transition:var(--t);width:100%}
+.ff input:focus,.ff select:focus{outline:none;border-color:var(--ac);background:var(--bg-p)}
+.ff input.mono{font-family:var(--fm)}
+/* Pills */
+.pills{display:flex;gap:4px;flex-wrap:wrap}
+.pill{padding:5px 10px;border:1.5px solid var(--bd);border-radius:16px;background:var(--bg-s);font-size:11px;cursor:pointer;transition:var(--t);user-select:none;font-family:var(--f);color:var(--tx);display:inline-flex;align-items:center;gap:4px}
+.pill:hover{border-color:var(--bd2)}.pill.on{background:var(--oks);border-color:var(--ok);color:var(--ok)}
+.pill.off{background:var(--wrs);border-color:var(--wr);color:var(--wr)}
+.pill.gray{background:var(--bg-h);border-color:var(--tx3);color:var(--tx3)}
+/* Toggle */
+.tog{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer}
+.tog-sw{width:36px;height:20px;border-radius:10px;background:var(--bd2);position:relative;transition:var(--t);flex-shrink:0}
+.tog-sw::after{content:'';width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:var(--t)}
+.tog-sw.on{background:var(--ok)}.tog-sw.on::after{left:18px}
+.tog-sw.warn{background:var(--wr)}.tog-sw.warn::after{left:18px}
+/* Outputs */
+.out-box{background:var(--bg-s);border-radius:6px;padding:10px 12px;font-size:11px;line-height:1.6;margin-bottom:6px;word-break:break-word;max-height:120px;overflow-y:auto}
+.out-box.mono{font-family:var(--fm);font-size:11px}
+.out-evo{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}
+.out-evo div{background:var(--bg-s);border-radius:4px;padding:6px}
+.out-evo .l{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+.out-evo .v{font-weight:600;font-size:11px;margin-top:1px}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid transparent;border-radius:6px;font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:var(--t);background:var(--bg-s);color:var(--tx)}
+.btn:hover{background:var(--bg-h)}.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{filter:brightness(.9)}
+.btn-ac{background:var(--ac);color:#fff}.btn-ac:hover{background:var(--ac2)}
+.btn-gh{background:transparent;border-color:var(--bd)}.btn-gh:hover{background:var(--bg-h)}
+.btn.cp{background:var(--ok);color:#fff}
+.btn-big{width:100%;padding:12px;font-size:13px;justify-content:center;border-radius:8px}
+/* Price display */
+.price-display{text-align:center;padding:12px;background:linear-gradient(135deg,#1c1917,#292524);border-radius:8px;color:#fff;margin:8px 0}
+[data-theme="dark"] .price-display{background:linear-gradient(135deg,#0a0a0a,#1a1a1a);border:1px solid var(--bd)}
+.price-display .val{font-family:var(--fd);font-size:28px;font-weight:800;letter-spacing:-.02em}
+.price-display .lbl{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.05em}
+/* Hidden sections */
+.hidden{display:none!important}
+/* Tarjeta de servicio (para html2canvas) */
+.tarjeta{position:fixed;left:-9999px;top:0;width:600px;background:#fff;color:#1c1917;font-family:'Inter',sans-serif;border-radius:0;padding:0}
+.tarjeta *{color:#1c1917}
+.tarjeta-hd{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:center}
+.tarjeta-hd *{color:#fff}
+.tarjeta-hd .logo-t{font-family:'Manrope',sans-serif;font-weight:800;font-size:18px}
+.tarjeta-hd .tag{font-size:11px;opacity:.8}
+.tarjeta-body{padding:24px}
+.tarjeta-price{text-align:center;padding:16px;background:#f5f5f5;border-radius:10px;margin-bottom:16px}
+.tarjeta-price .v{font-family:'Manrope',sans-serif;font-size:36px;font-weight:800;color:#e53935}
+.tarjeta-price .l{font-size:12px;color:#666}
+.tarjeta-inc{margin-bottom:16px}
+.tarjeta-inc h4{font-size:13px;color:#16a34a;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #e8f5e9}
+.tarjeta-exc h4{font-size:13px;color:#ea580c;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #fff3e0}
+.tarjeta-inc li,.tarjeta-exc li{font-size:11px;padding:2px 0;list-style:none;display:flex;gap:6px;align-items:flex-start}
+.tarjeta-ft{background:#f9f9f9;padding:14px 24px;font-size:10px;color:#999;text-align:center;border-top:1px solid #eee}
+/* FOOTER */
+.ft-bar{display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bg-p);border-top:1px solid var(--bd);font-size:10px;color:var(--tx3);font-family:var(--fm)}
+.ft-bar .sep{color:var(--bd2)}
+.ft-bar .li{display:flex;align-items:center;gap:4px;margin-left:auto}
+.ft-bar .li .d{width:5px;height:5px;border-radius:50%;background:var(--ok);animation:pu 2s infinite}
+/* Toast */
+.toast{position:fixed;bottom:50px;right:20px;background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transform:translateY(16px);transition:var(--t);z-index:100}
+.toast.show{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="hd">
+  <div class="logo"><div class="logo-m"><i class="fas fa-car"></i></div>ARMOTOR<span class="c">/ CETA</span></div>
+  <div class="omni"><i class="fas fa-search" style="color:var(--tx3);font-size:12px"></i><input placeholder="Buscar guiones, contactos, modelos…"></div>
+  <div class="hd-act">
+    <button class="ib" onclick="togTheme()"><i class="fas fa-sun" id="thIco"></i></button>
+    <button class="ib"><i class="fas fa-bell"></i></button>
+  </div>
+</header>
+
+<main class="mn">
+<!-- SIDEBAR -->
+<aside class="col sb">
+  <div class="ng"><div class="ng-t">General</div>
+    <button class="ni" data-v="home"><i class="fas fa-house"></i>Home</button>
+  </div>
+  <div class="ng"><div class="ng-t">Atención</div>
+    <button class="ni active" data-v="inbound"><i class="fas fa-phone-volume"></i>Inbound Posventa</button>
+    <button class="ni"><i class="fas fa-phone-arrow-up-right"></i>Outbound</button>
+    <button class="ni"><i class="fas fa-bullseye"></i>Lead Comercial</button>
+    <button class="ni"><i class="fab fa-whatsapp"></i>Plantillas WhatsApp</button>
+  </div>
+  <div class="ng"><div class="ng-t">Gestión</div>
+    <button class="ni"><i class="fas fa-inbox"></i>Casos internos</button>
+    <button class="ni"><i class="fas fa-table-columns"></i>Control gestión</button>
+  </div>
+  <div class="ng"><div class="ng-t">Base de Conocimiento</div>
+    <button class="ni"><i class="fas fa-book"></i>Productos y Servicios</button>
+    <button class="ni"><i class="fas fa-address-book"></i>Contactos y Sedes</button>
+    <button class="ni"><i class="fas fa-wrench"></i>Manuales Mantenimiento</button>
+    <button class="ni"><i class="fas fa-shield-halved"></i>Garantías</button>
+    <button class="ni"><i class="fas fa-bullhorn"></i>Campañas</button>
+    <button class="ni vip"><i class="fas fa-crown"></i>Clientes VIP</button>
+  </div>
+</aside>
+
+<!-- CENTRAL: Guion Inbound visible -->
+<section class="col cn">
+<div class="view active">
+  <h1 class="ft">Flujo Inbound · Paso 6 — Cotizar</h1>
+  <div class="badges">
+    <span class="badge kia">KIA</span><span class="badge honda">Honda</span>
+    <span class="badge voz"><i class="fas fa-phone"></i> Voz</span>
+    <span class="badge vig"><i class="fas fa-circle" style="font-size:5px"></i> v2.1</span>
+  </div>
+
+  <div class="fb"><div class="bt val"><span class="n">1</span>Qué validar</div>
+    <ul class="cl">
+      <li><span class="ck"></span>Confirmar tipo de combustión del vehículo</li>
+      <li><span class="ck"></span>Verificar km actual del odómetro</li>
+      <li><span class="ck"></span>Identificar si el mtto aplica por tiempo o km (lo primero que ocurra)</li>
+      <li><span class="ck"></span>Validar que NO haya reportado síntomas (afecta We Go)</li>
+      <li><span class="ck"></span>Los datos del cliente ya deben estar en el panel derecho →</li>
+    </ul>
+  </div>
+
+  <div class="fb"><div class="bt say"><span class="n">2</span>Qué decir al cliente</div>
+    <div class="sp">"Para el mantenimiento de los <span class="v">[KM]</span> de su <span class="v">[MODELO]</span> el valor es de <span class="v">$[PRECIO]</span>. Le cuento qué incluye: cambio de aceite y filtro motor, diagnóstico eléctrico, inspección de frenos, suspensión, dirección, alineación, balanceo, rotación de llantas y revisión de más de 30 puntos de control.<br><br>Es importante que sepa que <strong>no incluye</strong> cambio de filtro de aire del motor, filtro de A/C ni plumillas; quedan sujetos a inspección del técnico.<br><br>¿Le agendamos su cita?"</div>
+    <div class="al in"><i class="fas fa-lightbulb"></i><div><strong>Tip:</strong> Si pregunta "¿por qué tan caro?" — muéstrale la lista de 29 servicios del cotizador en el panel derecho.</div></div>
+  </div>
+
+  <div class="fb"><div class="bt do"><span class="n">3</span>Qué hacer después</div>
+    <ul class="cl">
+      <li><span class="ck"></span>Si dice sí → Paso 7 (We Go, marcar en panel derecho)</li>
+      <li><span class="ck"></span>Si dice "lo pienso" → enviar resumen por WhatsApp y programar seguimiento</li>
+      <li><span class="ck"></span>Enviar tarjeta de servicio + mensaje desde el panel derecho</li>
+    </ul>
+  </div>
+
+  <div class="fb"><div class="bt esc"><span class="n">4</span>Cuándo escalar</div>
+    <div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>Escalar al <strong>Líder de Posventa</strong> si: descuento >10%, modelo no aparece en cotizador, cliente VIP, o reclamo por reparación previa.</div></div>
+  </div>
+
+  <div style="display:flex;gap:6px;margin-top:16px">
+    <button class="btn btn-gh"><i class="fas fa-chevron-left"></i> Paso 5</button>
+    <button class="btn btn-ac">Paso 7 · We Go <i class="fas fa-chevron-right"></i></button>
+  </div>
+</div>
+</section>
+
+<!-- RIGHT PANEL: UNIFIED CLOSURE -->
+<aside class="col rp" id="rp">
+  <div class="rp-head">
+    <h3><span class="live"></span>Panel de gestión</h3>
+    <button class="btn" onclick="resetPanel()" style="font-size:10px;padding:4px 8px"><i class="fas fa-arrow-rotate-left"></i> Limpiar</button>
+  </div>
+  <div class="rp-body" id="rpBody">
+
+    <!-- S1: DATOS CLIENTE -->
+    <div class="rp-section">
+      <div class="rp-label"><span class="num">1</span>DATOS DEL CLIENTE</div>
+      <div class="rp-row"><div class="ff"><label>Nombre</label><input id="pNom" placeholder="Sr./Sra." oninput="gen()"></div><div class="ff"><label>Teléfono</label><input id="pTel" placeholder="300 000 0000" oninput="gen()"></div></div>
+      <div class="rp-row"><div class="ff"><label>Placa</label><input id="pPla" class="mono" placeholder="ABC123" oninput="gen()" style="text-transform:uppercase"></div><div class="ff"><label>Km actual</label><input id="pKmA" placeholder="8.500" oninput="gen()"></div></div>
+      <div class="rp-row"><div class="ff"><label>Ciudad</label><select id="pCiu" onchange="gen()"><option>Pereira</option><option>Manizales</option><option>Armenia</option><option>Cartago</option><option>La Dorada</option></select></div><div class="ff"><label>Origen</label><select id="pOri"><option>Inbound</option><option>Base</option><option>Formulario</option><option>Chat MTIC</option><option>Otros</option></select></div></div>
+    </div>
+
+    <!-- S2: RESULTADO (gobierna visibilidad) -->
+    <div class="rp-section">
+      <div class="rp-label"><span class="num">2</span>RESULTADO</div>
+      <div class="pills" id="resP">
+        <button class="pill on" data-r="agenda" onclick="pickRes(this)">✅ Agendado</button>
+        <button class="pill" data-r="seg" onclick="pickRes(this)">🔄 Seguimiento</button>
+        <button class="pill" data-r="noc" onclick="pickRes(this)">📵 No contesta</button>
+        <button class="pill" data-r="noa" onclick="pickRes(this)">⏳ Sin km</button>
+        <button class="pill" data-r="otro" onclick="pickRes(this)">🏃 Otro taller</button>
+        <button class="pill" data-r="nov" onclick="pickRes(this)">🚫 No contactar</button>
+      </div>
+      <!-- No contesta fields -->
+      <div id="noc-f" class="hidden" style="margin-top:8px">
+        <div class="rp-row"><div class="ff"><label>Marcaciones</label><select id="pMarc" onchange="gen()"><option>1 CONTACTO</option><option>2 CONTACTOS</option><option>3 MARCACIONES</option></select></div><div class="ff"><label>Tipo</label><select id="pNocT" onchange="gen()"><option>NO CONTESTA</option><option>CORREO DE VOZ</option><option>DIRECTO A BUZON</option><option>TELEFONO APAGADO</option></select></div></div>
+        <label class="tog" style="margin-top:6px" onclick="togEl(this)"><span class="tog-sw"></span>Se envió plantilla</label>
+      </div>
+      <!-- Sin km fields -->
+      <div id="noa-f" class="hidden" style="margin-top:8px">
+        <div class="rp-row"><div class="ff"><label>Km que tiene</label><input id="pKmNa" placeholder="4.500" oninput="gen()"></div><div class="ff"><label>Reprograma para</label><input id="pRepro" placeholder="Junio" oninput="gen()"></div></div>
+      </div>
+      <!-- Otro taller -->
+      <div id="otro-f" class="hidden" style="margin-top:8px">
+        <div class="ff"><label>Razón</label><select id="pRazon" onchange="gen()"><option value="PRECIO">Precio más económico</option><option value="UBICACION">Ubicación</option><option value="PROVEEDOR">Histórico otro taller</option></select></div>
+      </div>
+    </div>
+
+    <!-- S3: COTIZACIÓN (solo si agendado) -->
+    <div class="rp-section" id="sCotiz">
+      <div class="rp-label"><span class="num">3</span>COTIZACIÓN</div>
+      <div class="rp-row tri"><div class="ff"><label>Marca</label><select id="pMar" onchange="gen()"><option>KIA</option><option>Honda</option><option>FAW</option></select></div><div class="ff"><label>Combustión</label><select id="pFuel" onchange="gen()"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option></select></div><div class="ff"><label>Modelo</label><select id="pMod" onchange="gen()"><option>Picanto</option><option>Sportage</option><option>Sonet</option><option>K3</option><option>Soluto</option><option>Rio</option></select></div></div>
+      <div class="rp-row tri"><div class="ff"><label>Tipo servicio</label><select id="pServ" onchange="gen()"><option>Mantenimiento</option><option>Revisión</option><option>Garantía</option><option>Inspección</option><option>Especializada</option></select></div><div class="ff"><label>Km servicio</label><select id="pKmS" onchange="gen()"><option>10.000</option><option>20.000</option><option>30.000</option><option>40.000</option><option>50.000</option></select></div><div class="ff"><label>Descuento</label><select id="pDesc"><option>0%</option><option>5%</option><option>10%</option></select></div></div>
+
+      <div class="price-display"><div class="lbl">Valor aproximado</div><div class="val" id="pPrecio">$ 1.068.978</div></div>
+
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-ok" onclick="copyMsg(this)"><i class="fas fa-copy"></i> Mensaje WhatsApp</button>
+        <button class="btn btn-gh" onclick="downloadCard()"><i class="fas fa-image"></i> Tarjeta</button>
+      </div>
+    </div>
+
+    <!-- S4: NOVEDAD -->
+    <div class="rp-section" id="sNov">
+      <div class="rp-label"><span class="num">4</span>NOVEDAD DEL CLIENTE</div>
+      <label class="tog" onclick="togNov(this)"><span class="tog-sw" id="novSw"></span>¿Reporta novedad / síntoma?</label>
+      <div id="novF" class="hidden" style="margin-top:6px"><div class="ff"><label>Describir</label><input id="pNovTx" placeholder="Chirrido al frenar..." oninput="gen()"></div></div>
+    </div>
+
+    <!-- S5: WE GO -->
+    <div class="rp-section" id="sWego">
+      <div class="rp-label"><span class="num">5</span>WE GO <span style="font-size:9px;color:var(--ok);margin-left:4px">SIN COSTO</span></div>
+      <div id="wegoBlock">
+        <label class="tog" onclick="togWego(this)"><span class="tog-sw" id="wgSw"></span>¿Aplica We Go?</label>
+        <div id="wgF" class="hidden" style="margin-top:8px">
+          <div class="rp-row"><div class="ff"><label>Fecha</label><input type="date" id="pWgFe"></div><div class="ff"><label>Hora</label><input type="time" id="pWgHo"></div></div>
+          <div class="rp-row full"><div class="ff"><label>Dirección recogida</label><input id="pWgDir" placeholder="Cra 23 #45-12"></div></div>
+          <div class="rp-row"><div class="ff"><label>Quién recoge</label><select id="pWgQui"><option>Alfred</option><option>Taller Manizales</option><option>Taller Armenia</option></select></div><div class="ff"><label>Trayectos</label><select id="pWgTr"><option>2</option><option>1</option></select></div></div>
+        </div>
+      </div>
+      <div id="wegoDisabled" class="hidden" style="margin-top:4px">
+        <div class="al wr" style="margin:0"><i class="fas fa-ban"></i><div>No aplica — novedad reportada, se requiere diagnóstico presencial.</div></div>
+      </div>
+    </div>
+
+    <!-- S6: ADICIONALES -->
+    <div class="rp-section" id="sAdic">
+      <div class="rp-label"><span class="num">6</span>ADICIONALES</div>
+      <div class="pills">
+        <button class="pill" data-ad="tel" onclick="togAd(this)">📡 Telemetría</button>
+        <button class="pill" data-ad="acc" onclick="togAd(this)">🔧 Accesorios</button>
+      </div>
+      <div id="accF" class="hidden" style="margin-top:6px"><div class="ff"><label>Cuáles accesorios</label><input id="pAcc" placeholder="Tapetes, kit seguridad, rines" oninput="gen()"></div></div>
+      <div class="rp-row full" style="margin-top:6px"><div class="ff"><label>Servicios adicionales al principal</label><input id="pSrvAd" placeholder="Instalación luces, elevavidrios..." oninput="gen()"></div></div>
+      <div class="rp-row full"><div class="ff"><label>Asesor servicio (taller)</label><input id="pAsTa" placeholder="Lina Clemencia López" oninput="gen()"></div></div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div class="rp-section" style="border-bottom:none">
+      <div class="rp-label" style="color:var(--ac)"><i class="fas fa-wand-magic-sparkles"></i> SALIDAS AUTOMÁTICAS</div>
+
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:3px;font-weight:600">A · Nota para Quiter / iVuo</div>
+      <div class="out-box mono" id="outNota">—</div>
+      <button class="btn btn-gh" style="width:100%;margin-bottom:10px;font-size:10px" onclick="cp('outNota',this)"><i class="fas fa-copy"></i> Copiar nota</button>
+
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:3px;font-weight:600">B · Tipificación Evolution</div>
+      <div class="out-evo" id="outEvo">
+        <div><div class="l">Estado</div><div class="v" id="eEst">CONTACTO</div></div>
+        <div><div class="l">Causa</div><div class="v" id="eCau">AGEND. EXITOSO</div></div>
+        <div><div class="l">Motivo</div><div class="v" id="eMot">MANTENIMIENTO</div></div>
+        <div><div class="l">Voz</div><div class="v" id="eVoz">MTTO PREVENTIVO</div></div>
+      </div>
+      <button class="btn btn-gh" style="width:100%;margin-bottom:10px;font-size:10px" onclick="cpEvo(this)"><i class="fas fa-copy"></i> Copiar tipificación</button>
+
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:3px;font-weight:600">C · Resumen para el cliente</div>
+      <div class="out-box" id="outCli">—</div>
+      <button class="btn btn-gh" style="width:100%;margin-bottom:12px;font-size:10px" onclick="cp('outCli',this)"><i class="fab fa-whatsapp"></i> Copiar resumen</button>
+
+      <button class="btn btn-ac btn-big" onclick="saveGestion()"><i class="fas fa-check-circle"></i> GUARDAR GESTIÓN</button>
+    </div>
+  </div>
+</aside>
+</main>
+
+<footer class="ft-bar"><span>v3.0-mockup</span><span class="sep">·</span><span>Mayo 2026</span><span class="sep">·</span><span>Owner: Pablo Rincón</span><div class="li"><div class="d"></div>Activo</div></footer>
+</div>
+
+<!-- TARJETA SERVICIO (oculta, para html2canvas) -->
+<div class="tarjeta" id="tarjeta">
+  <div class="tarjeta-hd"><div class="logo-t">ARMOTOR</div><div class="tag">Cotización de servicio</div></div>
+  <div class="tarjeta-body">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:13px"><div><strong id="tCli">Cliente</strong><br><span style="color:#666" id="tVeh">Modelo · Placa</span></div><div style="text-align:right;color:#666;font-size:12px" id="tFecha"></div></div>
+    <div class="tarjeta-price"><div class="l" id="tServ">Mantenimiento 10.000 km</div><div class="v" id="tPrecio">$ 1.068.978</div></div>
+    <div class="tarjeta-inc"><h4>✅ Incluye (29 servicios)</h4><ul id="tInc"><li>Cambio aceite y filtro motor</li><li>Diagnóstico eléctrico KDS 2.0</li><li>Alineación, balanceo y rotación</li><li>Inspección multipunto (30+ puntos)</li><li>Prueba de ruta</li><li>Lavado exterior + aspirado</li></ul></div>
+    <div class="tarjeta-exc"><h4>⚠️ No incluido (sujeto a inspección)</h4><ul id="tExc"><li>Cambio filtro aire motor</li><li>Cambio filtro aire A/C</li><li>Cambio cauchos plumillas</li></ul></div>
+    <div style="background:#f0fdf4;border-radius:6px;padding:8px 12px;font-size:11px;color:#15803d;margin-top:12px">📋 <strong>Llevar:</strong> tarjeta de propiedad, manual de garantías, llave de pernos</div>
+  </div>
+  <div class="tarjeta-ft">Precios sujetos a variación · ARMOTOR le pone motor a su vida · armotor.com</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// State
+let resultado='agenda', hasNov=false, hasWG=false, adicionales=new Set();
+const V=id=>document.getElementById(id)?.value?.trim()||'';
+
+// Theme
+function togTheme(){const h=document.documentElement,c=h.getAttribute('data-theme')==='light'?'dark':'light';h.setAttribute('data-theme',c);V('thIco')&&(document.getElementById('thIco').className=c==='dark'?'fas fa-sun':'fas fa-moon');localStorage.setItem('ct',c)}
+(()=>{const s=localStorage.getItem('ct');if(s){document.documentElement.setAttribute('data-theme',s);document.getElementById('thIco').className=s==='dark'?'fas fa-sun':'fas fa-moon'}})();
+
+// Result picker
+function pickRes(b){document.querySelectorAll('#resP .pill').forEach(p=>{p.classList.remove('on')});b.classList.add('on');resultado=b.dataset.r;
+['noc-f','noa-f','otro-f'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+const agSections=['sCotiz','sNov','sWego','sAdic'];
+if(resultado==='agenda'){agSections.forEach(s=>document.getElementById(s).classList.remove('hidden'));document.getElementById('noc-f').classList.add('hidden')}
+else{agSections.forEach(s=>document.getElementById(s).classList.add('hidden'));
+if(resultado==='noc')document.getElementById('noc-f').classList.remove('hidden');
+if(resultado==='noa')document.getElementById('noa-f').classList.remove('hidden');
+if(resultado==='otro')document.getElementById('otro-f').classList.remove('hidden');
+}gen()}
+
+// Novelty toggle
+function togNov(el){const sw=document.getElementById('novSw');hasNov=!hasNov;sw.classList.toggle('warn',hasNov);sw.classList.toggle('on',false);
+document.getElementById('novF').classList.toggle('hidden',!hasNov);
+if(hasNov){document.getElementById('wegoBlock').classList.add('hidden');document.getElementById('wegoDisabled').classList.remove('hidden');hasWG=false;document.getElementById('wgSw').classList.remove('on');document.getElementById('wgF').classList.add('hidden')}
+else{document.getElementById('wegoBlock').classList.remove('hidden');document.getElementById('wegoDisabled').classList.add('hidden')}
+gen()}
+
+// WG toggle
+function togWego(el){const sw=document.getElementById('wgSw');hasWG=!hasWG;sw.classList.toggle('on',hasWG);document.getElementById('wgF').classList.toggle('hidden',!hasWG);gen()}
+
+// Toggle generic
+function togEl(el){const sw=el.querySelector('.tog-sw');sw.classList.toggle('on')}
+
+// Adicionales
+function togAd(b){const k=b.dataset.ad;if(adicionales.has(k)){adicionales.delete(k);b.classList.remove('on')}else{adicionales.add(k);b.classList.add('on')}
+document.getElementById('accF').classList.toggle('hidden',!adicionales.has('acc'));gen()}
+
+// GENERATE OUTPUTS
+function gen(){
+const nom=V('pNom'),tel=V('pTel'),pla=V('pPla').toUpperCase(),kmA=V('pKmA'),ciu=V('pCiu');
+const mar=V('pMar'),mod=V('pMod'),serv=V('pServ').toUpperCase(),kmS=V('pKmS'),novTx=V('pNovTx');
+let nota='',est='',cau='',mot='',voz='',cli='';
+const pre=[pla,tel].filter(Boolean).join(' // ');
+const signos={'MANTENIMIENTO':' ++','REVISIÓN':' *','GARANTÍA':' ??','INSPECCIÓN':'','ESPECIALIZADA':' ??'};
+const signo=signos[serv]||'';
+
+if(resultado==='agenda'){
+  est='CONTACTO';cau='AGENDAMIENTO EXITOSO';mot=serv==='MANTENIMIENTO'?'CAMBIO DE ACEITE':serv;voz=novTx?novTx.toUpperCase():'MANTENIMIENTO PREVENTIVO';
+  const parts=[pre,kmA?kmA+' KM':'',`${serv} ${kmS}KM $ ${document.getElementById('pPrecio')?.textContent?.replace('$ ','')||'—'} IVA INCLUIDO`];
+  if(novTx)parts.push(novTx.toUpperCase());
+  parts.push('VALIDAR SI TIENE CAMPAÑA ACTIVA','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE EL CLIENTE');
+  if(adicionales.has('tel'))parts.push('VALIDAR TELEMETRIA');
+  nota=parts.filter(Boolean).join(' // ')+' // CALL CENTER'+signo;
+  const svCli={'MANTENIMIENTO':'el mantenimiento','REVISIÓN':'la revisión','GARANTÍA':'la atención de garantía','INSPECCIÓN':'la inspección','ESPECIALIZADA':'el diagnóstico'}[serv]||'el servicio';
+  cli=`Le confirmamos lo que realizaremos en su cita:\n\n🔧 ${svCli.charAt(0).toUpperCase()+svCli.slice(1)} de los ${kmS} km\n💰 Valor: ${document.getElementById('pPrecio')?.textContent||'—'} (IVA incluido)\n\nDurante la atención validaremos accesorios, embellecimiento y servicios adicionales que requiera su vehículo. 🚗\n\n¡Lo esperamos!`;
+}else if(resultado==='noc'){
+  est='NO CONTACTO';cau='NO CONTESTA';mot='SIN RESPUESTA';voz='BUZÓN DE VOZ';
+  nota=[pre,V('pNocT'),V('pMarc'),'ENVIO PLANTILLA POR CHAT'].filter(Boolean).join(' // ');
+  cli='Hola 👋 Intentamos comunicarnos sin éxito. Cuando estés disponible, escríbenos y retomamos tu solicitud.';
+}else if(resultado==='seg'){
+  est='CONTACTO';cau='VOLVER A LLAMAR';mot='CLIENTE VA A REALIZAR VALIDACION';voz='VA A VALIDAR KM, PRESUPUESTO';
+  nota=[pre,'SE REPROGRAMA CONTACTO'].filter(Boolean).join(' // ');
+  cli='Quedamos en contacto. Cuando lo prefiera retomamos su solicitud. 😊';
+}else if(resultado==='noa'){
+  est='CONTACTO';cau='NO TIENE KILOMETRAJE';mot='SERVICIO NO APLICA';voz='AÚN NO CUMPLE KMS';
+  const kmNa=V('pKmNa'),repro=V('pRepro');
+  nota=[pre,kmNa?`SOLO ${kmNa} KMS`:'NO CUMPLE KM',repro?`SE REPROGRAMA PARA ${repro.toUpperCase()}`:'SE REPROGRAMA','SE ENVIA PLANTILLA'].filter(Boolean).join(' // ');
+  cli='Le recordaremos cuando se acerque al kilometraje. Cualquier duda, aquí estamos. 🚗';
+}else if(resultado==='otro'){
+  est='CONTACTO';cau='VISITA OTRO TALLER';const r=V('pRazon');mot=r==='PRECIO'?'PRECIO ALTO':r==='UBICACION'?'UBICACIÓN':'PREFERENCIA PROVEEDOR';voz=r==='PRECIO'?'OFERTA MÁS ECONÓMICA':r==='UBICACION'?'MAYOR COMODIDAD':'HISTÓRICO CON OTRO TALLER';
+  nota=[pre,`VISITA OTRO TALLER POR ${r}`].filter(Boolean).join(' // ');
+  cli='Si en algún momento desea conocer nuestras condiciones, con gusto le atendemos. ¡Buen día!';
+}else if(resultado==='nov'){
+  est='CONTACTO';cau='NO VOLVER A CONTACTAR';mot='CLIENTE NO INTERESADO';voz='NO DESEA RECIBIR INFORMACIÓN';
+  nota=[pre,'NO VOLVER A CONTACTAR'].filter(Boolean).join(' // ');
+  cli='Gracias por su atención. Quedamos atentos si requiere nuestros servicios.';
+}
+document.getElementById('outNota').textContent=nota||'—';
+document.getElementById('outCli').textContent=cli||'—';
+document.getElementById('eEst').textContent=est;document.getElementById('eCau').textContent=cau;
+document.getElementById('eMot').textContent=mot;document.getElementById('eVoz').textContent=voz;
+}
+
+// Copy
+function cp(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent);flash(btn)}
+function cpEvo(btn){const t=`${V('eEst')}|${V('eCau')}|${V('eMot')}|${V('eVoz')}`.replace(/\|/g,' | ');navigator.clipboard.writeText(t);flash(btn)}
+function copyMsg(btn){const t=document.getElementById('outCli').textContent;navigator.clipboard.writeText(t);flash(btn)}
+function flash(b){b.classList.add('cp');const o=b.innerHTML;b.innerHTML='<i class="fas fa-check"></i> ¡Copiado!';setTimeout(()=>{b.classList.remove('cp');b.innerHTML=o},1400);toast('Copiado')}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
+
+// Download tarjeta
+function downloadCard(){
+const t=document.getElementById('tarjeta');
+t.querySelector('#tCli').textContent=V('pNom')||'Cliente';
+t.querySelector('#tVeh').textContent=`${V('pMar')} ${V('pMod')} · ${V('pPla').toUpperCase()||'---'}`;
+t.querySelector('#tServ').textContent=`${V('pServ')} ${V('pKmS')} km`;
+t.querySelector('#tPrecio').textContent=document.getElementById('pPrecio').textContent;
+t.querySelector('#tFecha').textContent=new Date().toLocaleDateString('es-CO');
+t.style.left='0';
+html2canvas(t,{scale:2,useCORS:true}).then(canvas=>{
+  t.style.left='-9999px';
+  const link=document.createElement('a');link.download=`Armotor_Cotizacion_${V('pPla')||'servicio'}.png`;link.href=canvas.toDataURL();link.click();
+  toast('Tarjeta descargada');
+}).catch(()=>{t.style.left='-9999px';toast('Error al generar tarjeta')});
+}
+
+// Save
+function saveGestion(){toast('✅ Gestión guardada (demo)');setTimeout(()=>resetPanel(),800)}
+function resetPanel(){
+document.querySelectorAll('#rpBody input').forEach(i=>i.value='');
+document.querySelectorAll('#rpBody select').forEach(s=>s.selectedIndex=0);
+document.querySelectorAll('.pill.on').forEach(p=>{if(!p.dataset.r)p.classList.remove('on')});
+hasNov=false;hasWG=false;adicionales.clear();
+document.getElementById('novSw').classList.remove('warn');document.getElementById('wgSw').classList.remove('on');
+document.getElementById('novF').classList.add('hidden');document.getElementById('wgF').classList.add('hidden');
+document.getElementById('accF').classList.add('hidden');
+document.getElementById('wegoBlock').classList.remove('hidden');document.getElementById('wegoDisabled').classList.add('hidden');
+pickRes(document.querySelector('#resP .pill[data-r="agenda"]'));
+gen()}
+
+// Init
+pickRes(document.querySelector('#resP .pill[data-r="agenda"]'));
+</script>
+</body>
+</html>
