@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.5.0",
+    version: "1.5.1",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -33,11 +33,11 @@ export const DATA = {
     { id: 2, nombre: "Johana Betancurth",    alias: "Johana",    rol: "asesor_cc",       pin: "1102", activo: true },
     { id: 3, nombre: "Juan Diego Villa",     alias: "Juan Villa",rol: "asesor_cc",       pin: "1103", activo: true },
     { id: 4, nombre: "Karen Julieth Corchuelo", alias: "Karen",  rol: "asesor_cc",       pin: "1104", activo: true },
-    { id: 5, nombre: "Alejandra Tabares",    alias: "Aleja",     rol: "asesor_cc",       pin: "1105", activo: true },
-    { id: 6, nombre: "Julio Pineda",         alias: "Julio",     rol: "asesor_cc",       pin: "1106", activo: true },
+    { id: 5, nombre: "Alejandra Tabares",    alias: "Juan M",    rol: "asesor_cc",       pin: "1105", activo: true },
+    { id: 6, nombre: "Julio Pineda",         alias: "Alejo",     rol: "asesor_cc",       pin: "1106", activo: true },
     { id: 7, nombre: "Paula Andrea Arévalo", alias: "Paula",     rol: "asesor_digital",  pin: "1107", activo: true },
     { id: 8, nombre: "Natalia Vargas",       alias: "Nata",      rol: "asesor_digital",  pin: "1108", activo: true },
-    { id: 9, nombre: "Alejandro Castaño",    alias: "Analista",  rol: "coordinador",     pin: "1109", activo: true }
+    { id: 9, nombre: "Alejandro Castaño",    alias: "Coordinador Ceta", rol: "coordinador", pin: "1109", activo: true }
   ],
 
   permisos: {

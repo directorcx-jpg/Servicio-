@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.5.0';
+import { DATA } from './data.js?v=1.5.1';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -33,7 +33,7 @@ const LS_SESSION = 'ceta_session';
 const LS_USERS_SEED = 'ceta_usuarios_seed';
 // Versión del seed de data.js. Súbela cuando cambies DATA.usuarios y quieras
 // que el cambio llegue a navegadores que ya tengan usuarios en localStorage.
-const USERS_SEED_VERSION = 2;
+const USERS_SEED_VERSION = 3;
 
 function getUsuarios(){
   let ov = null;
@@ -59,6 +59,11 @@ function getUsuarios(){
     // conservar perfiles agregados por el coordinador que no estén en el seed
     ov.forEach(u => { if (!DATA.usuarios.some(s => s.id === u.id)) merged.push(u); });
     saveUsuarios(merged);
+    // re-vincular casos históricos cuyo alias cambió en este salto de seed
+    DATA.usuarios.forEach(s => {
+      const prev = byId[s.id];
+      if (prev && prev.alias && prev.alias !== s.alias) relinkCasos(prev.alias, s.alias, s.id);
+    });
     localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
     return merged;
   }
@@ -926,8 +931,8 @@ function renderConfig(){
     </div>
     <table class="tbl"><thead><tr><th>Nombre completo</th><th>Alias</th><th>Rol</th><th>PIN</th><th>Activo</th><th></th></tr></thead><tbody>
     ${list.map(u => `<tr data-id="${u.id}">
-      <td><input class="cfg-nombre" value="${esc(u.nombre)}" style="${inpStyle};width:160px"></td>
-      <td><span style="font-family:var(--fm);font-size:11px;color:var(--tx3)" title="El alias es fijo: vincula los casos históricos">${esc(u.alias)}</span></td>
+      <td><input class="cfg-nombre" value="${esc(u.nombre)}" style="${inpStyle};width:150px"></td>
+      <td><input class="cfg-alias" value="${esc(u.alias)}" style="${inpStyle};width:90px;font-family:var(--fm)" title="Al cambiar el alias, los casos de esa persona se re-vinculan automáticamente"></td>
       <td><select class="cfg-rol" style="${inpStyle}">${ROLES.map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${rolLabel(r)}</option>`).join('')}</select></td>
       <td><input class="cfg-pin" value="${esc(u.pin)}" maxlength="4" inputmode="numeric" style="${inpStyle};width:60px;font-family:var(--fm);text-align:center"></td>
       <td><label class="tog"><span class="tog-sw cfg-act ${u.activo?'on':''}"></span></label></td>
@@ -940,16 +945,32 @@ function renderConfig(){
   $$('#usersTable .cfg-save').forEach(btn => btn.addEventListener('click', e => {
     const tr = e.target.closest('tr'); const id = +tr.dataset.id;
     const nombre = tr.querySelector('.cfg-nombre').value.trim();
+    const alias = tr.querySelector('.cfg-alias').value.trim();
     const rol = tr.querySelector('.cfg-rol').value;
     const pin = tr.querySelector('.cfg-pin').value.trim();
     const activo = tr.querySelector('.cfg-act').classList.contains('on');
     if (!nombre) { toast('El nombre no puede estar vacío'); return; }
+    if (!alias) { toast('El alias no puede estar vacío'); return; }
     if (!/^\d{4}$/.test(pin)) { toast('El PIN debe ser de 4 dígitos'); return; }
-    const list2 = getUsuarios().map(u => u.id===id ? {...u, nombre, rol, pin, activo} : u);
-    saveUsuarios(list2);
-    // si el usuario editado es el de la sesión actual, refrescar su chip/permisos
-    if (S.user && S.user.id === id) { S.user.nombre = nombre; S.user.rol = rol; applyRole(); renderHome(); }
-    renderConfig(); toast('Perfil actualizado ✓');
+    const actual = getUsuarios();
+    const aliasPrev = actual.find(u => u.id === id)?.alias || '';
+    if (alias.toLowerCase() !== aliasPrev.toLowerCase() && actual.some(u => u.id !== id && u.alias.toLowerCase() === alias.toLowerCase())) {
+      toast('Ya existe otro perfil con ese alias'); return;
+    }
+    const aplicar = () => {
+      const list2 = getUsuarios().map(u => u.id===id ? {...u, nombre, alias, rol, pin, activo} : u);
+      saveUsuarios(list2);
+      if (aliasPrev && alias !== aliasPrev) relinkCasos(aliasPrev, alias, id);  // re-vincular casos históricos
+      if (S.user && S.user.id === id) { S.user.nombre = nombre; S.user.alias = alias; S.user.rol = rol; localStorage.setItem(LS_SESSION, JSON.stringify(S.user)); applyRole(); renderHome(); }
+      renderConfig(); toast('Perfil actualizado ✓');
+    };
+    // Si cambia el alias y la persona tiene casos, confirmar la re-vinculación.
+    const nCasos = aliasPrev && alias !== aliasPrev ? contarCasosDeAlias(aliasPrev) : 0;
+    if (nCasos > 0) {
+      confirmModal('Cambiar alias',
+        `Vas a cambiar el alias <strong>${esc(aliasPrev)}</strong> → <strong>${esc(alias)}</strong>.<br><br>Se re-vincularán <strong>${nCasos}</strong> caso(s) y la posición en la rotación a este nuevo alias. ¿Continuar?`,
+        aplicar);
+    } else { aplicar(); }
   }));
 
   $$('#usersTable .cfg-del').forEach(btn => btn.addEventListener('click', e => {
@@ -1433,6 +1454,36 @@ function updateGestionLocal(id, changes, nota){
   }
   return g;
 }
+// Cuenta cuántas gestiones están vinculadas a un alias (por id o por alias).
+function contarCasosDeAlias(alias){
+  if (!alias) return 0;
+  const a = alias.toLowerCase();
+  return getGestionesLocal().filter(g =>
+    (g.asesorCeta||'').toLowerCase() === a ||
+    (g.asignadoAlias||'').toLowerCase() === a ||
+    (g.createdByAlias||'').toLowerCase() === a
+  ).length;
+}
+// Re-vincula las gestiones de un alias viejo al nuevo (mantiene la trazabilidad
+// al cambiar el alias de un perfil). userId ayuda a desambiguar por id.
+function relinkCasos(aliasViejo, aliasNuevo, userId){
+  const av = (aliasViejo||'').toLowerCase();
+  const list = getGestionesLocal();
+  let cambiados = 0;
+  list.forEach(g => {
+    const matchId = userId != null && (g.createdBy === userId || g.asignadoId === userId);
+    const matchAlias = (g.asesorCeta||'').toLowerCase() === av || (g.asignadoAlias||'').toLowerCase() === av || (g.createdByAlias||'').toLowerCase() === av;
+    if (!matchId && !matchAlias) return;
+    if ((g.asesorCeta||'').toLowerCase() === av || (matchId && g.asesorCeta)) g.asesorCeta = aliasNuevo;
+    if ((g.asignadoAlias||'').toLowerCase() === av || (matchId && g.asignadoAlias)) g.asignadoAlias = aliasNuevo;
+    if ((g.createdByAlias||'').toLowerCase() === av || (matchId && g.createdByAlias)) g.createdByAlias = aliasNuevo;
+    if ((g.radicadoPor||'').toLowerCase() === av) g.radicadoPor = aliasNuevo;
+    cambiados++;
+  });
+  if (cambiados) localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
+  return cambiados;
+}
+
 // Permiso de edición de un caso: coordinador edita todo; asesor solo el suyo; analista nunca.
 function canEditCase(g){
   if (!S.user) return false;
