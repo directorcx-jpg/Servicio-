@@ -42,8 +42,9 @@ var COLS = [
   'telemetria','accesoriosOf','cualesAccesorios','srvAdicional',
   'resultado','asesorTaller','fechaCita','horaCita','observacion',
   'notaQuiter','evoEstado','evoCausa','evoMotivo','evoVoz',
-  // columnas extra (41-43) para edición/trazabilidad — no forman parte de las 40 del spec
-  'id','createdByAlias','historialJSON'
+  // columnas extra (41+) para edición/trazabilidad y Casos Internos — no forman parte de las 40 del spec
+  'id','createdByAlias','historialJSON',
+  'cola','asignadoAlias','asignMotivo','grupoChat','notaSolicitante','radicadoPor','tipoRadicacion'
 ];
 var HEADERS = [
   'Marca temporal','Asesor CETA','Nombre cliente','Teléfono','Placa','Modelo','Km actual','Ciudad','Fecha nacimiento','Origen',
@@ -52,7 +53,8 @@ var HEADERS = [
   'Telemetría ofrecida','Accesorios ofrecidos','Cuáles accesorios','Servicios adicionales',
   'Resultado','Asesor servicio taller','Fecha cita','Hora cita','Observación',
   'Nota Quiter/iVuo','Evo Estado','Evo Causa','Evo Motivo','Evo Voz cliente',
-  'ID','Creado por','Historial (JSON)'
+  'ID','Creado por','Historial (JSON)',
+  'Cola','Asignado a','Motivo asignación','Grupo chat','Nota solicitante','Radicado por','Tipo radicación'
 ];
 
 // ----------------------------------------------------------------

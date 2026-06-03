@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.3.0",
+    version: "1.4.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -104,6 +104,30 @@ export const DATA = {
       "otroTaller":  { estado: "CONTACTO",    causa: "VISITA OTRO TALLER" },
       "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" }
     }
+  },
+
+  // =============================================================
+  //  CASOS INTERNOS — configuración de radicación y rotación
+  // =============================================================
+  internos: {
+    // Tipos de servicio del formulario y a qué cola pertenecen.
+    // Cola A (genera factura) · Cola B (no genera factura)
+    tiposServicio: [
+      { nombre: "Mantenimiento",  cola: "A" },
+      { nombre: "Servicio rápido", cola: "A" },
+      { nombre: "Accesorios",     cola: "A" },
+      { nombre: "Garantía",       cola: "B" },
+      { nombre: "Inspección",     cola: "B" },
+      { nombre: "Especializada",  cola: "B" }
+    ],
+    colas: {
+      A: { nombre: "Cola A · Genera factura" },
+      B: { nombre: "Cola B · No genera factura" }
+    },
+    tiposRadicacion: ["Nuevo", "Reagendar"],
+    gruposChat: ["Citas Taller", "G Manizales", "G Pereira", "G Armenia", "G La Dorada", "G Cartago"],
+    propiedadDias: 10,     // REGLA 0: ventana de propiedad por placa
+    slaMinutos: 5          // temporizador del caso se pone rojo a los 5 min
   },
 
   // =============================================================

@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.3.0';
+import { DATA } from './data.js?v=1.4.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -13,7 +13,11 @@ const S = {
   hasWG: false,
   adicionales: new Set(),
   checks: new Set(['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE']),
-  f: {}                       // campos data-f sincronizados
+  f: {},                      // campos data-f sincronizados
+  // Estado de rotación de Casos Internos (REGLA 2/3). Persistido por día.
+  // { fecha:'YYYY-MM-DD', A:{orden:[ids],pos:N}, B:{orden:[ids],pos:N} }
+  colas: null,
+  casoActivo: null            // id del caso interno precargado en el panel (si lo hay)
 };
 const CHECKS_DEF = ['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE'];
 
@@ -91,6 +95,11 @@ function enterApp(){
   renderConfig();
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
+  // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
+  if (!window._slaTimer) window._slaTimer = setInterval(() => {
+    if ($('#v-internos')?.classList.contains('active')) renderInternos();
+    updateInternosBadges();
+  }, 30000);
 }
 
 // =============================================================
@@ -439,17 +448,172 @@ function renderVip(){
 }
 
 // =============================================================
+//  CASOS INTERNOS — formulario de radicación + bandeja con SLA
+// =============================================================
+function tiempoTranscurrido(ts){
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 1) return 'recién';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min/60); return `${h}h ${min%60}min`;
+}
+function renderInternos(){
+  const el = $('#v-internos');
+  const ti = DATA.internos;
+  const pend = casosPendientes();
+  const sla = ti.slaMinutos;
+  el.innerHTML = `
+    ${viewHead('Casos Internos CETA', `<span class="badge"><i class="fas fa-inbox"></i> ${pend.length} pendientes</span>`)}
+
+    <div class="fb">
+      <div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas fa-plus"></i></span>Radicar nuevo caso</div>
+      <div class="rr"><div class="ff"><label>Tipo</label><select id="inTipo">${ti.tiposRadicacion.map(t=>`<option>${esc(t)}</option>`).join('')}</select></div><div class="ff"><label>Placa</label><input id="inPlaca" class="mono" placeholder="ABC123" style="text-transform:uppercase"></div></div>
+      <div class="rr"><div class="ff"><label>Nombre</label><input id="inNombre" placeholder="Sr./Sra."></div><div class="ff"><label>Teléfono</label><input id="inTelefono" placeholder="300 000 0000"></div></div>
+      <div class="rr"><div class="ff"><label>Ciudad</label><select id="inCiudad"><option>Manizales</option><option>Pereira</option><option>Armenia</option><option>La Dorada</option><option>Cartago</option></select></div><div class="ff"><label>Tipo de servicio</label><select id="inServicio">${ti.tiposServicio.map(s=>`<option data-cola="${s.cola}">${esc(s.nombre)}</option>`).join('')}</select></div></div>
+      <div class="rr full"><div class="ff"><label>Grupo de chat origen</label><select id="inGrupo">${ti.gruposChat.map(g=>`<option>${esc(g)}</option>`).join('')}</select></div></div>
+      <div class="rr full"><div class="ff"><label>Nota del solicitante (contexto)</label><input id="inNota" placeholder="Lo que escribió el asesor de piso…"></div></div>
+      <div id="inDupAviso"></div>
+      <button class="btn btn-ac btn-big" id="inRadicar" style="margin-top:10px"><i class="fas fa-shuffle"></i> Radicar y asignar</button>
+    </div>
+
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-bell"></i>Bandeja de pendientes ${pend.length?`(${pend.length})`:''}</div>
+    ${pend.length ? pend.map(g => {
+      const min = Math.floor((Date.now() - (g._ts||0))/60000);
+      const rojo = min >= sla;
+      return `<div class="fb caso-row" data-id="${esc(g.id)}" style="cursor:pointer;border-left:3px solid ${RESULT_COLOR.pendiente}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div>
+            <strong style="font-size:13px">${esc(g.nombre||'Sin nombre')}</strong> · <span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>
+            <div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(g.servicio||'—')} · Cola ${esc(g.cola||'—')} · ${esc(g.ciudad||'')} · ${esc(g.grupoChat||'')}</div>
+            <div style="font-size:11px;margin-top:3px"><i class="fas fa-user-check" style="color:var(--ac)"></i> Asignado: <strong>${esc(g.asignadoAlias||'—')}</strong> <span style="color:var(--tx3)">(${esc(g.asignMotivo||'')})</span></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <span class="caso-timer" style="font-family:var(--fm);font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;background:${rojo?'var(--wrs)':'var(--bgs)'};color:${rojo?'var(--wr)':'var(--tx2)'}"><i class="fas fa-clock"></i> ${tiempoTranscurrido(g._ts||0)}</span>
+          </div>
+        </div>
+        ${g.notaSolicitante?`<div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-quote-left"></i><div>${esc(g.notaSolicitante)}</div></div>`:''}
+        <button class="btn btn-ok caso-gestionar" data-id="${esc(g.id)}" style="margin-top:8px"><i class="fas fa-headset"></i> Gestionar caso</button>
+      </div>`;
+    }).join('') : emptyState('fa-check-circle','Sin pendientes','No hay casos pendientes por gestionar.')}`;
+
+  // Aviso de duplicado en vivo al escribir placa
+  const placaInp = $('#inPlaca');
+  if (placaInp) placaInp.addEventListener('input', () => { renderDupAviso(); });
+  const servSel = $('#inServicio');
+  $('#inRadicar').addEventListener('click', radicarCaso);
+  $$('#v-internos .caso-gestionar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); gestionarCaso(b.dataset.id); }));
+  $$('#v-internos .caso-row').forEach(r => r.addEventListener('click', () => gestionarCaso(r.dataset.id)));
+}
+
+function renderDupAviso(){
+  const box = $('#inDupAviso'); if (!box) return;
+  const placa = ($('#inPlaca').value||'').toUpperCase().trim();
+  const dup = placa ? casoAbiertoPorPlaca(placa) : null;
+  if (!dup) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="al wr" style="margin-top:8px;font-size:11px"><i class="fas fa-triangle-exclamation"></i><div>
+    Esta placa ya tiene un caso abierto con <strong>${esc(dup.asignadoAlias||dup.asesorCeta||'—')}</strong> desde ${esc(fmtFechaHora(dup._ts))} (${esc(RESULT_LABEL[dup.resultado]||dup.resultado)}).</div></div>`;
+}
+
+function radicarCaso(){
+  const placa = ($('#inPlaca').value||'').toUpperCase().trim();
+  const nombre = ($('#inNombre').value||'').trim();
+  if (!placa || !nombre) { toast('Placa y nombre son obligatorios'); return; }
+  const servicio = $('#inServicio').value;
+  const payload = {
+    tipoRadicacion: $('#inTipo').value, placa, nombre,
+    telefono: ($('#inTelefono').value||'').trim(),
+    ciudad: $('#inCiudad').value, servicio,
+    grupoChat: $('#inGrupo').value,
+    notaSolicitante: ($('#inNota').value||'').trim()
+  };
+  // Verificación de duplicados: caso abierto por placa → ofrecer 2 opciones
+  const dup = casoAbiertoPorPlaca(placa);
+  if (dup) {
+    modalOpen(`
+      <div class="modal-head"><h3><i class="fas fa-triangle-exclamation" style="color:var(--wr)"></i> Placa con caso abierto</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+      <div class="modal-body">
+        <div class="al wr" style="font-size:12px"><i class="fas fa-triangle-exclamation"></i><div>Esta placa ya tiene un caso abierto con <strong>${esc(dup.asignadoAlias||dup.asesorCeta||'—')}</strong> desde ${esc(fmtFechaHora(dup._ts))} (${esc(RESULT_LABEL[dup.resultado]||dup.resultado)}).</div></div>
+        <p style="font-size:12px;color:var(--tx2);margin-top:10px">¿Desea agregar una nota al caso existente o crear uno nuevo de todas formas?</p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-gh" id="dupNota"><i class="fas fa-pen"></i> Agregar nota al existente</button>
+        <button class="btn btn-ac" id="dupCrear"><i class="fas fa-plus"></i> Crear de todos modos</button>
+      </div>`);
+    $('#dupCrear').addEventListener('click', () => { modalClose(); crearCasoInterno(payload); });
+    $('#dupNota').addEventListener('click', () => { modalClose(); openCaseDetail(dup.id); });
+    return;
+  }
+  crearCasoInterno(payload);
+}
+
+function crearCasoInterno(payload){
+  const asign = asignarCaso(payload.placa, payload.servicio);
+  const now = Date.now();
+  const g = {
+    ...payload,
+    id: newCaseId(),
+    origen: 'Interno',
+    resultado: 'pendiente',
+    asignadoId: asign.asesorId, asignadoAlias: asign.alias, asignMotivo: asign.motivo, cola: asign.cola,
+    asesorCeta: asign.alias,         // dueño visible = asesor asignado
+    createdBy: asign.asesorId,       // el caso pertenece al asesor asignado (puede editarlo)
+    createdByAlias: asign.alias,
+    radicadoPor: S.user?.alias || '',
+    _ts: now, _updated: now,
+    historial: [{ ts: now, tipo: 'Creado', autor: S.user?.alias || '', resultado: 'pendiente', nota: `Radicado por ${S.user?.alias||'—'} → asignado a ${asign.alias} (${asign.motivo})` }]
+  };
+  const list = getGestionesLocal();
+  list.unshift(g);
+  localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500)));
+  // sync backend opcional
+  const url = DATA.config.endpoints.guardarGestion;
+  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {} }
+  toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
+  renderInternos(); updateInternosBadges();
+}
+
+// Abrir un caso pendiente → precargar el Panel de Cierre con sus datos.
+function gestionarCaso(id){
+  const g = getGestionesLocal().find(x => x.id === id);
+  if (!g) { toast('Caso no encontrado'); return; }
+  if (!canEditCase(g)) { toast('Este caso está asignado a ' + (g.asignadoAlias||'otro asesor')); openCaseDetail(id); return; }
+  S.casoActivo = id;
+  precargarPanel(g);
+  toast('Caso precargado en el panel →');
+}
+
+function updateInternosBadges(){
+  const n = casosPendientes().length;
+  // badge en sidebar
+  let badge = $('#internosBadge');
+  const nav = $('.ni[data-v="internos"]');
+  if (nav && !badge) {
+    badge = document.createElement('span');
+    badge.id = 'internosBadge';
+    badge.style.cssText = 'margin-left:auto;background:var(--ac);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px';
+    nav.appendChild(badge);
+  }
+  if (badge) badge.style.display = n ? 'grid' : 'none', badge.textContent = n;
+  // banner en Home
+  const banner = $('#homePendientes');
+  if (banner) {
+    if (n > 0) { banner.style.display = 'flex'; banner.querySelector('.hp-n').textContent = n; }
+    else banner.style.display = 'none';
+  }
+}
+
+// =============================================================
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
-const RESULT_LABEL = { agenda:'Agendado', seg:'Seguimiento', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', noContactar:'No contactar' };
-const RESULT_COLOR = { agenda:'var(--ok)', seg:'var(--in)', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', noContactar:'var(--ac)' };
+const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', noContactar:'No contactar' };
+const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', noContactar:'var(--ac)' };
 let ctrlFiltro = { asesor:'', resultado:'' };
 
 // Columnas configurables del Control de Gestión (coordinador).
 // 'def' = visible por defecto. El render() las pinta en este orden.
 const CTRL_COLUMNS = [
   { key:'hora',        label:'Hora',          def:true,  render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(fmtHora(g._ts))}</span>` },
-  { key:'asesor',      label:'Asesor',        def:true,  render: g => esc(g.asesorCeta||'—') },
+  { key:'origen',      label:'Origen',        def:true,  render: g => esc(g.origen||'Inbound') },
+  { key:'asesor',      label:'Asesor',        def:true,  render: g => esc(g.asignadoAlias||g.asesorCeta||'—') },
   { key:'placa',       label:'Placa',         def:true,  render: g => `<span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>` },
   { key:'cliente',     label:'Cliente',       def:true,  render: g => esc(g.nombre||'—') },
   { key:'telefono',    label:'Teléfono',      def:false, render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(g.telefono||'—')}</span>` },
@@ -519,6 +683,17 @@ function renderControl(){
     ${Object.keys(porAsesor).length?`<div class="fb"><div class="bt val" style="margin-bottom:8px"><span class="n"><i class="fas fa-scale-balanced"></i></span>Balance de carga</div>
       ${Object.entries(porAsesor).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px"><div style="width:90px;flex-shrink:0">${esc(a)}</div><div style="flex:1;background:var(--bgs);border-radius:4px;height:14px;overflow:hidden"><div style="width:${Math.round(n/maxA*100)}%;height:100%;background:var(--ac)"></div></div><div style="width:28px;text-align:right;font-family:var(--fm)">${n}</div></div>`).join('')}
     </div>`:''}
+    ${(() => {
+      const bal = balanceDelDia();
+      const aliases = Object.keys(bal);
+      if (!aliases.length) return '';
+      return `<div class="fb"><div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-shuffle"></i></span>Balance del día · Casos Internos</div>
+        <table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Cola A<br><span style="font-size:8px;color:var(--tx3)">factura</span></th><th style="text-align:center">Cola B<br><span style="font-size:8px;color:var(--tx3)">no factura</span></th><th style="text-align:center">Total</th></tr></thead><tbody>
+        ${aliases.map(al=>{const x=bal[al];const tot=x.A+x.B;return `<tr><td><strong>${esc(al)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.A}</td><td style="text-align:center;font-family:var(--fm)">${x.B}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${tot}</td></tr>`;}).join('')}
+        </tbody></table>
+        <div style="font-size:10px;color:var(--tx3);margin-top:6px"><i class="fas fa-circle-info"></i> Rotación en bloques de 5 · se reinicia cada día.</div>
+      </div>`;
+    })()}
     <div class="fb">
       ${fil.length?(() => {
         const cols = getCtrlCols().map(k => CTRL_COLUMNS.find(c=>c.key===k)).filter(Boolean);
@@ -577,10 +752,15 @@ function openCaseDetail(id){
     </div>
     <div class="modal-body">
       <div class="badges" style="margin-bottom:12px">
-        <span class="badge"><i class="fas fa-user"></i> Creó: ${esc(g.createdByAlias||g.asesorCeta||'—')}</span>
+        ${g.origen==='Interno'?`<span class="badge" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-inbox"></i> Interno · Cola ${esc(g.cola||'—')}</span>`:''}
+        <span class="badge"><i class="fas fa-user"></i> ${g.origen==='Interno'?'Asignado':'Creó'}: ${esc(g.asignadoAlias||g.createdByAlias||g.asesorCeta||'—')}</span>
         <span class="badge"><i class="fas fa-clock"></i> ${esc(fmtFechaHora(g._ts))}</span>
         ${!editable?'<span class="badge" style="background:var(--wrs);color:var(--wr)"><i class="fas fa-eye"></i> Solo lectura</span>':''}
       </div>
+
+      ${g.notaSolicitante?`<div class="al in" style="margin-bottom:12px"><i class="fas fa-quote-left"></i><div><strong>Nota del solicitante:</strong> ${esc(g.notaSolicitante)}${g.grupoChat?`<div style="font-size:10px;color:var(--tx3);margin-top:3px">Origen: ${esc(g.grupoChat)} · Radicó: ${esc(g.radicadoPor||'—')}</div>`:''}</div></div>`:''}
+
+      ${(editable && g.origen==='Interno' && g.resultado==='pendiente')?`<button class="btn btn-ac btn-big" id="mdGestionar" style="margin-bottom:12px"><i class="fas fa-headset"></i> Gestionar en el panel →</button>`:''}
 
       <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
       <div class="rr"><div class="ff"><label>Nombre</label><input value="${esc(g.nombre||'')}" disabled></div><div class="ff"><label>Placa</label><input class="mono" value="${esc(g.placa||'')}" disabled></div></div>
@@ -611,6 +791,8 @@ function openCaseDetail(id){
     </div>`);
 
   if (editable) {
+    const gest = $('#mdGestionar');
+    if (gest) gest.addEventListener('click', () => { modalClose(); gestionarCaso(id); });
     $('#mdSave').addEventListener('click', () => {
       const changes = {
         telefono: $('#mdTelefono').value.trim(),
@@ -622,7 +804,7 @@ function openCaseDetail(id){
       };
       const nota = $('#mdNota').value.trim();
       updateGestionLocal(id, changes, nota);
-      modalClose(); renderControl(); toast('✅ Caso actualizado');
+      modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast('✅ Caso actualizado');
     });
   }
 }
@@ -715,16 +897,9 @@ function renderContent(){
   renderConocimiento('v-manuales', ['operativo'], 'Manuales y Operativo', 'fa-wrench');
   renderCampanias();
   renderVip();
+  renderInternos();
   renderControl();
-  renderPlaceholders();
-}
-function renderPlaceholders(){
-  const ph = {
-    internos:['fa-inbox','Casos Internos CETA','Radicación y asignación — Fase 5 (pendiente reglas de asignación de Pablo).']
-  };
-  Object.entries(ph).forEach(([k,[ic,t,m]]) => {
-    const el = $('#v-'+k); if (el && !el.innerHTML.trim()) el.innerHTML = emptyState(ic.replace('fab ','').replace('fas ',''), t, m);
-  });
+  updateInternosBadges();
 }
 
 // =============================================================
@@ -747,7 +922,8 @@ function goTo(v){
   const nav = $(`.ni[data-v="${v}"]`); if (nav) nav.classList.add('active');
   $$('.view').forEach(vw => vw.classList.remove('active'));
   const target = $('#v-'+v); if (target) target.classList.add('active');
-  if (v === 'control') renderControl();  // refresca con las gestiones más recientes
+  if (v === 'control') renderControl();   // refresca con las gestiones más recientes
+  if (v === 'internos') renderInternos(); // refresca bandeja y temporizadores
 }
 
 // =============================================================
@@ -768,6 +944,13 @@ function pickRes(b){
     if (S.resultado === 'otroTaller') $('#otroTaller-f').classList.remove('hidden');
     // En "seguimiento" mostramos también Novedad (1+3+6)
     if (S.resultado === 'seg')        $('#sNovedad').classList.remove('hidden');
+  }
+  // Caso interno Cola B (no factura): Cotización y We Go nunca aplican.
+  if (S.casoActivo) {
+    const ca = getGestionesLocal().find(x => x.id === S.casoActivo);
+    if (ca && colaDeServicio(ca.servicio) === 'B') {
+      $('#sCotiz').classList.add('hidden'); $('#sWego').classList.add('hidden');
+    }
   }
   u();
 }
@@ -1030,7 +1213,29 @@ function buildPayload(){
 async function saveGestion(){
   if (!can('registrar')) { toast('Tu rol no permite registrar'); return; }
   const payload = buildPayload();
-  // Siempre se registra localmente para que Control de Gestión opere sin backend.
+
+  // Si se está gestionando un caso interno: actualizar el MISMO registro
+  // (pendiente → resultado final), no crear uno nuevo.
+  if (S.casoActivo) {
+    const changes = {
+      telefono: payload.telefono, kmActual: payload.kmActual, ciudad: payload.ciudad,
+      marca: payload.marca, modelo: payload.modelo, combustion: payload.combustion,
+      servicio: payload.servicio, kmServicio: payload.kmServicio, valor: payload.valor,
+      resultado: payload.resultado, asesorTaller: payload.asesorTaller,
+      fechaCita: payload.fechaCita, horaCita: payload.horaCita,
+      novedad: payload.novedad, descNovedad: payload.descNovedad,
+      weGo: payload.weGo, observacion: payload.observacion,
+      notaQuiter: payload.notaQuiter, evoEstado: payload.evoEstado,
+      evoCausa: payload.evoCausa, evoMotivo: payload.evoMotivo, evoVoz: payload.evoVoz
+    };
+    updateGestionLocal(S.casoActivo, changes, `Gestionado: ${RESULT_LABEL[payload.resultado]||payload.resultado}`);
+    toast('✅ Caso gestionado');
+    cancelarCasoActivo();
+    setTimeout(() => { resetPanel(); renderInternos(); updateInternosBadges(); }, 600);
+    return;
+  }
+
+  // Caso normal (Inbound/Outbound): se registra localmente.
   pushGestionLocal(payload);
   const url = DATA.config.endpoints.guardarGestion;
   if (url) {
@@ -1112,6 +1317,161 @@ function canEditCase(g){
   return g.createdBy != null && g.createdBy === S.user.id;
 }
 
+// =============================================================
+//  CASOS INTERNOS — motor de asignación automática
+//  Pool de rotación = los 5 asesor_cc (excluye digitales/coordinador/analista).
+// =============================================================
+const LS_COLAS = 'ceta_colas';
+
+// Los 5 asesores que participan en la rotación, en orden de id.
+function rotacionPool(){
+  return getUsuarios().filter(u => u.rol === 'asesor_cc' && u.activo);
+}
+function hoyStr(){ const d = new Date(); return d.toISOString().slice(0,10); }   // YYYY-MM-DD
+function colaDeServicio(tipo){
+  const t = (DATA.internos.tiposServicio || []).find(x => x.nombre === tipo);
+  return t ? t.cola : 'A';   // por defecto Cola A
+}
+
+// Baraja determinista-aleatoria (Fisher-Yates) de los ids del pool.
+function barajarPool(){
+  const ids = rotacionPool().map(u => u.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids;
+}
+
+// Carga el estado de colas desde localStorage (o lo crea), con RESET DIARIO.
+function loadColas(){
+  let st;
+  try { st = JSON.parse(localStorage.getItem(LS_COLAS) || 'null'); } catch { st = null; }
+  if (!st || st.fecha !== hoyStr()) {
+    st = { fecha: hoyStr(), A: { orden: barajarPool(), pos: 0 }, B: { orden: barajarPool(), pos: 0 } };
+    localStorage.setItem(LS_COLAS, JSON.stringify(st));
+  }
+  S.colas = st;
+  return st;
+}
+function saveColas(){ if (S.colas) localStorage.setItem(LS_COLAS, JSON.stringify(S.colas)); }
+
+// Toma el siguiente asesor de una cola (REGLA 2: bloques de 5, rebaraja al completar).
+function siguienteDeCola(colaKey){
+  const st = S.colas || loadColas();
+  let c = st[colaKey];
+  if (!c.orden || !c.orden.length) { c.orden = barajarPool(); c.pos = 0; }
+  if (c.pos >= c.orden.length) { c.orden = barajarPool(); c.pos = 0; } // nuevo bloque
+  const asesorId = c.orden[c.pos];
+  c.pos += 1;
+  saveColas();
+  return asesorId;
+}
+
+// REGLA 0: ¿la placa tiene caso asignado en los últimos N días? → mismo asesor.
+function duenoPorPropiedad(placa){
+  if (!placa) return null;
+  const pl = placa.toUpperCase().trim();
+  const limite = Date.now() - DATA.internos.propiedadDias * 86400000;
+  const previo = getGestionesLocal()
+    .filter(g => (g.placa||'').toUpperCase().trim() === pl && g.asignadoId != null && (g._ts||0) >= limite)
+    .sort((a,b) => (b._ts||0) - (a._ts||0))[0];
+  return previo ? previo.asignadoId : null;
+}
+
+// Asigna un caso según las reglas. Devuelve { asesorId, alias, motivo, cola }.
+function asignarCaso(placa, tipoServicio){
+  loadColas();
+  const cola = colaDeServicio(tipoServicio);
+  // REGLA 0 — propiedad por placa (no consume slot del bloque)
+  const dueno = duenoPorPropiedad(placa);
+  if (dueno != null) {
+    const u = getUsuarios().find(x => x.id === dueno);
+    if (u) return { asesorId: u.id, alias: u.alias, motivo: 'Propiedad (10 días)', cola };
+  }
+  // REGLA 1/2 — rotación por cola en bloques de 5
+  const asesorId = siguienteDeCola(cola);
+  const u = getUsuarios().find(x => x.id === asesorId);
+  return { asesorId, alias: u ? u.alias : '—', motivo: `Rotación Cola ${cola}`, cola };
+}
+
+// Duplicado: ¿la placa tiene un caso ABIERTO (pendiente o seguimiento)?
+function casoAbiertoPorPlaca(placa){
+  if (!placa) return null;
+  const pl = placa.toUpperCase().trim();
+  return getGestionesLocal().find(g =>
+    (g.placa||'').toUpperCase().trim() === pl &&
+    (g.resultado === 'pendiente' || g.resultado === 'seg')
+  ) || null;
+}
+
+// Balance del día por asesor y cola (para Control de Gestión).
+function balanceDelDia(){
+  const hoy = hoyStr();
+  const casos = getGestionesLocal().filter(g => g.origen === 'Interno' && new Date(g._ts||0).toISOString().slice(0,10) === hoy);
+  const bal = {};
+  rotacionPool().forEach(u => { bal[u.alias] = { A: 0, B: 0 }; });
+  casos.forEach(g => {
+    const alias = g.asignadoAlias;
+    if (!bal[alias]) bal[alias] = { A: 0, B: 0 };
+    const cola = g.cola || colaDeServicio(g.servicio);
+    bal[alias][cola] = (bal[alias][cola] || 0) + 1;
+  });
+  return bal;
+}
+
+// Casos internos PENDIENTES visibles para el usuario actual (su bandeja).
+function casosPendientes(){
+  const all = getGestionesLocal().filter(g => g.origen === 'Interno' && g.resultado === 'pendiente');
+  if (!S.user) return [];
+  if (S.user.rol === 'coordinador' || S.user.rol === 'analista') return all;
+  return all.filter(g => g.asignadoId === S.user.id);
+}
+
+// Precarga el Panel de Cierre con los datos de un caso interno.
+// Cola B (Inspección/Especializada/Garantía) → oculta Cotización y We Go.
+function precargarPanel(g){
+  resetPanel();
+  const setF = (k,v) => { const e = $(`[data-f="${k}"]`); if (e && v != null) e.value = v; };
+  setF('nombre', g.nombre); setF('telefono', g.telefono); setF('placa', g.placa);
+  setF('ciudad', g.ciudad); setF('servicio', g.servicio);
+  setF('origen', 'Base');   // origen del contacto en el panel
+  // resultado por defecto al gestionar un pendiente: agenda (el asesor elige)
+  pickRes($('#resP .pill[data-r="agenda"]'));
+  // Cola B no factura → ocultar Cotización (s3) y We Go (s5)
+  const colaB = colaDeServicio(g.servicio) === 'B';
+  const sCotiz = $('#sCotiz'), sWego = $('#sWego');
+  if (sCotiz) sCotiz.classList.toggle('hidden', colaB);
+  if (sWego)  sWego.classList.toggle('hidden', colaB);
+  // marca el caso activo y muestra cinta de contexto en el panel
+  S.casoActivo = g.id;
+  renderCasoActivoBanner(g);
+  goTo('inbound');
+  u();
+}
+
+function renderCasoActivoBanner(g){
+  let b = $('#casoActivoBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'casoActivoBanner';
+    b.style.cssText = 'margin:0 0 10px;padding:8px 10px;border-radius:6px;background:var(--acs);border-left:3px solid var(--ac);font-size:11px;display:flex;gap:8px;align-items:flex-start';
+    const body = $('#rpBody');
+    if (body) body.insertBefore(b, body.firstChild);
+  }
+  b.style.display = 'flex';
+  b.innerHTML = `<i class="fas fa-inbox" style="color:var(--ac);margin-top:2px"></i>
+    <div style="flex:1"><strong>Gestionando caso interno</strong> · ${esc(g.servicio||'')} (Cola ${esc(g.cola||'—')})
+    ${g.notaSolicitante?`<div style="color:var(--tx2);margin-top:3px"><em>"${esc(g.notaSolicitante)}"</em></div>`:''}</div>
+    <button class="ib" onclick="cancelarCasoActivo()" title="Cancelar" style="width:22px;height:22px;font-size:11px"><i class="fas fa-xmark"></i></button>`;
+}
+function cancelarCasoActivo(){
+  S.casoActivo = null;
+  const b = $('#casoActivoBanner'); if (b) b.style.display = 'none';
+  const sCotiz = $('#sCotiz'); if (sCotiz) sCotiz.classList.remove('hidden');
+  const sWego = $('#sWego'); if (sWego && S.resultado==='agenda') sWego.classList.remove('hidden');
+}
+
 function resetPanel(){
   $$('[data-f]').forEach(i => { if (i.tagName==='SELECT') i.selectedIndex=0; else i.value=''; });
   // restablecer km servicio a 10.000 (segunda opción)
@@ -1160,7 +1520,8 @@ function omniSearch(q){
 // =============================================================
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV });
+function goToInternos(){ goTo('internos'); }
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos });
 
 // =============================================================
 //  INIT
