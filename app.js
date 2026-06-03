@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.8.0';
+import { DATA } from './data.js?v=1.9.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -125,6 +125,7 @@ function enterApp(){
   $('#appRoot').style.display = 'grid';
   applyRole();
   poblarListasPanel();
+  poblarCotizador();
   renderHome();
   renderContent();
   renderConfig();
@@ -1626,23 +1627,105 @@ function onAsesorTaller(){ toggleAsesorOtro(); if (sel_val_otro_vacio()) $('#ase
 function sel_val_otro_vacio(){ const s=$('#asesorTallerSel'); return s && s.value !== '__otro__'; }
 
 // =============================================================
-//  COTIZADOR (desde DATA.cotizador.local + descuento)
+//  COTIZADOR KIA (Módulo 3) — seed de precios + detalle por km
 // =============================================================
 function fmtCOP(n){ return '$ ' + Math.round(n).toLocaleString('es-CO'); }
-function kmKey(km){ return (km||'').replace(/[.\s]/g,''); }
+// Extrae el número de km de una descripción "RV. 10.000 KM" → 10000
+function kmDeDesc(desc){ const m = String(desc).match(/([\d.]+)\s*KM/i); return m ? parseInt(m[1].replace(/\./g,''),10) : null; }
 
+// Devuelve la lista de servicios [desc, manoObra, repuestos, kit] de un modelo.
+function preciosDeModelo(modelo){ return (DATA.cotizador.precios||{})[modelo] || []; }
+
+// Busca el detalle (incluido/noIncluido) por combustión + km más cercano.
+function detallePorKm(combustion, km){
+  const porComb = (DATA.cotizador.detalle||{})[combustion];
+  if (!porComb || km == null) return null;
+  if (porComb[String(km)]) return porComb[String(km)];
+  // km más cercano disponible
+  const claves = Object.keys(porComb).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if (!claves.length) return null;
+  let mejor = claves[0];
+  claves.forEach(c => { if (Math.abs(c-km) < Math.abs(mejor-km)) mejor = c; });
+  return porComb[String(mejor)];
+}
+
+// Cálculo principal. Lee Modelo + línea (kmServicio = descripción exacta) del seed.
 function computeQuote(){
   const f = S.f;
-  const key = `${f.marca}-${f.combustion}-${f.modelo}-${kmKey(f.kmServicio)}`;
-  const item = DATA.cotizador.local[key];
-  if (!item) {
-    return { found:false, precio:null, texto:'Consultar', incluye:DATA.cotizador.incluyeBase,
-             noIncluye: f.combustion==='Eléctrico' ? DATA.cotizador.noIncluyeEV : DATA.cotizador.noIncluyeBase };
+  if (f.marca && f.marca !== DATA.cotizador.soloMarca) {
+    return { found:false, disponible:false, texto:'No disponible', incluye:[], noIncluye:DATA.cotizador.noIncluidoDefault, desglose:'' };
   }
-  const desc = parseInt(f.descuento||'0',10) || 0;
-  const precio = item.precio * (1 - desc/100);
-  return { found:true, precio, texto:fmtCOP(precio),
-           incluye:item.incluye||DATA.cotizador.incluyeBase, noIncluye:item.noIncluye||DATA.cotizador.noIncluyeBase };
+  const lista = preciosDeModelo(f.modelo);
+  const item = lista.find(x => x[0] === f.kmServicio);  // kmServicio guarda la descripción exacta
+  if (!item) {
+    return { found:false, disponible:true, texto:'Consultar', incluye:[], noIncluye:DATA.cotizador.noIncluidoDefault, desglose:'' };
+  }
+  const manoObra = Number(item[1]) || 0;
+  const repuestos = Number(item[2]) || 0;
+  const desc = parseInt((f.descuento||'0%'),10) || 0;
+  const combo = (DATA.cotizador.combos||[]).find(c => c[0] === f.embellecimiento);
+  const valorCombo = combo ? Number(combo[1]) : 0;
+  // VALOR = round(MO × (1-desc%)) + Repuestos + Embellecimiento
+  const moDesc = Math.round(manoObra * (1 - desc/100));
+  const precio = moDesc + repuestos + valorCombo;
+  // detalle por combustión + km
+  const km = kmDeDesc(f.kmServicio);
+  const det = detallePorKm(f.combustion, km);
+  const incluye = det ? det.incluido : [];
+  const noIncluye = det ? det.noIncluido : DATA.cotizador.noIncluidoDefault;
+  let desglose = `MO ${fmtCOP(moDesc)}${desc?` (-${desc}%)`:''} + Rep ${fmtCOP(repuestos)}`;
+  if (valorCombo) desglose += ` + Emb ${fmtCOP(valorCombo)}`;
+  return { found:true, disponible:true, precio, texto:fmtCOP(precio), incluye, noIncluye, desglose,
+           manoObra, repuestos, valorCombo, descuento:desc, kit:item[3]||'' };
+}
+
+// ===== Cascada de dropdowns del cotizador =====
+function poblarCotizador(){
+  const cmb = $('#cotCombustion'); if (!cmb) return;
+  const tipos = Object.keys(DATA.cotizador.combustion || {});
+  if (!cmb.options.length) cmb.innerHTML = tipos.map(t=>`<option>${esc(t)}</option>`).join('');
+  // descuentos
+  const dsc = $('#cotDescuento');
+  if (dsc && !dsc.options.length) dsc.innerHTML = (DATA.cotizador.descuentos||[]).map(d=>`<option>${esc(d)}</option>`).join('');
+  // combos
+  const emb = $('#cotEmbellecimiento');
+  if (emb && !emb.options.length) emb.innerHTML = (DATA.cotizador.combos||[]).map(c=>`<option value="${esc(c[0])}">${esc(cap(c[0].toLowerCase()))}${c[1]?` (+${fmtCOP(c[1])})`:''}</option>`).join('');
+  poblarModelos();
+}
+function poblarModelos(){
+  const sel = $('#cotModelo'); if (!sel) return;
+  const comb = $('#cotCombustion')?.value || Object.keys(DATA.cotizador.combustion)[0];
+  const modelos = (DATA.cotizador.combustion[comb] || []).filter(m => preciosDeModelo(m).length);
+  sel.innerHTML = `<option value="">— Selecciona modelo —</option>` + modelos.map(m=>`<option>${esc(m)}</option>`).join('');
+  poblarKm();
+}
+function poblarKm(){
+  const sel = $('#cotKm'); if (!sel) return;
+  const modelo = $('#cotModelo')?.value || '';
+  const lista = preciosDeModelo(modelo);
+  sel.innerHTML = lista.length
+    ? `<option value="">— Selecciona servicio —</option>` + lista.map(x=>`<option value="${esc(x[0])}">${esc(x[0])}</option>`).join('')
+    : `<option value="">— Sin servicios —</option>`;
+}
+function onCotMarca(){
+  const esKia = $('#cotMarca').value === DATA.cotizador.soloMarca;
+  $('#cotNoDisponible').classList.toggle('hidden', esKia);
+  ['cotCombustion','cotModelo','cotKm','cotDescuento','cotEmbellecimiento'].forEach(id => { const e=$('#'+id); if(e) e.disabled = !esKia; });
+  u();
+}
+function onCotCombustion(){ poblarModelos(); u(); }
+function onCotModelo(){ poblarKm(); u(); }
+
+// Render del detalle de servicios (incluido / no incluido) en el panel.
+function renderCotDetalle(q){
+  const box = $('#cotDetalle'); if (!box) return;
+  if (!q || !q.found || !q.incluye || !q.incluye.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <details style="font-size:11px">
+      <summary style="cursor:pointer;color:var(--ok);font-weight:600;padding:4px 0">✅ Incluye (${q.incluye.length} servicios)</summary>
+      <ul style="list-style:none;margin:4px 0 0;padding:0;columns:1">${q.incluye.map(s=>`<li style="padding:1px 0">• ${esc(s)}</li>`).join('')}</ul>
+    </details>
+    <div style="font-size:11px;margin-top:4px"><span style="color:var(--wr);font-weight:600">⚠️ No incluido</span> (sujeto a inspección): ${q.noIncluye.map(esc).join(', ')}</div>`;
 }
 
 // =============================================================
@@ -1661,18 +1744,24 @@ function u(){
   let nota='', est='', cau='', mot='', voz='', cli='';
 
   const q = computeQuote();
-  $('#pPrecio').textContent = q.texto === 'Consultar' ? 'Consultar' : q.texto;
+  $('#pPrecio').textContent = q.texto;
+  const desgEl = $('#pDesglose'); if (desgEl) desgEl.textContent = q.found ? q.desglose : '';
+  renderCotDetalle(q);
 
   const evo = DATA.tipificador.resultadoEvo[r] || {};
   est = evo.estado || ''; cau = evo.causa || '';
 
+  // El "servicio/motivo" para tipificación viene del Motivo del contacto (sección 1).
+  const motivo = f.motivo || 'Mantenimiento';
+  const kmTxt = f.kmServicio || '';   // ahora es la descripción de la línea (RV. X KM)
+
   if (r === 'agenda') {
-    const serv = (f.servicio||'Mantenimiento').toUpperCase();
+    const serv = motivo.toUpperCase();
     const signo = signos[serv] ? ' ' + signos[serv] : '';
     mot = serv === 'MANTENIMIENTO' ? 'CAMBIO DE ACEITE' : serv;
     voz = (S.hasNovedad && f.novedad) ? f.novedad.toUpperCase() : 'MANTENIMIENTO PREVENTIVO';
     const valor = q.found ? q.texto.replace('$ ','') : 'CONSULTAR';
-    const pts = [pre, f.kmActual?`${f.kmActual} KM`:'', `${serv} ${f.kmServicio||'10.000'}KM $ ${valor} IVA INCLUIDO`];
+    const pts = [pre, f.kmActual?`${f.kmActual} KM`:'', `${f.modelo||''} ${kmTxt} $ ${valor} IVA INCLUIDO`.trim()];
     if (S.hasNovedad && f.novedad) pts.push(f.novedad.toUpperCase());
     S.checks.forEach(c => pts.push(c));
     if (S.adicionales.has('telemetria')) pts.push('VALIDAR TELEMETRIA');
@@ -1681,10 +1770,10 @@ function u(){
     if (f.asesorTaller) pts.push('RECIBE: ' + f.asesorTaller.toUpperCase());
     nota = pts.filter(Boolean).join(' // ') + ` // CALL CENTER${signo}`;
 
-    const svCli = {Mantenimiento:'el mantenimiento',Revisión:'la revisión',Garantía:'la atención de garantía',Inspección:'la inspección',Especializada:'el diagnóstico'}[f.servicio] || 'el servicio';
+    const svCli = {Mantenimiento:'el mantenimiento',Revisión:'la revisión',Garantía:'la atención de garantía',Inspección:'la inspección',Especializada:'el diagnóstico'}[motivo] || 'el servicio';
     const lineas = [
       'Le confirmamos lo que realizaremos en su cita:', '',
-      `🔧 ${cap(svCli)} de los ${f.kmServicio||'—'} km`,
+      `🔧 ${cap(svCli)}${f.modelo?` · ${f.modelo}`:''}${kmTxt?` · ${kmTxt}`:''}`,
       `💰 Valor: ${q.texto} (IVA incluido)`
     ];
     if (f.fechaCita || f.horaCita) lineas.push(`📅 Cita: ${[f.fechaCita,f.horaCita].filter(Boolean).join(' · ')}${f.asesorTaller?` con ${f.asesorTaller}`:''}`);
@@ -1795,11 +1884,11 @@ function downloadCard(){
   const q = computeQuote();
   $('#tCli').textContent = f.nombre || 'Cliente';
   $('#tVeh').textContent = `${f.marca||'KIA'} ${f.modelo||'—'} · ${(f.placa||'—').toUpperCase()}`;
-  $('#tSrv').textContent = `${f.servicio||'Mantenimiento'} ${f.kmServicio||'—'} km`;
+  $('#tSrv').textContent = `${f.kmServicio||'Mantenimiento'}`;
   $('#tPr').textContent  = q.texto;
   $('#tFe').textContent  = new Date().toLocaleDateString('es-CO');
-  $('#tInc').innerHTML = q.incluye.map(x => `<li>• ${x}</li>`).join('');
-  $('#tExc').innerHTML = q.noIncluye.map(x => `<li>• ${x}</li>`).join('');
+  $('#tInc').innerHTML = (q.incluye||[]).map(x => `<li>• ${x}</li>`).join('');
+  $('#tExc').innerHTML = (q.noIncluye||[]).map(x => `<li>• ${x}</li>`).join('');
   t.style.left = '0';
   html2canvas(t, {scale:2}).then(c => {
     t.style.left = '-9999px';
@@ -1820,7 +1909,7 @@ function buildPayload(){
     nombre:f.nombre||'', telefono:f.telefono||'', placa:(f.placa||'').toUpperCase(),
     modelo:f.modelo||'', kmActual:f.kmActual||'', ciudad:f.ciudad||'',
     fechaNac:f.fechaNac||'', origen:f.origen||'', motivo:f.motivo||'',
-    servicio:f.servicio||'', kmServicio:f.kmServicio||'', marca:f.marca||'',
+    servicio:f.servicio||f.motivo||'', kmServicio:f.kmServicio||'', marca:f.marca||'KIA',
     combustion:f.combustion||'', valor: q.found ? Math.round(q.precio) : '',
     alineacion:f.alineacion||'', descuento:f.descuento||'', embellecimiento:f.embellecimiento||'',
     novedad: S.hasNovedad ? 'Sí' : 'No', descNovedad:f.novedad||'',
@@ -2121,8 +2210,11 @@ function precargarPanel(g){
   resetPanel();
   const setF = (k,v) => { const e = $(`[data-f="${k}"]`); if (e && v != null) e.value = v; };
   setF('nombre', g.nombre); setF('telefono', g.telefono); setF('placa', g.placa);
-  setF('ciudad', g.ciudad); setF('servicio', g.servicio);
+  setF('ciudad', g.ciudad);
   setF('origen', 'Base');   // origen del contacto en el panel
+  // el tipo de servicio del caso interno alimenta el Motivo del contacto (tipificación)
+  const mSel = $('#motivoSel');
+  if (mSel && g.servicio && [...mSel.options].some(o=>o.value===g.servicio)) mSel.value = g.servicio;
   // poblar asesor de taller según la ciudad del caso y preseleccionar si ya tenía uno
   _ultCiudadPanel = (g.ciudad || '').trim();
   if (g.asesorTaller) {
@@ -2168,8 +2260,8 @@ function cancelarCasoActivo(){
 
 function resetPanel(){
   $$('[data-f]').forEach(i => { if (i.tagName==='SELECT') i.selectedIndex=0; else i.value=''; });
-  // restablecer km servicio a 10.000 (segunda opción)
-  const kmSel = $('[data-f="kmServicio"]'); if (kmSel) kmSel.value = '10.000';
+  // repoblar la cascada del cotizador (modelo/km dependientes)
+  poblarCotizador();
   S.hasNovedad=false; S.hasWG=false; S.adicionales.clear();
   S.checks = new Set(CHECKS_DEF);
   $('#novSw').classList.remove('warn'); $('#wgSw').classList.remove('on');
@@ -2219,7 +2311,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo });
 
 // =============================================================
 //  INIT

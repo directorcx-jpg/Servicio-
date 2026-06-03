@@ -3,13 +3,16 @@
 //  ES Module. Exporta TODO el contenido como un único objeto DATA.
 //  Fase 1+2: usuarios/roles, cotizador local, tipificador.
 //  Fase 3: contenido real de los 5 docs de /docs.
+//  Módulo 3: cotizador KIA real (seed de precios + detalle de servicios).
 // =============================================================
+import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.9.0';
+import { FEED_DETALLE } from './feed-detalle.js?v=1.9.0';
 
 export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.8.0",
+    version: "1.9.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -47,44 +50,26 @@ export const DATA = {
     asesor_digital: { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: false, exportar: false }
   },
 
-  // ===== COTIZADOR (fallback local) =====
+  // ===== COTIZADOR KIA (Módulo 3) =====
+  // Fuentes: cotizador-seed.js (modelos/precios/combos, respaldo capa 3) y
+  // feed-detalle.js (detalle de servicios por combustión+km, estático).
+  // Solo KIA. Honda/FAW deshabilitados. Cálculo y búsqueda en app.js.
   cotizador: {
-    incluyeBase: [
-      "Cambio de aceite y filtro de motor",
-      "Diagnóstico eléctrico KDS 2.0",
-      "Inspección multipunto 30+",
-      "Alineación",
-      "Balanceo",
-      "Rotación de llantas",
-      "Revisión de frenos, suspensión y dirección",
-      "Prueba de ruta",
-      "Lavado exterior + aspirado"
-    ],
-    noIncluyeBase: [
-      "Filtro de aire motor",
-      "Filtro de aire acondicionado",
-      "Plumillas"
-    ],
-    // Para vehículo eléctrico (EV): no incluye plumillas, sí incluye los dos filtros
-    noIncluyeEV: [
-      "Plumillas"
-    ],
-    local: {
-      "KIA-Gasolina-Picanto-10000": {
-        precio: 1068978,
-        incluye: [
-          "Cambio de aceite y filtro de motor",
-          "Diagnóstico KDS 2.0",
-          "Alineación, balanceo y rotación de llantas",
-          "Inspección multipunto 30+",
-          "Revisión de frenos, suspensión y dirección",
-          "Prueba de ruta",
-          "Lavado exterior + aspirado"
-        ],
-        noIncluye: ["Filtro de aire motor", "Filtro de aire A/C", "Plumillas"]
-      }
-      // ... resto de modelos × km × precio (extraer de los 5 PDFs de manuales)
-    }
+    soloMarca: "KIA",
+    marcasDeshabilitadas: ["Honda", "FAW"],
+    // combustión {tipo:[modelos]} y precios {modelo:[[desc,manoObra,repuestos,kit],...]}
+    combustion: COTIZADOR_SEED.combustion,
+    precios: COTIZADOR_SEED.precios,
+    combos: COTIZADOR_SEED.combos,        // [[nombre, valor],...]
+    detalle: FEED_DETALLE,                 // {combustion:{km:{total,incluido[],noIncluido[]}}}
+    descuentos: ["0%","10%","20%","30%","40%","50%"],
+    reglas: COTIZADOR_SEED.reglas,
+    // No incluido por defecto (sujeto a inspección) cuando el km no esté en el detalle
+    noIncluidoDefault: [
+      "Cambio Filtro de Aire del A/C",
+      "Cambio Filtro de Aire de Motor",
+      "Cambio caucho plumillas"
+    ]
   },
 
   // ===== TIPIFICADOR — Mapeo a Evolution =====
