@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.5.1';
+import { DATA } from './data.js?v=1.6.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -985,6 +985,50 @@ function renderConfig(){
   }));
 
   $('#cfgAdd').addEventListener('click', openAddUser);
+  renderAsesoresServicioConfig();
+}
+
+// Gestión de asesores de servicio por ciudad (coordinador).
+const CIUDADES_PANEL = ['Pereira','Manizales','Armenia','Cartago','La Dorada'];
+function renderAsesoresServicioConfig(){
+  const box = $('#asesoresSrvTable'); if (!box) return;
+  const data = getAsesoresServicio();
+  box.innerHTML = `
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Estos nombres alimentan el campo «Asesor servicio (taller)» del panel, filtrados por la ciudad de la cita.</div>
+    ${CIUDADES_PANEL.map(ciudad => {
+      const lista = data[ciudad] || [];
+      return `<div style="margin-bottom:12px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px"><i class="fas fa-location-dot" style="color:var(--ac);font-size:10px"></i> ${esc(ciudad)}</div>
+        ${lista.length ? lista.map((n,idx) => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <input class="srv-name" data-ciudad="${esc(ciudad)}" data-idx="${idx}" value="${esc(n)}" style="${inpStyle};flex:1">
+          <button class="btn btn-gh srv-del" data-ciudad="${esc(ciudad)}" data-idx="${idx}" title="Quitar"><i class="fas fa-trash" style="color:var(--ac)"></i></button>
+        </div>`).join('') : `<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">Sin asesores cargados.</div>`}
+        <button class="btn btn-gh srv-add" data-ciudad="${esc(ciudad)}" style="margin-top:2px"><i class="fas fa-plus"></i> Agregar asesor</button>
+      </div>`;
+    }).join('')}
+    <button class="btn btn-ac" id="srvSave" style="margin-top:6px"><i class="fas fa-floppy-disk"></i> Guardar asesores de servicio</button>`;
+
+  $$('#asesoresSrvTable .srv-add').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.ciudad; const d = getAsesoresServicio(); (d[c] = d[c] || []).push(''); saveAsesoresServicio(d); renderAsesoresServicioConfig();
+  }));
+  $$('#asesoresSrvTable .srv-del').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.ciudad, i = +b.dataset.idx; const d = getAsesoresServicio();
+    // tomar valores actuales del DOM antes de borrar, para no perder ediciones sin guardar
+    leerSrvDom(d); d[c].splice(i,1); saveAsesoresServicio(d); renderAsesoresServicioConfig();
+  }));
+  $('#srvSave').addEventListener('click', () => {
+    const d = getAsesoresServicio(); leerSrvDom(d);
+    // limpiar vacíos
+    Object.keys(d).forEach(c => { d[c] = (d[c]||[]).map(s=>s.trim()).filter(Boolean); });
+    saveAsesoresServicio(d); renderAsesoresServicioConfig();
+    // si el panel está abierto, refrescar su select
+    _ultCiudadPanel = null; poblarAsesorTaller($('#asesorTallerSel')?.value || '');
+    toast('Asesores de servicio actualizados ✓');
+  });
+}
+// Lee los inputs de la tabla de asesores de servicio dentro del objeto dado.
+function leerSrvDom(d){
+  CIUDADES_PANEL.forEach(c => { if (d[c]) d[c] = d[c].map((_,i)=>{ const el = $(`#asesoresSrvTable .srv-name[data-ciudad="${c}"][data-idx="${i}"]`); return el ? el.value : d[c][i]; }); });
 }
 
 // Modal para agregar un perfil nuevo.
@@ -1144,7 +1188,49 @@ function switchTab(tab, paneId){
 function syncState(){
   $$('[data-f]').forEach(el => { S.f[el.dataset.f] = (el.value || '').trim(); });
   if (S.user) S.f.asesorCeta = S.user.alias;
+  // El asesor de taller es un select dependiente; si está en "Otro", usar el texto libre.
+  if (S.f.asesorTaller === '__otro__') S.f.asesorTaller = (S.f.asesorTallerOtro || '').trim();
 }
+
+// =============================================================
+//  ASESORES DE SERVICIO POR CIUDAD (select dependiente del panel)
+// =============================================================
+const LS_ASESORES_SRV = 'ceta_asesores_servicio';
+function getAsesoresServicio(){
+  try {
+    const ov = JSON.parse(localStorage.getItem(LS_ASESORES_SRV) || 'null');
+    if (ov && typeof ov === 'object') return ov;
+  } catch {}
+  return JSON.parse(JSON.stringify(DATA.asesoresServicio || {}));
+}
+function saveAsesoresServicio(obj){ localStorage.setItem(LS_ASESORES_SRV, JSON.stringify(obj)); }
+
+// Llena el select de asesor de taller según la ciudad elegida en el panel.
+// Conserva el valor previo si sigue siendo válido. selPrevio permite forzar uno.
+function poblarAsesorTaller(selPrevio){
+  const sel = $('#asesorTallerSel'); if (!sel) return;
+  const ciudad = ($('[data-f="ciudad"]')?.value || '').trim();
+  const prev = selPrevio != null ? selPrevio : sel.value;
+  const lista = (getAsesoresServicio()[ciudad] || []).slice().sort((a,b)=>a.localeCompare(b));
+  let html = `<option value="">— Selecciona —</option>`;
+  html += lista.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  html += `<option value="__otro__">Otro…</option>`;
+  sel.innerHTML = html;
+  // restaurar selección previa si aplica
+  if (prev && (lista.includes(prev))) sel.value = prev;
+  else if (prev === '__otro__') sel.value = '__otro__';
+  else sel.value = '';
+  toggleAsesorOtro();
+}
+function toggleAsesorOtro(){
+  const sel = $('#asesorTallerSel');
+  const wrap = $('#asesorTallerOtroWrap');
+  if (!sel || !wrap) return;
+  wrap.classList.toggle('hidden', sel.value !== '__otro__');
+}
+// Handler del select (onchange en el HTML).
+function onAsesorTaller(){ toggleAsesorOtro(); if (sel_val_otro_vacio()) $('#asesorTallerOtro').value=''; u(); }
+function sel_val_otro_vacio(){ const s=$('#asesorTallerSel'); return s && s.value !== '__otro__'; }
 
 // =============================================================
 //  COTIZADOR (desde DATA.cotizador.local + descuento)
@@ -1169,8 +1255,12 @@ function computeQuote(){
 // =============================================================
 //  MASTER UPDATE — regenera salidas desde S
 // =============================================================
+let _ultCiudadPanel = null;
 function u(){
   syncState();
+  // Si cambió la ciudad, repoblar el select de asesor de taller (lista dependiente).
+  const ciudadActual = ($('[data-f="ciudad"]')?.value || '').trim();
+  if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); }
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
   const pre = [pla, tel].filter(Boolean).join(' // ');
@@ -1611,6 +1701,13 @@ function precargarPanel(g){
   setF('nombre', g.nombre); setF('telefono', g.telefono); setF('placa', g.placa);
   setF('ciudad', g.ciudad); setF('servicio', g.servicio);
   setF('origen', 'Base');   // origen del contacto en el panel
+  // poblar asesor de taller según la ciudad del caso y preseleccionar si ya tenía uno
+  _ultCiudadPanel = (g.ciudad || '').trim();
+  if (g.asesorTaller) {
+    const lista = getAsesoresServicio()[(g.ciudad||'').trim()] || [];
+    if (lista.includes(g.asesorTaller)) { poblarAsesorTaller(g.asesorTaller); }
+    else { poblarAsesorTaller('__otro__'); const o = $('#asesorTallerOtro'); if (o) o.value = g.asesorTaller; }
+  } else { poblarAsesorTaller(''); }
   // resultado por defecto al gestionar un pendiente: agenda (el asesor elige)
   pickRes($('#resP .pill[data-r="agenda"]'));
   // Cola B no factura → ocultar Cotización (s3) y We Go (s5)
@@ -1658,6 +1755,10 @@ function resetPanel(){
   $('#wegoOk').classList.remove('hidden'); $('#wegoBlocked').classList.add('hidden');
   $$('.pill[data-ad]').forEach(p => p.classList.remove('on'));
   $$('.pill[data-chk]').forEach(p => p.classList.toggle('on', S.checks.has(p.dataset.chk)));
+  // repoblar el select de asesor de taller para la ciudad por defecto
+  _ultCiudadPanel = null;
+  $('#asesorTallerOtroWrap')?.classList.add('hidden');
+  poblarAsesorTaller('');
   pickRes($('#resP .pill[data-r="agenda"]'));
 }
 
@@ -1696,7 +1797,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller });
 
 // =============================================================
 //  INIT

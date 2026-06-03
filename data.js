@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.5.1",
+    version: "1.6.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -516,6 +516,18 @@ export const DATA = {
   // =============================================================
   //  SEDES (base-conocimiento-completa.md · 1.1)
   // =============================================================
+  // ===== ASESORES DE SERVICIO POR CIUDAD (select dependiente del panel) =====
+  // Lista curada que alimenta el campo "Asesor servicio (taller)" del panel de
+  // cierre, filtrada por la ciudad seleccionada. Editable desde Configuración
+  // (coordinador). Manizales agrupa Alto Tablazo + Santander.
+  asesoresServicio: {
+    "Pereira":   ["Daniela María Marín", "Luis Felipe Giraldo"],
+    "Manizales": ["Lina Clemencia López"],
+    "Armenia":   ["Sergio Alexander Marín"],
+    "Cartago":   ["Kimberly Ramírez"],
+    "La Dorada": ["Jonathan Sánchez"]
+  },
+
   sedes: [
     {
       nombre: "Pereira", marcas: ["KIA","Honda","FAW","Usados"],

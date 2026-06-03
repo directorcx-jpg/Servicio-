@@ -267,10 +267,13 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
   <!-- CONFIG (solo coordinador) -->
   <div class="view" id="v-config">
-    <h1 class="ft-title">Configuración · Usuarios</h1>
+    <h1 class="ft-title">Configuración</h1>
     <div class="badges"><span class="badge"><i class="fas fa-shield-halved"></i> Solo coordinador</span></div>
+    <div class="sub-l"><i class="fas fa-users"></i>Perfiles de usuario</div>
     <div class="fb"><div id="usersTable"></div></div>
-    <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios de PIN se guardan en este navegador (localStorage). La sincronización con Google Sheet llega en una fase posterior.</div></div>
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-user-gear"></i>Asesores de servicio por sede</div>
+    <div class="fb"><div id="asesoresSrvTable"></div></div>
+    <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios se guardan en este navegador (localStorage). La sincronización con Google Sheet llega en una fase posterior.</div></div>
   </div>
 
   <!-- Vistas placeholder (Fase 3) -->
@@ -378,7 +381,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       </div>
       <div class="rr full" style="margin-top:6px"><div class="ff"><label>Servicios adicionales</label><input data-f="srvAdicional" placeholder="Instalación luces, elevavidrios..." oninput="u()"></div></div>
       <div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
-      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input data-f="asesorTaller" placeholder="Lina Clemencia López" oninput="u()"></div></div>
+      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><select data-f="asesorTaller" id="asesorTallerSel" onchange="onAsesorTaller()"><option value="">— Elige la ciudad primero —</option></select></div></div>
+      <div class="rr full hidden" id="asesorTallerOtroWrap"><div class="ff"><label>Nombre del asesor (otro)</label><input data-f="asesorTallerOtro" id="asesorTallerOtro" placeholder="Escribe el nombre" oninput="u()"></div></div>
       <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" data-f="fechaCita" onchange="u()"></div><div class="ff"><label>Hora cita</label><input type="time" data-f="horaCita" onchange="u()"></div></div>
       <div class="rr full"><div class="ff"><label>Observación</label><input data-f="observacion" placeholder="Nota adicional..." oninput="u()"></div></div>
     </div>
@@ -440,6 +444,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.5.1"></script>
+<script type="module" src="app.js?v=1.6.0"></script>
 </body>
 </html>
