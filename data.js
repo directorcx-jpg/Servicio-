@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.4.1",
+    version: "1.5.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -37,7 +37,7 @@ export const DATA = {
     { id: 6, nombre: "Julio Pineda",         alias: "Julio",     rol: "asesor_cc",       pin: "1106", activo: true },
     { id: 7, nombre: "Paula Andrea Arévalo", alias: "Paula",     rol: "asesor_digital",  pin: "1107", activo: true },
     { id: 8, nombre: "Natalia Vargas",       alias: "Nata",      rol: "asesor_digital",  pin: "1108", activo: true },
-    { id: 9, nombre: "Analista de Datos",    alias: "Analista",  rol: "analista",        pin: "1109", activo: true }
+    { id: 9, nombre: "Alejandro Castaño",    alias: "Analista",  rol: "coordinador",     pin: "1109", activo: true }
   ],
 
   permisos: {

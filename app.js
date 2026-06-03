@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.4.1';
+import { DATA } from './data.js?v=1.5.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -30,12 +30,40 @@ const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 const LS_USERS = 'ceta_usuarios';
 const LS_SESSION = 'ceta_session';
 
+const LS_USERS_SEED = 'ceta_usuarios_seed';
+// Versión del seed de data.js. Súbela cuando cambies DATA.usuarios y quieras
+// que el cambio llegue a navegadores que ya tengan usuarios en localStorage.
+const USERS_SEED_VERSION = 2;
+
 function getUsuarios(){
-  try {
-    const ov = JSON.parse(localStorage.getItem(LS_USERS) || 'null');
-    if (Array.isArray(ov) && ov.length) return ov;
-  } catch {}
-  return DATA.usuarios.map(u => ({...u}));
+  let ov = null;
+  try { ov = JSON.parse(localStorage.getItem(LS_USERS) || 'null'); } catch {}
+  const seedVer = parseInt(localStorage.getItem(LS_USERS_SEED) || '0', 10);
+
+  if (!Array.isArray(ov) || !ov.length) {
+    // primera vez: sembrar desde data.js
+    const seed = DATA.usuarios.map(u => ({...u}));
+    saveUsuarios(seed);
+    localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
+    return seed;
+  }
+
+  // Si el seed de data.js avanzó, reconciliar: aplicar nombre/alias/rol del seed
+  // a los perfiles base por id, conservando el PIN/activo que el coordinador haya tocado.
+  if (seedVer < USERS_SEED_VERSION) {
+    const byId = Object.fromEntries(ov.map(u => [u.id, u]));
+    const merged = DATA.usuarios.map(s => {
+      const prev = byId[s.id];
+      return prev ? { ...s, pin: prev.pin, activo: prev.activo } : { ...s };
+    });
+    // conservar perfiles agregados por el coordinador que no estén en el seed
+    ov.forEach(u => { if (!DATA.usuarios.some(s => s.id === u.id)) merged.push(u); });
+    saveUsuarios(merged);
+    localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
+    return merged;
+  }
+
+  return ov;
 }
 function saveUsuarios(list){ localStorage.setItem(LS_USERS, JSON.stringify(list)); }
 
@@ -885,28 +913,96 @@ function renderTV(){
 // =============================================================
 //  CONFIG (gestión de usuarios — solo coordinador)
 // =============================================================
+const ROLES = ['coordinador','analista','asesor_cc','asesor_digital'];
+const inpStyle = 'border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:5px 7px;border-radius:5px;font-size:11px;font-family:var(--f)';
+
 function renderConfig(){
   if (!can('config')) return;
   const list = getUsuarios();
   $('#usersTable').innerHTML = `
-    <table class="tbl"><thead><tr><th>Usuario</th><th>Rol</th><th>PIN</th><th>Activo</th><th></th></tr></thead><tbody>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--tx3)">${list.length} perfiles · puedes editar nombre, rol, PIN, activar/desactivar, agregar o eliminar.</div>
+      <button class="btn btn-ac" id="cfgAdd"><i class="fas fa-user-plus"></i> Agregar perfil</button>
+    </div>
+    <table class="tbl"><thead><tr><th>Nombre completo</th><th>Alias</th><th>Rol</th><th>PIN</th><th>Activo</th><th></th></tr></thead><tbody>
     ${list.map(u => `<tr data-id="${u.id}">
-      <td><strong>${u.nombre}</strong><div style="font-size:10px;color:var(--tx3)">${u.alias}</div></td>
-      <td><span class="tag ${u.rol}">${rolLabel(u.rol)}</span></td>
-      <td><input class="cfg-pin" value="${u.pin}" maxlength="4" inputmode="numeric" style="width:64px;font-family:var(--fm);text-align:center;border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:5px;border-radius:5px"></td>
+      <td><input class="cfg-nombre" value="${esc(u.nombre)}" style="${inpStyle};width:160px"></td>
+      <td><span style="font-family:var(--fm);font-size:11px;color:var(--tx3)" title="El alias es fijo: vincula los casos históricos">${esc(u.alias)}</span></td>
+      <td><select class="cfg-rol" style="${inpStyle}">${ROLES.map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${rolLabel(r)}</option>`).join('')}</select></td>
+      <td><input class="cfg-pin" value="${esc(u.pin)}" maxlength="4" inputmode="numeric" style="${inpStyle};width:60px;font-family:var(--fm);text-align:center"></td>
       <td><label class="tog"><span class="tog-sw cfg-act ${u.activo?'on':''}"></span></label></td>
-      <td><button class="btn btn-ok cfg-save"><i class="fas fa-floppy-disk"></i> Guardar</button></td>
+      <td style="white-space:nowrap"><button class="btn btn-ok cfg-save"><i class="fas fa-floppy-disk"></i></button> <button class="btn btn-gh cfg-del" title="Eliminar perfil"><i class="fas fa-trash" style="color:var(--ac)"></i></button></td>
     </tr>`).join('')}
     </tbody></table>`;
+
   $$('#usersTable .cfg-act').forEach(sw => sw.addEventListener('click', () => sw.classList.toggle('on')));
+
   $$('#usersTable .cfg-save').forEach(btn => btn.addEventListener('click', e => {
     const tr = e.target.closest('tr'); const id = +tr.dataset.id;
+    const nombre = tr.querySelector('.cfg-nombre').value.trim();
+    const rol = tr.querySelector('.cfg-rol').value;
     const pin = tr.querySelector('.cfg-pin').value.trim();
     const activo = tr.querySelector('.cfg-act').classList.contains('on');
+    if (!nombre) { toast('El nombre no puede estar vacío'); return; }
     if (!/^\d{4}$/.test(pin)) { toast('El PIN debe ser de 4 dígitos'); return; }
-    const list2 = getUsuarios().map(u => u.id===id ? {...u, pin, activo} : u);
-    saveUsuarios(list2); renderConfig(); toast('Usuario actualizado ✓');
+    const list2 = getUsuarios().map(u => u.id===id ? {...u, nombre, rol, pin, activo} : u);
+    saveUsuarios(list2);
+    // si el usuario editado es el de la sesión actual, refrescar su chip/permisos
+    if (S.user && S.user.id === id) { S.user.nombre = nombre; S.user.rol = rol; applyRole(); renderHome(); }
+    renderConfig(); toast('Perfil actualizado ✓');
   }));
+
+  $$('#usersTable .cfg-del').forEach(btn => btn.addEventListener('click', e => {
+    const tr = e.target.closest('tr'); const id = +tr.dataset.id;
+    const u = getUsuarios().find(x => x.id === id);
+    if (S.user && S.user.id === id) { toast('No puedes eliminar tu propio perfil mientras lo usas'); return; }
+    confirmModal(
+      `Eliminar perfil`,
+      `¿Eliminar el perfil <strong>${esc(u.nombre)}</strong> (${esc(u.alias)})? Sus casos históricos se conservan, pero ya no podrá iniciar sesión.<br><br>Si solo quiere pausarlo, mejor <strong>desactívelo</strong> con el interruptor.`,
+      () => { saveUsuarios(getUsuarios().filter(x => x.id !== id)); renderConfig(); toast('Perfil eliminado'); }
+    );
+  }));
+
+  $('#cfgAdd').addEventListener('click', openAddUser);
+}
+
+// Modal para agregar un perfil nuevo.
+function openAddUser(){
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-user-plus"></i> Nuevo perfil</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="ff" style="margin-bottom:8px"><label>Nombre completo</label><input id="auNombre" placeholder="Ej: Alejandro Castaño"></div>
+      <div class="ff" style="margin-bottom:8px"><label>Alias (nombre corto, fijo)</label><input id="auAlias" placeholder="Ej: Alejandro"></div>
+      <div class="rr"><div class="ff"><label>Rol</label><select id="auRol">${ROLES.map(r=>`<option value="${r}">${rolLabel(r)}</option>`).join('')}</select></div><div class="ff"><label>PIN (4 dígitos)</label><input id="auPin" maxlength="4" inputmode="numeric" class="mono" placeholder="0000"></div></div>
+      <div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-circle-info"></i><div>Solo los roles <strong>asesor taller</strong> participan en la rotación de Casos Internos.</div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gh" data-modal-close>Cancelar</button>
+      <button class="btn btn-ac" id="auSave"><i class="fas fa-check"></i> Crear perfil</button>
+    </div>`);
+  $('#auSave').addEventListener('click', () => {
+    const nombre = $('#auNombre').value.trim();
+    const alias = $('#auAlias').value.trim();
+    const rol = $('#auRol').value;
+    const pin = $('#auPin').value.trim();
+    if (!nombre || !alias) { toast('Nombre y alias son obligatorios'); return; }
+    if (!/^\d{4}$/.test(pin)) { toast('El PIN debe ser de 4 dígitos'); return; }
+    const list = getUsuarios();
+    if (list.some(u => u.alias.toLowerCase() === alias.toLowerCase())) { toast('Ya existe un perfil con ese alias'); return; }
+    const nuevoId = Math.max(0, ...list.map(u => u.id)) + 1;
+    list.push({ id: nuevoId, nombre, alias, rol, pin, activo: true });
+    saveUsuarios(list);
+    modalClose(); renderConfig(); toast('Perfil creado ✓');
+  });
+}
+
+// Modal de confirmación genérico (sí/no).
+function confirmModal(titulo, htmlMsg, onYes){
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-triangle-exclamation" style="color:var(--ac)"></i> ${esc(titulo)}</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body"><div style="font-size:13px;line-height:1.6">${htmlMsg}</div></div>
+    <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="cmYes"><i class="fas fa-check"></i> Confirmar</button></div>`);
+  $('#cmYes').addEventListener('click', () => { modalClose(); onYes(); });
 }
 
 // =============================================================
