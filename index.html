@@ -273,6 +273,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
     <div class="fb"><div id="usersTable"></div></div>
     <div class="sub-l" style="margin-top:16px"><i class="fas fa-user-gear"></i>Asesores de servicio por sede</div>
     <div class="fb"><div id="asesoresSrvTable"></div></div>
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-list-ul"></i>Listas del panel (motivos y servicios)</div>
+    <div class="fb"><div id="listasTable"></div></div>
     <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios se guardan en este navegador (localStorage). La sincronización con Google Sheet llega en una fase posterior.</div></div>
   </div>
 
@@ -303,7 +305,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       <div class="rr"><div class="ff"><label>Nombre</label><input data-f="nombre" placeholder="Sr./Sra." oninput="u()"></div><div class="ff"><label>Teléfono</label><input data-f="telefono" placeholder="300 000 0000" oninput="u()"></div></div>
       <div class="rr"><div class="ff"><label>Placa</label><input data-f="placa" class="mono" placeholder="ABC123" oninput="u()" style="text-transform:uppercase"></div><div class="ff"><label>Km actual</label><input data-f="kmActual" placeholder="8.500" oninput="u()"></div></div>
       <div class="rr"><div class="ff"><label>Ciudad</label><select data-f="ciudad" onchange="u()"><option>Pereira</option><option>Manizales</option><option>Armenia</option><option>Cartago</option><option>La Dorada</option></select></div><div class="ff"><label>Fecha nacimiento</label><input type="date" data-f="fechaNac"></div></div>
-      <div class="rr"><div class="ff"><label>Origen</label><select data-f="origen" onchange="u()"><option>Inbound</option><option>Base</option><option>Formulario</option><option>Chat MTIC</option><option>Otros</option></select></div><div class="ff"><label>Motivo del contacto</label><select data-f="motivo" onchange="u()"><option value="">— Se define en la llamada —</option><option>Mantenimiento</option><option>Garantía</option><option>Cotización</option><option>Información</option><option>Queja</option><option>Inspección</option><option>Accesorios</option></select></div></div>
+      <div class="rr"><div class="ff"><label>Origen</label><select data-f="origen" onchange="u()"><option>Inbound</option><option>Base</option><option>Formulario</option><option>Chat MTIC</option><option>Otros</option></select></div><div class="ff"><label>Motivo del contacto</label><select data-f="motivo" id="motivoSel" onchange="u()"><option value="">— Se define en la llamada —</option></select></div></div>
     </div>
 
     <!-- S2: RESULTADO -->
@@ -333,7 +335,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
     <div class="rp-s" id="sCotiz">
       <div class="rp-l"><span class="nm">3</span>COTIZACIÓN</div>
       <div class="rr tri"><div class="ff"><label>Marca</label><select data-f="marca" onchange="u()"><option>KIA</option><option>Honda</option><option>FAW</option></select></div><div class="ff"><label>Combustión</label><select data-f="combustion" onchange="u()"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option></select></div><div class="ff"><label>Modelo</label><select data-f="modelo" onchange="u()"><option>Picanto</option><option>Sportage</option><option>Sonet</option><option>K3</option><option>Seltos</option><option>Rio</option></select></div></div>
-      <div class="rr tri"><div class="ff"><label>Servicio</label><select data-f="servicio" onchange="u()"><option>Mantenimiento</option><option>Revisión</option><option>Garantía</option><option>Inspección</option><option>Especializada</option></select></div><div class="ff"><label>Km servicio</label><select data-f="kmServicio" onchange="u()"><option>5.000</option><option selected>10.000</option><option>20.000</option><option>30.000</option><option>40.000</option><option>50.000</option></select></div><div class="ff"><label>Descuento</label><select data-f="descuento" onchange="u()"><option>0%</option><option>5%</option><option>10%</option></select></div></div>
+      <div class="rr tri"><div class="ff"><label>Servicio</label><select data-f="servicio" id="servicioSel" onchange="u()"></select></div><div class="ff"><label>Km servicio</label><select data-f="kmServicio" onchange="u()"><option>5.000</option><option selected>10.000</option><option>20.000</option><option>30.000</option><option>40.000</option><option>50.000</option></select></div><div class="ff"><label>Descuento</label><select data-f="descuento" onchange="u()"><option>0%</option><option>5%</option><option>10%</option></select></div></div>
       <div class="rr"><div class="ff"><label>Alineación</label><select data-f="alineacion" onchange="u()"><option>Sí</option><option>No</option></select></div><div class="ff"><label>Embellecimiento</label><select data-f="embellecimiento" onchange="u()"><option>No aplica</option><option>Básico</option><option>Premium</option></select></div></div>
       <div class="price-box"><div class="lbl">Valor estimado</div><div class="val" id="pPrecio">$ —</div></div>
       <div style="display:flex;gap:3px"><button class="btn btn-ok" onclick="copyMsg(this)"><i class="fas fa-copy"></i> WhatsApp</button><button class="btn btn-gh" onclick="downloadCard()"><i class="fas fa-image"></i> Tarjeta</button></div>
@@ -444,6 +446,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.6.0"></script>
+<script type="module" src="app.js?v=1.7.0"></script>
 </body>
 </html>

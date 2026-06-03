@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.6.0';
+import { DATA } from './data.js?v=1.7.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -124,6 +124,7 @@ function enterApp(){
   $('#loginScreen').style.display = 'none';
   $('#appRoot').style.display = 'grid';
   applyRole();
+  poblarListasPanel();
   renderHome();
   renderContent();
   renderConfig();
@@ -758,17 +759,41 @@ function renderControl(){
     <div class="fb">
       ${fil.length?(() => {
         const cols = getCtrlCols().map(k => CTRL_COLUMNS.find(c=>c.key===k)).filter(Boolean);
-        return `<table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}<th style="width:24px"></th></tr></thead><tbody>
-          ${fil.map(g=>`<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer">${cols.map(c=>`<td>${c.render(g)}</td>`).join('')}<td style="color:var(--tx3)"><i class="fas fa-chevron-right" style="font-size:10px"></i></td></tr>`).join('')}
+        const esCoord = S.user?.rol === 'coordinador';
+        return `<table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}${esCoord?'<th style="width:30px"></th>':''}<th style="width:24px"></th></tr></thead><tbody>
+          ${fil.map(g=>`<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer">${cols.map(c=>`<td>${c.render(g)}</td>`).join('')}${esCoord?`<td><button class="btn btn-gh ctrl-reasignar" data-id="${esc(g.id)}" title="Reasignar a otro asesor" style="padding:3px 7px"><i class="fas fa-people-arrows"></i></button></td>`:''}<td style="color:var(--tx3)"><i class="fas fa-chevron-right" style="font-size:10px"></i></td></tr>`).join('')}
         </tbody></table>`;
       })():emptyState('fa-inbox','Sin gestiones','Aún no hay gestiones registradas. Las que guardes en el panel derecho aparecerán aquí.')}
-    </div>`;
+    </div>
+    ${graficasHTML(fil)}`;
   const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
   const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
   const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
+  $$('#v-control .ctrl-reasignar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openReasignar(b.dataset.id); }));
   $$('#v-control .ctrl-row').forEach(tr => tr.addEventListener('click', () => openCaseDetail(tr.dataset.id)));
+}
+
+// Mini-modal de reasignación rápida (botón en la fila de Control).
+function openReasignar(id){
+  const g = getGestionesLocal().find(x => x.id === id); if (!g) return;
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-people-arrows"></i> Reasignar caso</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Caso <strong>${esc(g.placa||'—')}</strong> · ${esc(g.nombre||'')}<br>Actualmente: <strong>${esc(g.asignadoAlias||g.asesorCeta||'—')}</strong></div>
+      <div class="ff"><label>Reasignar a</label><select id="reSel">
+        <option value="">— Selecciona asesor —</option>
+        ${rotacionPool().filter(u=>u.id!==g.asignadoId).map(u=>`<option value="${u.id}">${esc(u.alias)} (${esc(u.nombre)})</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="reGo"><i class="fas fa-check"></i> Reasignar</button></div>`);
+  $('#reGo').addEventListener('click', () => {
+    const nid = +($('#reSel').value || 0);
+    if (!nid) { toast('Elige un asesor'); return; }
+    const r = reasignarCaso(id, nid);
+    if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); }
+  });
 }
 
 // ===== MODAL: configurar columnas (solo coordinador) =====
@@ -823,6 +848,12 @@ function openCaseDetail(id){
 
       ${(editable && g.origen==='Interno' && g.resultado==='pendiente')?`<button class="btn btn-ac btn-big" id="mdGestionar" style="margin-bottom:12px"><i class="fas fa-headset"></i> Gestionar en el panel →</button>`:''}
 
+      ${S.user?.rol==='coordinador'?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
+      <div class="rr"><div class="ff"><select id="mdReasignar">
+        <option value="">— Mantener: ${esc(g.asignadoAlias||g.asesorCeta||'—')} —</option>
+        ${rotacionPool().filter(u=>u.id!==g.asignadoId).map(u=>`<option value="${u.id}">${esc(u.alias)} (${esc(u.nombre)})</option>`).join('')}
+      </select></div><div class="ff" style="flex:0 0 auto"><button class="btn btn-gh" id="mdReasignarBtn" style="margin-top:14px"><i class="fas fa-people-arrows"></i> Reasignar</button></div></div>`:''}
+
       <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
       <div class="rr"><div class="ff"><label>Nombre</label><input value="${esc(g.nombre||'')}" disabled></div><div class="ff"><label>Placa</label><input class="mono" value="${esc(g.placa||'')}" disabled></div></div>
       <div class="rr"><div class="ff"><label>Teléfono</label><input id="mdTelefono" value="${esc(g.telefono||'')}" ${ro}></div><div class="ff"><label>Km actual</label><input id="mdKmActual" value="${esc(g.kmActual||'')}" ${ro}></div></div>
@@ -851,6 +882,15 @@ function openCaseDetail(id){
       ${editable?`<button class="btn btn-ac" id="mdSave"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>`:''}
     </div>`);
 
+  // Reasignar (solo coordinador) — disponible aunque el modal sea de otro asesor.
+  const reBtn = $('#mdReasignarBtn');
+  if (reBtn) reBtn.addEventListener('click', () => {
+    const nid = +($('#mdReasignar').value || 0);
+    if (!nid) { toast('Elige un asesor'); return; }
+    const r = reasignarCaso(id, nid);
+    if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); }
+  });
+
   if (editable) {
     const gest = $('#mdGestionar');
     if (gest) gest.addEventListener('click', () => { modalClose(); gestionarCaso(id); });
@@ -871,6 +911,74 @@ function openCaseDetail(id){
 }
 function fmtHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
 function fmtFechaHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
+
+// ===== GRÁFICAS de Control de Gestión (CSS puro, sin librerías) =====
+const CHART_COLORS = ['#e53935','#2563eb','#16a34a','#ea580c','#a855f7','#0891b2','#b45309','#db2777'];
+// Barras horizontales a partir de un mapa {etiqueta: valor}.
+function barChart(titulo, icon, mapa, color){
+  const entries = Object.entries(mapa).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const max = Math.max(1, ...entries.map(([,v])=>v));
+  const body = entries.length
+    ? entries.map(([k,v])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px"><div style="width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(k)}</div><div style="flex:1;background:var(--bgs);border-radius:4px;height:16px;overflow:hidden"><div style="width:${Math.round(v/max*100)}%;height:100%;background:${color||'var(--ac)'}"></div></div><div style="width:26px;text-align:right;font-family:var(--fm);font-weight:600">${v}</div></div>`).join('')
+    : '<div style="font-size:11px;color:var(--tx3)">Sin datos.</div>';
+  return `<div class="fb"><div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas ${icon}"></i></span>${esc(titulo)}</div>${body}</div>`;
+}
+// Dona simple con conic-gradient + leyenda, a partir de {etiqueta: valor}.
+function donutChart(titulo, icon, mapa){
+  const entries = Object.entries(mapa).filter(([,v])=>v>0);
+  const total = entries.reduce((s,[,v])=>s+v,0);
+  if (!total) return `<div class="fb"><div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas ${icon}"></i></span>${esc(titulo)}</div><div style="font-size:11px;color:var(--tx3)">Sin datos.</div></div>`;
+  let acc = 0; const segs = [];
+  entries.forEach(([k,v],i)=>{ const ini=acc/total*360, fin=(acc+v)/total*360; segs.push(`${CHART_COLORS[i%CHART_COLORS.length]} ${ini}deg ${fin}deg`); acc+=v; });
+  const leyenda = entries.map(([k,v],i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px"><span style="width:10px;height:10px;border-radius:2px;background:${CHART_COLORS[i%CHART_COLORS.length]};flex-shrink:0"></span>${esc(k)} <span style="color:var(--tx3);margin-left:auto;font-family:var(--fm)">${v} (${Math.round(v/total*100)}%)</span></div>`).join('');
+  return `<div class="fb"><div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas ${icon}"></i></span>${esc(titulo)}</div>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div style="width:110px;height:110px;border-radius:50%;background:conic-gradient(${segs.join(',')});flex-shrink:0;position:relative"><div style="position:absolute;inset:28px;background:var(--bgp);border-radius:50%;display:grid;place-items:center;font-family:var(--fd);font-weight:800;font-size:18px">${total}</div></div>
+      <div style="flex:1;min-width:140px">${leyenda}</div>
+    </div></div>`;
+}
+// Barras apiladas: tipo de servicio por asesor. data = {asesor: {servicio:n}}.
+function stackedChart(titulo, icon, data, categorias){
+  const asesores = Object.keys(data);
+  if (!asesores.length) return `<div class="fb"><div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas ${icon}"></i></span>${esc(titulo)}</div><div style="font-size:11px;color:var(--tx3)">Sin datos.</div></div>`;
+  const totByAsesor = a => categorias.reduce((s,c)=>s+(data[a][c]||0),0);
+  const maxTot = Math.max(1, ...asesores.map(totByAsesor));
+  const leyenda = categorias.map((c,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:8px"><span style="width:9px;height:9px;border-radius:2px;background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>${esc(c)}</span>`).join('');
+  const filas = asesores.sort((a,b)=>totByAsesor(b)-totByAsesor(a)).map(a=>{
+    const segs = categorias.map((c,i)=>{ const v=data[a][c]||0; if(!v) return ''; return `<div title="${esc(c)}: ${v}" style="width:${Math.round(v/maxTot*100)}%;background:${CHART_COLORS[i%CHART_COLORS.length]};height:100%"></div>`; }).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px"><div style="width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a)}</div><div style="flex:1;display:flex;background:var(--bgs);border-radius:4px;height:16px;overflow:hidden">${segs}</div><div style="width:26px;text-align:right;font-family:var(--fm);font-weight:600">${totByAsesor(a)}</div></div>`;
+  }).join('');
+  return `<div class="fb"><div class="bt val" style="margin-bottom:8px"><span class="n"><i class="fas ${icon}"></i></span>${esc(titulo)}</div><div style="margin-bottom:8px">${leyenda}</div>${filas}</div>`;
+}
+
+// Arma las 4 gráficas a partir de las gestiones filtradas que ve el usuario.
+function graficasHTML(rows){
+  if (!rows.length) return '';
+  // Solo cuentan las AGENDADAS para "agendas por ciudad/asesor"; resultados usa todo.
+  const agendadas = rows.filter(g => g.resultado === 'agenda');
+  // Agendas por ciudad
+  const porCiudad = {};
+  agendadas.forEach(g => { const c = g.ciudad||'—'; porCiudad[c]=(porCiudad[c]||0)+1; });
+  // Casos por asesor (a quién se agenda)
+  const porAsesor = {};
+  agendadas.forEach(g => { const a = g.asignadoAlias||g.asesorCeta||'—'; porAsesor[a]=(porAsesor[a]||0)+1; });
+  // Tipo de servicio por asesor (apilada) — sobre todas las gestiones con servicio
+  const servicios = [...new Set(rows.map(g=>g.servicio).filter(Boolean))];
+  const tipoPorAsesor = {};
+  rows.forEach(g => { if(!g.servicio) return; const a=g.asignadoAlias||g.asesorCeta||'—'; (tipoPorAsesor[a]=tipoPorAsesor[a]||{})[g.servicio]=(tipoPorAsesor[a][g.servicio]||0)+1; });
+  // Resultados (estado de gestión)
+  const porResultado = {};
+  rows.forEach(g => { const r = RESULT_LABEL[g.resultado]||g.resultado||'—'; porResultado[r]=(porResultado[r]||0)+1; });
+
+  return `
+    <div class="sub-l" style="margin-top:18px"><i class="fas fa-chart-column"></i>Gráficas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${barChart('Agendas por ciudad','fa-location-dot',porCiudad,'#2563eb')}
+      ${barChart('Casos agendados por asesor','fa-user-check',porAsesor,'#16a34a')}
+      ${stackedChart('Tipo de servicio por asesor','fa-layer-group',tipoPorAsesor,servicios)}
+      ${donutChart('Resultados de gestión','fa-circle-half-stroke',porResultado)}
+    </div>`;
+}
 
 // ===== MODO TV (fullscreen, auto-refresh 60s) =====
 let tvTimer = null;
@@ -986,6 +1094,7 @@ function renderConfig(){
 
   $('#cfgAdd').addEventListener('click', openAddUser);
   renderAsesoresServicioConfig();
+  renderListasConfig();
 }
 
 // Gestión de asesores de servicio por ciudad (coordinador).
@@ -1029,6 +1138,40 @@ function renderAsesoresServicioConfig(){
 // Lee los inputs de la tabla de asesores de servicio dentro del objeto dado.
 function leerSrvDom(d){
   CIUDADES_PANEL.forEach(c => { if (d[c]) d[c] = d[c].map((_,i)=>{ const el = $(`#asesoresSrvTable .srv-name[data-ciudad="${c}"][data-idx="${i}"]`); return el ? el.value : d[c][i]; }); });
+}
+
+// Gestión de listas del panel: motivos y servicios (coordinador).
+function renderListasConfig(){
+  const box = $('#listasTable'); if (!box) return;
+  const L = getListas();
+  const bloque = (titulo, key, items) => `
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600;font-size:12px;margin-bottom:4px">${esc(titulo)}</div>
+      ${items.length ? items.map((n,idx)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <input class="lst-name" data-key="${key}" data-idx="${idx}" value="${esc(n)}" style="${inpStyle};flex:1">
+        <button class="btn btn-gh lst-del" data-key="${key}" data-idx="${idx}" title="Quitar"><i class="fas fa-trash" style="color:var(--ac)"></i></button>
+      </div>`).join('') : `<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">Lista vacía.</div>`}
+      <button class="btn btn-gh lst-add" data-key="${key}" style="margin-top:2px"><i class="fas fa-plus"></i> Agregar</button>
+    </div>`;
+  box.innerHTML = `
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Estas listas alimentan los selects «Motivo del contacto» y «Servicio» del panel de cierre.</div>
+    <div class="rr"><div>${bloque('Motivos del contacto','motivos',L.motivos)}</div><div>${bloque('Tipos de servicio','servicios',L.servicios)}</div></div>
+    <button class="btn btn-ac" id="lstSave" style="margin-top:6px"><i class="fas fa-floppy-disk"></i> Guardar listas</button>`;
+
+  const leerDom = (obj) => {
+    ['motivos','servicios'].forEach(k => { obj[k] = (obj[k]||[]).map((_,i)=>{ const el=$(`#listasTable .lst-name[data-key="${k}"][data-idx="${i}"]`); return el?el.value:obj[k][i]; }); });
+  };
+  $$('#listasTable .lst-add').forEach(b => b.addEventListener('click', () => {
+    const L2 = getListas(); leerDom(L2); (L2[b.dataset.key] = L2[b.dataset.key]||[]).push(''); saveListas(L2); renderListasConfig();
+  }));
+  $$('#listasTable .lst-del').forEach(b => b.addEventListener('click', () => {
+    const L2 = getListas(); leerDom(L2); L2[b.dataset.key].splice(+b.dataset.idx,1); saveListas(L2); renderListasConfig();
+  }));
+  $('#lstSave').addEventListener('click', () => {
+    const L2 = getListas(); leerDom(L2);
+    ['motivos','servicios'].forEach(k => { L2[k] = (L2[k]||[]).map(s=>s.trim()).filter(Boolean); });
+    saveListas(L2); renderListasConfig(); poblarListasPanel(); toast('Listas actualizadas ✓');
+  });
 }
 
 // Modal para agregar un perfil nuevo.
@@ -1195,6 +1338,36 @@ function syncState(){
 // =============================================================
 //  ASESORES DE SERVICIO POR CIUDAD (select dependiente del panel)
 // =============================================================
+// ===== LISTAS EDITABLES (motivos / servicios del panel) =====
+const LS_LISTAS = 'ceta_listas';
+function getListas(){
+  let ov = null;
+  try { ov = JSON.parse(localStorage.getItem(LS_LISTAS) || 'null'); } catch {}
+  const base = DATA.listas || { motivos: [], servicios: [] };
+  return {
+    motivos: (ov && Array.isArray(ov.motivos) && ov.motivos.length) ? ov.motivos : base.motivos.slice(),
+    servicios: (ov && Array.isArray(ov.servicios) && ov.servicios.length) ? ov.servicios : base.servicios.slice()
+  };
+}
+function saveListas(obj){ localStorage.setItem(LS_LISTAS, JSON.stringify(obj)); }
+
+// Llena los selects de Motivo y Servicio del panel desde las listas (conserva valor).
+function poblarListasPanel(){
+  const L = getListas();
+  const mSel = $('#motivoSel');
+  if (mSel) {
+    const prev = mSel.value;
+    mSel.innerHTML = `<option value="">— Se define en la llamada —</option>` + L.motivos.map(m=>`<option>${esc(m)}</option>`).join('');
+    if (L.motivos.includes(prev)) mSel.value = prev;
+  }
+  const sSel = $('#servicioSel');
+  if (sSel) {
+    const prev = sSel.value || 'Mantenimiento';
+    sSel.innerHTML = L.servicios.map(s=>`<option>${esc(s)}</option>`).join('');
+    sSel.value = L.servicios.includes(prev) ? prev : (L.servicios[0] || '');
+  }
+}
+
 const LS_ASESORES_SRV = 'ceta_asesores_servicio';
 function getAsesoresServicio(){
   try {
@@ -1544,6 +1717,35 @@ function updateGestionLocal(id, changes, nota){
   }
   return g;
 }
+
+// REASIGNAR un caso a otro asesor del pool de rotación (solo coordinador).
+// Cambia el dueño (asignadoId/createdBy) para que el nuevo asesor pueda editarlo,
+// y deja constancia en el historial. No altera la rotación (esta es manual).
+function reasignarCaso(id, nuevoAsesorId){
+  if (S.user?.rol !== 'coordinador') { toast('Solo el coordinador puede reasignar'); return null; }
+  const list = getGestionesLocal();
+  const i = list.findIndex(g => g.id === id);
+  if (i < 0) return null;
+  const nuevo = getUsuarios().find(u => u.id === nuevoAsesorId);
+  if (!nuevo) { toast('Asesor no válido'); return null; }
+  const g = list[i];
+  const prevAlias = g.asignadoAlias || g.asesorCeta || '—';
+  if (g.asignadoId === nuevo.id) { toast('El caso ya está asignado a ' + nuevo.alias); return null; }
+  const now = Date.now();
+  g.asignadoId = nuevo.id; g.asignadoAlias = nuevo.alias;
+  g.createdBy = nuevo.id; g.createdByAlias = nuevo.alias;  // el nuevo asesor pasa a poder editarlo
+  g.asesorCeta = nuevo.alias;
+  g._updated = now;
+  g.historial = g.historial || [];
+  g.historial.push({ ts: now, tipo: 'Reasignado', autor: S.user.alias, resultado: g.resultado,
+    nota: `Reasignado de ${prevAlias} → ${nuevo.alias} por ${S.user.alias}` });
+  list[i] = g;
+  localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
+  const url = DATA.config.endpoints.actualizarGestion;
+  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {} }
+  return g;
+}
+
 // Cuenta cuántas gestiones están vinculadas a un alias (por id o por alias).
 function contarCasosDeAlias(alias){
   if (!alias) return 0;

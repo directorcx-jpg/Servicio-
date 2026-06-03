@@ -9,7 +9,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.6.0",
+    version: "1.7.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend transaccional — pendiente de deploy. Mientras esté vacío,
@@ -104,6 +104,14 @@ export const DATA = {
       "otroTaller":  { estado: "CONTACTO",    causa: "VISITA OTRO TALLER" },
       "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" }
     }
+  },
+
+  // ===== LISTAS EDITABLES DEL PANEL (Configuración → coordinador) =====
+  // Alimentan los selects "Motivo del contacto" y "Servicio" del panel de cierre.
+  // Editables desde Configuración; override en localStorage 'ceta_listas'.
+  listas: {
+    motivos: ["Mantenimiento", "Servicio rápido", "Garantía", "Cotización", "Información", "Queja", "Inspección", "Especializada", "Accesorios"],
+    servicios: ["Mantenimiento", "Servicio rápido", "Revisión", "Garantía", "Inspección", "Especializada"]
   },
 
   // =============================================================
