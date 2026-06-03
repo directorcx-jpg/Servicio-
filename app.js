@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.7.0';
+import { DATA } from './data.js?v=1.8.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -128,6 +128,8 @@ function enterApp(){
   renderHome();
   renderContent();
   renderConfig();
+  if (can('config')) renderAlertas();
+  refrescarAlertasUI();
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
   // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
@@ -542,7 +544,7 @@ function renderBandeja(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
           <strong style="font-size:13px">${esc(g.nombre||'Sin nombre')}</strong> · <span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>
-          <div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(g.servicio||'—')} · Cola ${esc(g.cola||'—')} · ${esc(g.ciudad||'')} · ${esc(g.grupoChat||'')}</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(g.servicio||'—')} · Cola ${esc(g.cola||'—')} · ${esc(g.ciudad||'')}${hayAlertasCiudad(g.ciudad)?` <i class="fas fa-triangle-exclamation" style="color:var(--wr)" title="Esta ciudad tiene alertas operativas activas"></i>`:''} · ${esc(g.grupoChat||'')}</div>
           <div style="font-size:11px;margin-top:3px"><i class="fas fa-user-check" style="color:var(--ac)"></i> Asignado: <strong>${esc(g.asignadoAlias||'—')}</strong> <span style="color:var(--tx3)">(${esc(g.asignMotivo||'')})</span></div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -705,6 +707,157 @@ function gestionesVisibles(){
   if (p.controlGestion === 'propios') rows = rows.filter(g => g.asesorCeta === S.user.alias);
   return rows;
 }
+
+// =============================================================
+//  VISTA ALERTAS OPERATIVAS (CRUD — solo coordinador)
+// =============================================================
+let alertaEditId = null;
+function onAlertaTipo(){
+  $('#alFechasWrap').classList.toggle('hidden', $('#alTipo').value !== 'temporal');
+}
+function togAlCiudad(b){
+  const c = b.dataset.ciudad;
+  if (c === 'Todas') {
+    // "Todas" es exclusivo: al activarlo, apaga las demás
+    $$('#alCiudades .pill').forEach(p => p.classList.toggle('on', p.dataset.ciudad === 'Todas'));
+  } else {
+    $('#alCiudades .pill[data-ciudad="Todas"]')?.classList.remove('on');
+    b.classList.toggle('on');
+    // si no quedó ninguna marcada, reactivar "Todas"
+    if (!$$('#alCiudades .pill.on').length) $('#alCiudades .pill[data-ciudad="Todas"]')?.classList.add('on');
+  }
+}
+function ciudadesSeleccionadas(){
+  return $$('#alCiudades .pill.on').map(p => p.dataset.ciudad);
+}
+function limpiarFormAlerta(){
+  alertaEditId = null;
+  $('#alFormTitulo').textContent = 'Nueva alerta';
+  $('#alTitulo').value = ''; $('#alDesc').value = '';
+  $('#alPrioridad').value = 'alta'; $('#alTipo').value = 'permanente';
+  $('#alFechaInicio').value = ''; $('#alFechaFin').value = '';
+  $$('#alCiudades .pill').forEach(p => p.classList.toggle('on', p.dataset.ciudad === 'Todas'));
+  onAlertaTipo();
+  $('#alGuardar').innerHTML = '<i class="fas fa-floppy-disk"></i> Crear alerta';
+  $('#alCancelar').classList.add('hidden');
+}
+function renderAlertas(){
+  if (!can('config')) return;
+  // listeners del formulario (una vez por render)
+  $('#alGuardar').onclick = guardarAlerta;
+  $('#alCancelar').onclick = limpiarFormAlerta;
+  // lista
+  const cont = $('#alertasLista');
+  const list = getAlertas();
+  if (!list.length) { cont.innerHTML = emptyState('fa-bell-slash','Sin alertas','Crea la primera alerta operativa con el formulario de arriba.'); return; }
+  const orden = list.slice().sort((a,b)=> (b.activa-a.activa) || (PRIORIDAD_ORDEN[a.prioridad]-PRIORIDAD_ORDEN[b.prioridad]) || (b.id-a.id));
+  cont.innerHTML = orden.map(a => {
+    const c = ALERTA_COLOR[a.prioridad] || ALERTA_COLOR.informativa;
+    const ciudades = (a.ciudades||[]).join(', ');
+    const vig = a.tipo === 'temporal' ? `${esc(a.fechaInicio||'—')} → ${esc(a.fechaFin||'—')}` : 'Permanente';
+    const vencida = a.tipo==='temporal' && a.fechaFin && a.fechaFin < hoyISO();
+    return `<div class="fb" style="${a.activa?`border-left:3px solid ${c.bd}`:'opacity:.55'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <span class="tag" style="background:${c.bg};color:${c.tx}">${c.lbl}</span>
+          <strong style="font-size:13px;margin-left:4px">${esc(a.titulo)}</strong>
+          ${!a.activa?`<span class="badge" style="margin-left:4px">${vencida?'Vencida':'Inactiva'}</span>`:''}
+          <div style="font-size:11px;color:var(--tx2);margin-top:4px">${esc(a.descripcion||'')}</div>
+          <div style="font-size:10px;color:var(--tx3);margin-top:4px"><i class="fas fa-location-dot"></i> ${esc(ciudades)} · ${esc(vig)} · creó ${esc(a.creadoPor||'—')} (${esc(a.creadoEl||'')})</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-gh al-edit" data-id="${a.id}" title="Editar"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-gh al-toggle" data-id="${a.id}" title="${a.activa?'Desactivar':'Activar'}"><i class="fas fa-power-off" style="color:${a.activa?'var(--ok)':'var(--tx3)'}"></i></button>
+          <button class="btn btn-gh al-del" data-id="${a.id}" title="Eliminar"><i class="fas fa-trash" style="color:var(--ac)"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  $$('#alertasLista .al-edit').forEach(b => b.addEventListener('click', () => editarAlerta(+b.dataset.id)));
+  $$('#alertasLista .al-toggle').forEach(b => b.addEventListener('click', () => {
+    const l = getAlertas(); const a = l.find(x=>x.id===+b.dataset.id); if (a){ a.activa=!a.activa; saveAlertas(l); renderAlertas(); refrescarAlertasUI(); toast(a.activa?'Alerta activada':'Alerta desactivada'); }
+  }));
+  $$('#alertasLista .al-del').forEach(b => b.addEventListener('click', () => {
+    const a = getAlertas().find(x=>x.id===+b.dataset.id); if(!a) return;
+    confirmModal('Eliminar alerta', `¿Eliminar la alerta <strong>${esc(a.titulo)}</strong>?`, () => {
+      saveAlertas(getAlertas().filter(x=>x.id!==a.id)); renderAlertas(); refrescarAlertasUI(); toast('Alerta eliminada');
+    });
+  }));
+}
+function guardarAlerta(){
+  const titulo = $('#alTitulo').value.trim();
+  if (!titulo) { toast('El título es obligatorio'); return; }
+  const tipo = $('#alTipo').value;
+  const ciudades = ciudadesSeleccionadas();
+  if (!ciudades.length) { toast('Selecciona al menos una ciudad'); return; }
+  if (tipo === 'temporal') {
+    const fi = $('#alFechaInicio').value, ff = $('#alFechaFin').value;
+    if (!fi || !ff) { toast('Una alerta temporal requiere fecha inicio y fin'); return; }
+    if (ff < fi) { toast('La fecha fin no puede ser anterior a la de inicio'); return; }
+  }
+  const datos = {
+    titulo, descripcion: $('#alDesc').value.trim(), ciudades,
+    tipo, prioridad: $('#alPrioridad').value,
+    fechaInicio: tipo==='temporal' ? $('#alFechaInicio').value : null,
+    fechaFin: tipo==='temporal' ? $('#alFechaFin').value : null
+  };
+  const list = getAlertas();
+  if (alertaEditId) {
+    const a = list.find(x=>x.id===alertaEditId);
+    if (a) Object.assign(a, datos);
+    toast('Alerta actualizada ✓');
+  } else {
+    list.unshift({ id: Date.now(), ...datos, activa: true, creadoPor: S.user?.alias || '', creadoEl: hoyISO() });
+    toast('Alerta creada ✓');
+  }
+  saveAlertas(list);
+  limpiarFormAlerta();
+  renderAlertas();
+  refrescarAlertasUI();
+}
+function editarAlerta(id){
+  const a = getAlertas().find(x=>x.id===id); if (!a) return;
+  alertaEditId = id;
+  $('#alFormTitulo').textContent = 'Editar alerta';
+  $('#alTitulo').value = a.titulo; $('#alDesc').value = a.descripcion||'';
+  $('#alPrioridad').value = a.prioridad; $('#alTipo').value = a.tipo;
+  $('#alFechaInicio').value = a.fechaInicio||''; $('#alFechaFin').value = a.fechaFin||'';
+  $$('#alCiudades .pill').forEach(p => p.classList.toggle('on', (a.ciudades||[]).includes(p.dataset.ciudad)));
+  onAlertaTipo();
+  $('#alGuardar').innerHTML = '<i class="fas fa-floppy-disk"></i> Guardar cambios';
+  $('#alCancelar').classList.remove('hidden');
+  $('#v-alertas').scrollTop = 0;
+}
+
+// Refresca todos los puntos donde se muestran alertas (panel, home, bandeja).
+function refrescarAlertasUI(){
+  renderPanelAlertas();
+  renderHomeAlertas();
+  if ($('#v-internos')?.dataset.built === '1') renderBandeja();
+}
+
+// Bloque de alertas en el PANEL de cierre, según la ciudad seleccionada.
+function renderPanelAlertas(){
+  const box = $('#panelAlertas'); if (!box) return;
+  const ciudad = ($('[data-f="ciudad"]')?.value || '').trim();
+  const alertas = ordenarPorPrioridad(alertasDeCiudad(ciudad));
+  box.innerHTML = alertas.length
+    ? `<div class="rp-s" style="padding-top:2px">${alertas.map(a => alertaCard(a, true)).join('')}</div>`
+    : '';
+}
+
+// Banners de alertas en el HOME (alta arriba, media/informativa abajo).
+function renderHomeAlertas(){
+  const activas = getAlertas().filter(a => a.activa && (a.tipo!=='temporal' || (!a.fechaFin || a.fechaFin >= hoyISO()) && (!a.fechaInicio || a.fechaInicio <= hoyISO())));
+  const alta = activas.filter(a => a.prioridad === 'alta');
+  const otras = activas.filter(a => a.prioridad !== 'alta');
+  const elAlta = $('#homeAlertasAlta'), elOtras = $('#homeAlertasOtras');
+  if (elAlta) elAlta.innerHTML = alta.length ? alta.map(a=>alertaCard(a,false)).join('') : '';
+  if (elOtras) elOtras.innerHTML = otras.length
+    ? `<div style="font-family:var(--fd);font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-triangle-exclamation"></i>Alertas operativas</div>${ordenarPorPrioridad(otras).map(a=>alertaCard(a,false)).join('')}`
+    : '';
+}
+
 function renderControl(){
   const el = $('#v-control');
   if (!perms().controlGestion) { el.innerHTML = emptyState('fa-lock','Control de Gestión','Tu rol no tiene acceso a esta vista.'); return; }
@@ -1256,6 +1409,8 @@ function goTo(v){
   const target = $('#v-'+v); if (target) target.classList.add('active');
   if (v === 'control') renderControl();   // refresca con las gestiones más recientes
   if (v === 'internos') renderInternos(); // refresca bandeja y temporizadores
+  if (v === 'alertas' && can('config')) renderAlertas();
+  if (v === 'home') renderHomeAlertas();  // alertas frescas al volver al home
 }
 
 // =============================================================
@@ -1339,6 +1494,71 @@ function syncState(){
 //  ASESORES DE SERVICIO POR CIUDAD (select dependiente del panel)
 // =============================================================
 // ===== LISTAS EDITABLES (motivos / servicios del panel) =====
+// =============================================================
+//  ALERTAS OPERATIVAS (gestionadas por el coordinador)
+// =============================================================
+const LS_ALERTAS = 'ceta_alertas';
+const ALERTA_COLOR = {
+  alta:        { bg:'var(--wrs)', bd:'var(--wr)', tx:'var(--wr)', lbl:'Alta' },
+  media:       { bg:'rgba(234,88,12,.08)', bd:'#ea9b3c', tx:'#c2710c', lbl:'Media' },
+  informativa: { bg:'var(--ins)', bd:'var(--in)', tx:'var(--in)', lbl:'Informativa' }
+};
+function hoyISO(){ return new Date().toISOString().slice(0,10); }
+
+function getAlertas(){
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(LS_ALERTAS) || '[]'); } catch {}
+  if (!Array.isArray(list)) list = [];
+  // Auto-desactivar temporales vencidas (fechaFin < hoy).
+  let cambiado = false;
+  const hoy = hoyISO();
+  list.forEach(a => {
+    if (a.activa && a.tipo === 'temporal' && a.fechaFin && a.fechaFin < hoy) { a.activa = false; cambiado = true; }
+  });
+  if (cambiado) localStorage.setItem(LS_ALERTAS, JSON.stringify(list));
+  return list;
+}
+function saveAlertas(list){ localStorage.setItem(LS_ALERTAS, JSON.stringify(list)); }
+
+// Alertas activas que aplican a una ciudad (incluye las marcadas "Todas").
+// Considera vigencia temporal (fechaInicio/fechaFin) respecto a hoy.
+function alertasDeCiudad(ciudad){
+  if (!ciudad) return [];
+  const hoy = hoyISO();
+  return getAlertas().filter(a => {
+    if (!a.activa) return false;
+    const aplicaCiudad = (a.ciudades||[]).includes('Todas') || (a.ciudades||[]).includes(ciudad);
+    if (!aplicaCiudad) return false;
+    if (a.tipo === 'temporal') {
+      if (a.fechaInicio && hoy < a.fechaInicio) return false;
+      if (a.fechaFin && hoy > a.fechaFin) return false;
+    }
+    return true;
+  });
+}
+function hayAlertasCiudad(ciudad){ return alertasDeCiudad(ciudad).length > 0; }
+
+// Orden por prioridad para mostrar primero las más graves.
+const PRIORIDAD_ORDEN = { alta:0, media:1, informativa:2 };
+function ordenarPorPrioridad(arr){ return arr.slice().sort((a,b)=>(PRIORIDAD_ORDEN[a.prioridad]??9)-(PRIORIDAD_ORDEN[b.prioridad]??9)); }
+
+// Render de una tarjeta de alerta (reutilizada en panel/home/vista).
+function alertaCard(a, compacta){
+  const c = ALERTA_COLOR[a.prioridad] || ALERTA_COLOR.informativa;
+  const ciudades = (a.ciudades||[]).join(', ');
+  const vig = a.tipo === 'temporal' ? `${esc(a.fechaInicio||'—')} → ${esc(a.fechaFin||'—')}` : 'Permanente';
+  return `<div style="background:${c.bg};border-left:3px solid ${c.bd};border-radius:6px;padding:${compacta?'8px 10px':'10px 12px'};margin-bottom:8px">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <i class="fas fa-triangle-exclamation" style="color:${c.tx};margin-top:2px"></i>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:${compacta?'12px':'13px'};color:${c.tx}">${esc(a.titulo)}</div>
+        <div style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:2px">${esc(a.descripcion||'')}</div>
+        <div style="font-size:9px;color:var(--tx3);margin-top:3px"><i class="fas fa-location-dot"></i> ${esc(ciudades)} · ${esc(vig)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 const LS_LISTAS = 'ceta_listas';
 function getListas(){
   let ov = null;
@@ -1433,7 +1653,7 @@ function u(){
   syncState();
   // Si cambió la ciudad, repoblar el select de asesor de taller (lista dependiente).
   const ciudadActual = ($('[data-f="ciudad"]')?.value || '').trim();
-  if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); }
+  if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); renderPanelAlertas(); }
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
   const pre = [pla, tel].filter(Boolean).join(' // ');
@@ -1999,7 +2219,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad });
 
 // =============================================================
 //  INIT

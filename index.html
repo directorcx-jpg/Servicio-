@@ -214,6 +214,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
   <div class="ng"><div class="ng-t">Gestión</div>
     <button class="ni" data-v="internos"><i class="fas fa-inbox"></i>Casos internos</button>
     <button class="ni" data-v="control" data-perm="controlGestion"><i class="fas fa-table-columns"></i>Control gestión</button>
+    <button class="ni" data-v="alertas" data-perm="config"><i class="fas fa-triangle-exclamation"></i>Alertas operativas</button>
   </div>
   <div class="ng"><div class="ng-t">Base de Conocimiento</div>
     <button class="ni" data-v="productos"><i class="fas fa-book"></i>Productos y Servicios</button>
@@ -231,6 +232,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
   <!-- HOME -->
   <div class="view active" id="v-home">
+    <div id="homeAlertasAlta"></div>
     <div id="homePendientes" style="display:none;align-items:center;gap:12px;background:var(--acs);border:1px solid var(--ac);border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer" onclick="goToInternos()">
       <i class="fas fa-bell" style="color:var(--ac);font-size:20px"></i>
       <div style="flex:1"><strong style="font-size:14px">Tienes <span class="hp-n">0</span> casos pendientes por gestionar</strong><div style="font-size:11px;color:var(--tx2)">Haz click para ir a tu bandeja de Casos Internos</div></div>
@@ -246,6 +248,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
     </div>
     <div style="font-family:var(--fd);font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-bolt"></i>Accesos rápidos</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px" id="homeQuick"></div>
+    <div id="homeAlertasOtras"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:8px;padding:14px">
         <h3 style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-fire" style="color:var(--wr)"></i>Más consultados hoy</h3>
@@ -276,6 +279,34 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
     <div class="sub-l" style="margin-top:16px"><i class="fas fa-list-ul"></i>Listas del panel (motivos y servicios)</div>
     <div class="fb"><div id="listasTable"></div></div>
     <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios se guardan en este navegador (localStorage). La sincronización con Google Sheet llega en una fase posterior.</div></div>
+  </div>
+
+  <!-- ALERTAS OPERATIVAS (solo coordinador) -->
+  <div class="view" id="v-alertas">
+    <h1 class="ft-title">Alertas operativas</h1>
+    <div class="badges"><span class="badge"><i class="fas fa-shield-halved"></i> Solo coordinador</span></div>
+    <div class="fb">
+      <div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas fa-plus"></i></span><span id="alFormTitulo">Nueva alerta</span></div>
+      <div class="rr full"><div class="ff"><label>Título</label><input id="alTitulo" placeholder="Ej: No agendar mantenimientos sábado"></div></div>
+      <div class="rr full"><div class="ff"><label>Descripción</label><input id="alDesc" placeholder="Detalle de la alerta para el asesor"></div></div>
+      <div class="rr"><div class="ff"><label>Prioridad</label><select id="alPrioridad"><option value="alta">Alta (rojo)</option><option value="media">Media (naranja)</option><option value="informativa">Informativa (azul)</option></select></div><div class="ff"><label>Tipo</label><select id="alTipo" onchange="onAlertaTipo()"><option value="permanente">Permanente</option><option value="temporal">Temporal</option></select></div></div>
+      <div class="rr hidden" id="alFechasWrap"><div class="ff"><label>Fecha inicio</label><input type="date" id="alFechaInicio"></div><div class="ff"><label>Fecha fin</label><input type="date" id="alFechaFin"></div></div>
+      <div class="sub-l" style="margin-top:6px"><i class="fas fa-location-dot"></i>Ciudades / Talleres</div>
+      <div class="pills" id="alCiudades">
+        <button class="pill on" data-ciudad="Todas" onclick="togAlCiudad(this)">Todas</button>
+        <button class="pill" data-ciudad="Pereira" onclick="togAlCiudad(this)">Pereira</button>
+        <button class="pill" data-ciudad="Manizales" onclick="togAlCiudad(this)">Manizales</button>
+        <button class="pill" data-ciudad="Armenia" onclick="togAlCiudad(this)">Armenia</button>
+        <button class="pill" data-ciudad="Cartago" onclick="togAlCiudad(this)">Cartago</button>
+        <button class="pill" data-ciudad="La Dorada" onclick="togAlCiudad(this)">La Dorada</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="btn btn-ac" id="alGuardar"><i class="fas fa-floppy-disk"></i> Crear alerta</button>
+        <button class="btn btn-gh hidden" id="alCancelar"><i class="fas fa-xmark"></i> Cancelar edición</button>
+      </div>
+    </div>
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-list"></i>Alertas registradas</div>
+    <div id="alertasLista"></div>
   </div>
 
   <!-- Vistas placeholder (Fase 3) -->
@@ -330,6 +361,9 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
         <div class="ff"><label>Razón</label><select data-f="razonOtro" onchange="u()"><option value="PRECIO">Precio</option><option value="UBICACION">Ubicación</option><option value="PROVEEDOR">Histórico otro taller</option></select></div>
       </div>
     </div>
+
+    <!-- ALERTAS OPERATIVAS por ciudad (no se puede cerrar) -->
+    <div id="panelAlertas"></div>
 
     <!-- S3: COTIZACIÓN -->
     <div class="rp-s" id="sCotiz">
@@ -446,6 +480,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.7.0"></script>
+<script type="module" src="app.js?v=1.8.0"></script>
 </body>
 </html>
