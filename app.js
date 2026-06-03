@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.4.0';
+import { DATA } from './data.js?v=1.4.1';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -68,6 +68,7 @@ function doLogin(){
 function logout(){
   localStorage.removeItem(LS_SESSION);
   S.user = null;
+  const vi = $('#v-internos'); if (vi) vi.dataset.built = '';  // forzar reconstrucción para el próximo usuario
   $('#appRoot').style.display = 'none';
   $('#loginScreen').style.display = 'flex';
   $('#loginPin').value = '';
@@ -96,8 +97,9 @@ function enterApp(){
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
   // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
+  // Solo refresca el LISTADO (renderBandeja), nunca el formulario de creación.
   if (!window._slaTimer) window._slaTimer = setInterval(() => {
-    if ($('#v-internos')?.classList.contains('active')) renderInternos();
+    if ($('#v-internos')?.classList.contains('active')) renderBandeja();
     updateInternosBadges();
   }, 30000);
 }
@@ -456,13 +458,17 @@ function tiempoTranscurrido(ts){
   if (min < 60) return `${min} min`;
   const h = Math.floor(min/60); return `${h}h ${min%60}min`;
 }
+// Estructura de la vista: el FORMULARIO se renderiza una sola vez (no se toca en
+// los refrescos) y la BANDEJA vive en su propio contenedor que sí se refresca.
 function renderInternos(){
   const el = $('#v-internos');
+  // Si la estructura ya existe (mismo usuario), solo refrescamos la bandeja para
+  // no destruir el formulario que el asesor pueda estar llenando.
+  if (el.dataset.built === '1') { renderBandeja(); return; }
+
   const ti = DATA.internos;
-  const pend = casosPendientes();
-  const sla = ti.slaMinutos;
   el.innerHTML = `
-    ${viewHead('Casos Internos CETA', `<span class="badge"><i class="fas fa-inbox"></i> ${pend.length} pendientes</span>`)}
+    <div id="internosHead"></div>
 
     <div class="fb">
       <div class="bt val" style="margin-bottom:10px"><span class="n"><i class="fas fa-plus"></i></span>Radicar nuevo caso</div>
@@ -475,33 +481,47 @@ function renderInternos(){
       <button class="btn btn-ac btn-big" id="inRadicar" style="margin-top:10px"><i class="fas fa-shuffle"></i> Radicar y asignar</button>
     </div>
 
-    <div class="sub-l" style="margin-top:16px"><i class="fas fa-bell"></i>Bandeja de pendientes ${pend.length?`(${pend.length})`:''}</div>
-    ${pend.length ? pend.map(g => {
-      const min = Math.floor((Date.now() - (g._ts||0))/60000);
-      const rojo = min >= sla;
-      return `<div class="fb caso-row" data-id="${esc(g.id)}" style="cursor:pointer;border-left:3px solid ${RESULT_COLOR.pendiente}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div>
-            <strong style="font-size:13px">${esc(g.nombre||'Sin nombre')}</strong> · <span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>
-            <div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(g.servicio||'—')} · Cola ${esc(g.cola||'—')} · ${esc(g.ciudad||'')} · ${esc(g.grupoChat||'')}</div>
-            <div style="font-size:11px;margin-top:3px"><i class="fas fa-user-check" style="color:var(--ac)"></i> Asignado: <strong>${esc(g.asignadoAlias||'—')}</strong> <span style="color:var(--tx3)">(${esc(g.asignMotivo||'')})</span></div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <span class="caso-timer" style="font-family:var(--fm);font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;background:${rojo?'var(--wrs)':'var(--bgs)'};color:${rojo?'var(--wr)':'var(--tx2)'}"><i class="fas fa-clock"></i> ${tiempoTranscurrido(g._ts||0)}</span>
-          </div>
-        </div>
-        ${g.notaSolicitante?`<div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-quote-left"></i><div>${esc(g.notaSolicitante)}</div></div>`:''}
-        <button class="btn btn-ok caso-gestionar" data-id="${esc(g.id)}" style="margin-top:8px"><i class="fas fa-headset"></i> Gestionar caso</button>
-      </div>`;
-    }).join('') : emptyState('fa-check-circle','Sin pendientes','No hay casos pendientes por gestionar.')}`;
+    <div class="sub-l" style="margin-top:16px"><i class="fas fa-bell"></i>Bandeja de pendientes</div>
+    <div id="internosBandeja"></div>`;
+  el.dataset.built = '1';
 
-  // Aviso de duplicado en vivo al escribir placa
-  const placaInp = $('#inPlaca');
-  if (placaInp) placaInp.addEventListener('input', () => { renderDupAviso(); });
-  const servSel = $('#inServicio');
+  // Listeners del FORMULARIO (se enlazan una sola vez; no se vuelven a tocar).
+  $('#inPlaca').addEventListener('input', renderDupAviso);
   $('#inRadicar').addEventListener('click', radicarCaso);
-  $$('#v-internos .caso-gestionar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); gestionarCaso(b.dataset.id); }));
-  $$('#v-internos .caso-row').forEach(r => r.addEventListener('click', () => gestionarCaso(r.dataset.id)));
+
+  renderBandeja();
+}
+
+// Refresca SOLO el encabezado (contador) y el listado de pendientes.
+// Nunca toca el formulario de creación de arriba.
+function renderBandeja(){
+  const head = $('#internosHead');
+  const cont = $('#internosBandeja');
+  if (!cont) return;   // vista aún no construida
+  const pend = casosPendientes();
+  const sla = DATA.internos.slaMinutos;
+  if (head) head.innerHTML = viewHead('Casos Internos CETA', `<span class="badge"><i class="fas fa-inbox"></i> ${pend.length} pendientes</span>`);
+  cont.innerHTML = pend.length ? pend.map(g => {
+    const min = Math.floor((Date.now() - (g._ts||0))/60000);
+    const rojo = min >= sla;
+    return `<div class="fb caso-row" data-id="${esc(g.id)}" style="cursor:pointer;border-left:3px solid ${RESULT_COLOR.pendiente}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <strong style="font-size:13px">${esc(g.nombre||'Sin nombre')}</strong> · <span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">${esc(g.servicio||'—')} · Cola ${esc(g.cola||'—')} · ${esc(g.ciudad||'')} · ${esc(g.grupoChat||'')}</div>
+          <div style="font-size:11px;margin-top:3px"><i class="fas fa-user-check" style="color:var(--ac)"></i> Asignado: <strong>${esc(g.asignadoAlias||'—')}</strong> <span style="color:var(--tx3)">(${esc(g.asignMotivo||'')})</span></div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="caso-timer" style="font-family:var(--fm);font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;background:${rojo?'var(--wrs)':'var(--bgs)'};color:${rojo?'var(--wr)':'var(--tx2)'}"><i class="fas fa-clock"></i> ${tiempoTranscurrido(g._ts||0)}</span>
+        </div>
+      </div>
+      ${g.notaSolicitante?`<div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-quote-left"></i><div>${esc(g.notaSolicitante)}</div></div>`:''}
+      <button class="btn btn-ok caso-gestionar" data-id="${esc(g.id)}" style="margin-top:8px"><i class="fas fa-headset"></i> Gestionar caso</button>
+    </div>`;
+  }).join('') : emptyState('fa-check-circle','Sin pendientes','No hay casos pendientes por gestionar.');
+
+  $$('#internosBandeja .caso-gestionar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); gestionarCaso(b.dataset.id); }));
+  $$('#internosBandeja .caso-row').forEach(r => r.addEventListener('click', () => gestionarCaso(r.dataset.id)));
 }
 
 function renderDupAviso(){
@@ -568,7 +588,15 @@ function crearCasoInterno(payload){
   const url = DATA.config.endpoints.guardarGestion;
   if (url) { try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {} }
   toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
-  renderInternos(); updateInternosBadges();
+  limpiarFormInternos();
+  renderBandeja(); updateInternosBadges();   // refresca solo el listado, no el formulario
+}
+
+// Limpia los campos del formulario de radicación tras crear un caso.
+function limpiarFormInternos(){
+  ['inPlaca','inNombre','inTelefono','inNota'].forEach(id => { const e = $('#'+id); if (e) e.value = ''; });
+  ['inTipo','inCiudad','inServicio','inGrupo'].forEach(id => { const e = $('#'+id); if (e) e.selectedIndex = 0; });
+  const av = $('#inDupAviso'); if (av) av.innerHTML = '';
 }
 
 // Abrir un caso pendiente → precargar el Panel de Cierre con sus datos.
