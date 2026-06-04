@@ -12,16 +12,18 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.9.0",
+    version: "1.10.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
-    // Backend transaccional — pendiente de deploy. Mientras esté vacío,
-    // el panel opera 100% local (no escribe a Google Sheet todavía).
+    // Backend Apps Script. La URL /exec del despliegue se pega desde
+    // Configuración → Conexión Apps Script (se guarda en localStorage).
+    // `base` es una URL de respaldo opcional; normalmente queda vacía.
     endpoints: {
-      guardarGestion: "",      // POST  → CETA_Gestiones_2026 (nueva fila)
-      actualizarGestion: "",   // POST  → actualiza fila existente por id
-      consultarCotizador: "",  // GET   → Sheet cotizador
-      buscarPlaca: ""          // GET   → base de clientes
+      base: "",                // URL /exec del Web App (se sobreescribe desde Config)
+      guardarGestion: "",      // (legado) los endpoints reales usan ?action= sobre base
+      actualizarGestion: "",
+      consultarCotizador: "",
+      buscarPlaca: ""
     },
     apiTimeoutMs: 3000,
     lineas: { Manizales: "3116097675", Armenia: "3148144259", Pereira: "3206320999" }

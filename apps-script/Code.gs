@@ -2,16 +2,27 @@
  *  Code.gs — Backend Apps Script · Consola CETA Armotor
  *  ---------------------------------------------------------------
  *  Endpoints (Web App):
- *    · POST  ?action=guardarGestion       → escribe fila nueva en CETA_Gestiones_2026
- *    · POST  ?action=actualizarGestion    → actualiza fila existente (por columna id)
- *    · GET   ?action=consultarCotizador   → lee precio del Sheet cotizador (CacheService 6 min)
- *    · GET   ?action=buscarPlaca          → busca cliente por placa
- *    · GET   ?action=listarGestiones      → tabla para Control de Gestión (coordinador)
+ *    · GET   ?action=ping                  → prueba de conexión (lo usa Configuración)
+ *    · GET   ?action=consultarCotizador    → lee "Kits Kia" en vivo (CacheService 6 min)
+ *    · POST  ?action=guardarGestion        → escribe fila nueva en CETA_Gestiones_2026
+ *    · POST  ?action=actualizarGestion     → actualiza fila existente (por columna id)
+ *    · GET   ?action=buscarPlaca           → busca cliente por placa
+ *    · GET   ?action=listarGestiones       → tabla para Control de Gestión (coordinador)
  *
- *  PUBLICACIÓN (Implementar → Nueva implementación → Aplicación web):
- *    - Ejecutar como: Yo (el editor)
- *    - Quién tiene acceso: Cualquier usuario
- *    - Copiar la URL /exec y pegarla en data.js → config.endpoints.*
+ *  ───────────────────────────────────────────────────────────────
+ *  PASOS PARA PUBLICAR (Pablo):
+ *  1) Crea una hoja nueva en Drive llamada "CETA_Gestiones_2026".
+ *     Copia su ID (el código largo de la URL entre /d/ y /edit) y pégalo
+ *     abajo en CFG.GESTIONES_SHEET_ID.
+ *  2) Da acceso de lectura al libro del cotizador (ya viene el ID 1B0vYkj…).
+ *  3) Pega TODO este archivo en script.google.com (Nuevo proyecto).
+ *  4) Implementar → Nueva implementación → tipo "Aplicación web":
+ *        - Ejecutar como: Yo (tu cuenta)
+ *        - Quién tiene acceso: Cualquier usuario
+ *  5) Copia la URL que termina en /exec.
+ *  6) En la Consola CETA: Configuración → "Conexión Apps Script" →
+ *     pega la URL y pulsa "Probar conexión". Si responde OK, ya quedó.
+ *  ───────────────────────────────────────────────────────────────
  *
  *  CORS: Apps Script Web Apps responden text/JSON; el front llama con
  *  fetch sin headers personalizados para evitar el preflight.
@@ -23,9 +34,9 @@ var CFG = {
   GESTIONES_SHEET_ID: 'PEGAR_ID_DEL_SHEET_CETA_Gestiones_2026',
   GESTIONES_TAB: 'Form_Responses',
 
-  // Sheet del cotizador existente (Pablo da acceso)
-  COTIZADOR_SHEET_ID: 'PEGAR_ID_DEL_SHEET_COTIZADOR',
-  COTIZADOR_TAB: 'Cotizador',     // columnas: Marca | Combustion | Modelo | Km | Precio | Incluye | NoIncluye
+  // Sheet del cotizador KIA (Módulo 3 — pestaña real "Kits Kia")
+  COTIZADOR_SHEET_ID: '1B0vYkjXKJ1BDv0O9SbVKbzkPZidpUrqlY2XKs7mCl3c',
+  COTIZADOR_TAB: 'Kits Kia',      // lectura por NOMBRE de encabezado (robusto a reordenamiento)
 
   // Sheet/base de clientes para buscar por placa
   CLIENTES_SHEET_ID: 'PEGAR_ID_DEL_SHEET_CLIENTES',
@@ -66,6 +77,7 @@ function doPost(e) { return route_(e, 'POST'); }
 function route_(e, method) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
+    if (action === 'ping') return json_({ success: true, app: 'CETA', version: '1.0', hora: new Date().toISOString() });
     if (method === 'POST' && action === 'guardarGestion')    return json_(guardarGestion_(e));
     if (method === 'POST' && action === 'actualizarGestion') return json_(actualizarGestion_(e));
     if (action === 'consultarCotizador') return json_(consultarCotizador_(e));
@@ -134,32 +146,46 @@ function actualizarGestion_(e) {
 }
 
 // ----------------------------------------------------------------
-//  GET /consultarCotizador?marca=KIA&combustion=Gasolina&modelo=Picanto&km=10000
+//  GET /consultarCotizador  → lee la pestaña "Kits Kia" en vivo (Módulo 3)
+//  Devuelve { precios: [...], combustion: {...}, combos: [...] } para que el
+//  frontend arme la cascada igual que con el seed. CacheService 6 min.
 // ----------------------------------------------------------------
 function consultarCotizador_(e) {
-  var p = e.parameter;
-  var key = [p.marca, p.combustion, p.modelo, String(p.km).replace(/[.\s]/g, '')].join('-');
   var cache = CacheService.getScriptCache();
-  var hit = cache.get('cot_' + key);
-  if (hit) return JSON.parse(hit);
+  var cacheado = cache.get('cotizador_kia');
+  if (cacheado) return JSON.parse(cacheado);
 
-  var sh = SpreadsheetApp.openById(CFG.COTIZADOR_SHEET_ID).getSheetByName(CFG.COTIZADOR_TAB);
-  var values = sh.getDataRange().getValues();
-  var res = { found: false };
-  for (var i = 1; i < values.length; i++) {
-    var r = values[i];
-    var rowKey = [r[0], r[1], r[2], String(r[3]).replace(/[.\s]/g, '')].join('-');
-    if (rowKey === key) {
-      res = {
-        found: true,
-        precio: Number(r[4]) || 0,
-        incluye: String(r[5] || '').split('|').map(function (s) { return s.trim(); }).filter(String),
-        noIncluye: String(r[6] || '').split('|').map(function (s) { return s.trim(); }).filter(String)
-      };
-      break;
-    }
-  }
-  cache.put('cot_' + key, JSON.stringify(res), CFG.CACHE_SECONDS);
+  var hoja = SpreadsheetApp.openById(CFG.COTIZADOR_SHEET_ID).getSheetByName(CFG.COTIZADOR_TAB);
+  var datos = hoja.getDataRange().getValues();
+  var enc = datos.shift().map(function (h) { return String(h).trim(); });
+
+  // Ubicar columnas por NOMBRE (no por posición)
+  var col = function (n) { return enc.findIndex(function (h) { return h.toLowerCase() === n.toLowerCase(); }); };
+  var cMod = col('Modelo'), cKit = col('Código.kit'), cDesc = col('Descripción'),
+      cMO = col('MO+Impto'), cRec = col('Rec+Impto'), cTot = col('Tot+Impto');
+
+  var esBasura = function (m) { return /no coincide|cambio aceite|^revisi[oó]n (par|impar)/i.test(m); };
+  var normServ = function (d) {
+    return String(d).replace(/rv\.?/ig, 'RV.').replace(/\bkm\b/ig, 'KM').replace(/\s+/g, ' ').trim();
+  };
+
+  // precios agrupados por modelo: { modelo: [[desc, MO, Rec, kit], ...] }
+  var precios = {};
+  var vistos = {};
+  datos.forEach(function (f) {
+    var modelo = String(f[cMod] || '').trim();
+    var total = Number(f[cTot]) || 0;
+    if (!modelo || esBasura(modelo) || total <= 0) return;
+    var servicio = normServ(f[cDesc]);
+    var llave = modelo + '|' + servicio;
+    if (vistos[llave]) return;
+    vistos[llave] = true;
+    if (!precios[modelo]) precios[modelo] = [];
+    precios[modelo].push([servicio, Number(f[cMO]) || 0, Number(f[cRec]) || 0, String(f[cKit] || '').trim()]);
+  });
+
+  var res = { marca: 'KIA', precios: precios, generado: new Date().toISOString() };
+  cache.put('cotizador_kia', JSON.stringify(res), CFG.CACHE_SECONDS);
   return res;
 }
 

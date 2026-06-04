@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.9.0';
+import { DATA } from './data.js?v=1.10.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -1249,6 +1249,7 @@ function renderConfig(){
   $('#cfgAdd').addEventListener('click', openAddUser);
   renderAsesoresServicioConfig();
   renderListasConfig();
+  renderConexionConfig();
 }
 
 // Gestión de asesores de servicio por ciudad (coordinador).
@@ -1326,6 +1327,40 @@ function renderListasConfig(){
     ['motivos','servicios'].forEach(k => { L2[k] = (L2[k]||[]).map(s=>s.trim()).filter(Boolean); });
     saveListas(L2); renderListasConfig(); poblarListasPanel(); toast('Listas actualizadas ✓');
   });
+}
+
+// Campo para pegar la URL del despliegue Apps Script + botón "Probar conexión".
+function renderConexionConfig(){
+  const box = $('#conexionBox'); if (!box) return;
+  const url = getApiUrl();
+  const conectado = !!url;
+  box.innerHTML = `
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Pega aquí la URL que termina en <strong>/exec</strong> del despliegue de Google Apps Script. Mientras no haya URL, la consola opera 100% local.</div>
+    <div class="ff" style="margin-bottom:8px"><label>URL del Web App (/exec)</label><input id="apiUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(url)}" style="${inpStyle};font-family:var(--fm);font-size:10px"></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-ac" id="apiSave"><i class="fas fa-floppy-disk"></i> Guardar</button>
+      <button class="btn btn-gh" id="apiTest"><i class="fas fa-plug"></i> Probar conexión</button>
+      <button class="btn btn-gh" id="apiClear"><i class="fas fa-xmark"></i> Quitar</button>
+      <span id="apiEstado" style="font-size:11px;margin-left:4px;color:${conectado?'var(--tx2)':'var(--tx3)'}">${conectado?'<i class="fas fa-circle" style="font-size:7px;color:var(--ok)"></i> URL configurada':'<i class="fas fa-circle" style="font-size:7px;color:var(--tx3)"></i> Sin conexión (modo local)'}</span>
+    </div>`;
+  $('#apiSave').addEventListener('click', () => { setApiUrl($('#apiUrlInput').value); renderConexionConfig(); toast('URL guardada'); actualizarModoFooter(); });
+  $('#apiClear').addEventListener('click', () => { setApiUrl(''); renderConexionConfig(); toast('Conexión removida — modo local'); actualizarModoFooter(); });
+  $('#apiTest').addEventListener('click', async () => {
+    const u = $('#apiUrlInput').value.trim();
+    if (!u) { toast('Pega primero la URL'); return; }
+    setApiUrl(u);
+    const est = $('#apiEstado'); est.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando…';
+    try {
+      const r = await apiCall('ping');
+      if (r && r.success) { est.innerHTML = `<i class="fas fa-circle-check" style="color:var(--ok)"></i> Conexión OK · ${esc(r.app||'CETA')}`; toast('✅ Conexión exitosa'); actualizarModoFooter(); }
+      else { est.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:var(--wr)"></i> Respondió pero sin OK'; }
+    } catch (e) {
+      est.innerHTML = '<i class="fas fa-circle-xmark" style="color:var(--ac)"></i> No respondió (revisa la URL y que el acceso sea "Cualquiera")';
+    }
+  });
+}
+function actualizarModoFooter(){
+  const el = $('#ftMode'); if (el) el.textContent = getApiUrl() ? 'En línea' : 'Local';
 }
 
 // Modal para agregar un perfil nuevo.
@@ -1571,6 +1606,30 @@ function getListas(){
   };
 }
 function saveListas(obj){ localStorage.setItem(LS_LISTAS, JSON.stringify(obj)); }
+
+// ===== CONEXIÓN APPS SCRIPT (URL del despliegue) =====
+const LS_API_URL = 'ceta_api_url';
+// La URL efectiva: override de localStorage o la de data.js (vacía por defecto).
+function getApiUrl(){
+  const ov = (localStorage.getItem(LS_API_URL) || '').trim();
+  return ov || (DATA.config.endpoints.base || '');
+}
+function setApiUrl(url){ localStorage.setItem(LS_API_URL, (url||'').trim()); }
+// Llama una acción del Web App. Devuelve el JSON o lanza error (timeout 3s).
+async function apiCall(action, params, method){
+  const base = getApiUrl();
+  if (!base) throw new Error('Sin URL configurada');
+  const url = base + (base.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) +
+              (params ? '&' + new URLSearchParams(params).toString() : '');
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), DATA.config.apiTimeoutMs || 3000);
+  try {
+    const opt = { signal: ctrl.signal };
+    if (method === 'POST') { opt.method = 'POST'; opt.body = JSON.stringify(params || {}); }
+    const r = await fetch(url, opt);
+    return await r.json();
+  } finally { clearTimeout(to); }
+}
 
 // Llena los selects de Motivo y Servicio del panel desde las listas (conserva valor).
 function poblarListasPanel(){
@@ -2330,7 +2389,7 @@ function init(){
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') modalClose(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') modalClose(); });
   $('#ftVer').textContent = 'v' + DATA.config.version;
-  $('#ftMode').textContent = DATA.config.endpoints.guardarGestion ? 'En línea' : 'Local';
+  actualizarModoFooter();
 
   if (restoreSession()) enterApp();
 }
