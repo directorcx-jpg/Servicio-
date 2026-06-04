@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.10.0';
+import { DATA } from './data.js?v=1.11.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -125,7 +125,7 @@ function enterApp(){
   $('#appRoot').style.display = 'grid';
   applyRole();
   poblarListasPanel();
-  poblarCotizador();
+  cargarCotizadorEnVivo();   // 3 capas: cache → API → seed; rellena precios y puebla
   renderHome();
   renderContent();
   renderConfig();
@@ -621,9 +621,8 @@ function crearCasoInterno(payload){
   const list = getGestionesLocal();
   list.unshift(g);
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500)));
-  // sync backend opcional
-  const url = DATA.config.endpoints.guardarGestion;
-  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {} }
+  // sync al Sheet si hay conexión (no bloquea la UI)
+  if (getApiUrl()) { apiCall('guardarGestion', g, 'POST').catch(()=>{}); }
   toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
   limpiarFormInternos();
   renderBandeja(); updateInternosBadges();   // refresca solo el listado, no el formulario
@@ -888,6 +887,7 @@ function renderControl(){
         <select id="ctrlResultado" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${ctrlFiltro.resultado===k?'selected':''}>${v}</option>`).join('')}</select></div>
       <button class="btn btn-gh" id="ctrlClear"><i class="fas fa-filter-circle-xmark"></i> Limpiar</button>
       <div style="margin-left:auto;display:flex;gap:6px">
+        ${getApiUrl()?`<button class="btn btn-gh" id="ctrlSync" title="Traer gestiones del equipo desde Google"><i class="fas fa-cloud-arrow-down"></i> Sincronizar</button>`:''}
         ${can('config')?`<button class="btn btn-gh" id="ctrlCols" title="Configurar columnas"><i class="fas fa-gear"></i> Columnas</button>`:''}
         ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV"><i class="fas fa-tv"></i> Modo TV</button>`:''}
       </div>
@@ -925,8 +925,37 @@ function renderControl(){
   const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
+  const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', sincronizarGestiones);
   $$('#v-control .ctrl-reasignar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openReasignar(b.dataset.id); }));
   $$('#v-control .ctrl-row').forEach(tr => tr.addEventListener('click', () => openCaseDetail(tr.dataset.id)));
+}
+
+// Trae las gestiones del Sheet (todo el equipo) y las fusiona con las locales por id.
+async function sincronizarGestiones(){
+  if (!getApiUrl()) { toast('Sin conexión configurada'); return; }
+  toast('Sincronizando…');
+  try {
+    const r = await apiCall('listarGestiones');
+    if (!r || !r.success || !Array.isArray(r.rows)) { toast('El servidor no devolvió datos'); return; }
+    const locales = getGestionesLocal();
+    const porId = {};
+    locales.forEach(g => { if (g.id) porId[g.id] = g; });
+    let nuevas = 0;
+    r.rows.forEach(row => {
+      if (!row.id) return;
+      // reconstruir historial desde JSON si vino como texto
+      if (typeof row.historialJSON === 'string' && row.historialJSON) {
+        try { row.historial = JSON.parse(row.historialJSON); } catch { row.historial = []; }
+      }
+      if (!row._ts) row._ts = Date.now();
+      if (!porId[row.id]) { porId[row.id] = row; nuevas++; }
+      else { porId[row.id] = { ...porId[row.id], ...row }; }  // el Sheet manda en conflicto
+    });
+    const fusion = Object.values(porId).sort((a,b)=>(b._ts||0)-(a._ts||0));
+    localStorage.setItem(LS_GESTIONES, JSON.stringify(fusion.slice(0,1000)));
+    renderControl();
+    toast(`✅ Sincronizado · ${r.rows.length} del servidor (${nuevas} nuevas)`);
+  } catch { toast('⚠️ No se pudo sincronizar (revisa la conexión)'); }
 }
 
 // Mini-modal de reasignación rápida (botón en la fila de Control).
@@ -1738,6 +1767,28 @@ function computeQuote(){
            manoObra, repuestos, valorCombo, descuento:desc, kit:item[3]||'' };
 }
 
+// ===== Cotizador: carga en 3 capas (cache → API en vivo → seed) =====
+const LS_COTIZADOR = 'ceta_cotizador_cache';
+function cargarCotizadorEnVivo(){
+  // Capa 1: si hay precios cacheados de una sesión anterior, úsalos ya.
+  try {
+    const cache = JSON.parse(localStorage.getItem(LS_COTIZADOR) || 'null');
+    if (cache && cache.precios && Object.keys(cache.precios).length) DATA.cotizador.precios = cache.precios;
+  } catch {}
+  // Pinta de inmediato (con cache o seed) — el asesor nunca espera.
+  poblarCotizador();
+  // Capa 2: si hay conexión, refresca precios en vivo (timeout 3s).
+  if (getApiUrl()) {
+    apiCall('consultarCotizador').then(r => {
+      if (r && r.precios && Object.keys(r.precios).length) {
+        DATA.cotizador.precios = r.precios;
+        localStorage.setItem(LS_COTIZADOR, JSON.stringify({ precios: r.precios, ts: Date.now() }));
+        poblarCotizador();   // re-pinta con precios frescos
+      }
+    }).catch(()=>{}); // Capa 3: si falla, se queda con cache/seed (ya pintado)
+  }
+}
+
 // ===== Cascada de dropdowns del cotizador =====
 function poblarCotizador(){
   const cmb = $('#cotCombustion'); if (!cmb) return;
@@ -2011,16 +2062,13 @@ async function saveGestion(){
     return;
   }
 
-  // Caso normal (Inbound/Outbound): se registra localmente.
-  pushGestionLocal(payload);
-  const url = DATA.config.endpoints.guardarGestion;
-  if (url) {
+  // Caso normal (Inbound/Outbound): se registra localmente SIEMPRE (respaldo).
+  const g = pushGestionLocal(payload);
+  // Si hay conexión, además se escribe en el Sheet (no bloquea la UI).
+  if (getApiUrl()) {
     try {
-      const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), DATA.config.apiTimeoutMs);
-      await fetch(url, { method:'POST', body:JSON.stringify(payload), signal:ctrl.signal });
-      clearTimeout(to);
-      toast('✅ Gestión guardada');
+      const r = await apiCall('guardarGestion', g, 'POST');
+      toast(r && r.success ? '✅ Gestión guardada (en línea)' : '⚠️ Guardada local (servidor sin OK)');
     } catch { toast('⚠️ Guardada local (sin conexión al servidor)'); }
   } else {
     toast('✅ Gestión registrada (local)');
@@ -2061,6 +2109,7 @@ function pushGestionLocal(payload){
   };
   list.unshift(g);
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500))); // tope de seguridad
+  return g;
 }
 function updateGestionLocal(id, changes, nota){
   const list = getGestionesLocal();
@@ -2078,11 +2127,8 @@ function updateGestionLocal(id, changes, nota){
   });
   list[i] = g;
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
-  // Sincronizar con backend si está configurado (no bloquea la UI).
-  const url = DATA.config.endpoints.actualizarGestion;
-  if (url) {
-    try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {}
-  }
+  // Sincronizar con el Sheet si hay conexión (no bloquea la UI).
+  if (getApiUrl()) { apiCall('actualizarGestion', g, 'POST').catch(()=>{}); }
   return g;
 }
 
@@ -2109,8 +2155,7 @@ function reasignarCaso(id, nuevoAsesorId){
     nota: `Reasignado de ${prevAlias} → ${nuevo.alias} por ${S.user.alias}` });
   list[i] = g;
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
-  const url = DATA.config.endpoints.actualizarGestion;
-  if (url) { try { fetch(url, { method:'POST', body: JSON.stringify(g) }); } catch {} }
+  if (getApiUrl()) { apiCall('actualizarGestion', g, 'POST').catch(()=>{}); }
   return g;
 }
 
