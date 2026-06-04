@@ -12,7 +12,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.11.0",
+    version: "1.12.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. La URL /exec del despliegue se pega desde
@@ -521,6 +521,30 @@ export const DATA = {
     "Armenia":   ["Sergio Alexander Marín"],
     "Cartago":   ["Kimberly Ramírez"],
     "La Dorada": ["Jonathan Sánchez"]
+  },
+
+  // ===== WE GO — quién recoge por ciudad (select dependiente) =====
+  // El primero de la lista queda preseleccionado. Manizales/Armenia usan su taller; Pereira usa Alfred.
+  weGoRecoge: {
+    "Pereira":   ["Alfred", "Taller Pereira"],
+    "Manizales": ["Taller Manizales", "Alfred"],
+    "Armenia":   ["Taller Armenia", "Alfred"],
+    "Cartago":   ["Taller Cartago", "Alfred"],
+    "La Dorada": ["Taller La Dorada", "Alfred"]
+  },
+
+  // ===== INICIALES POR ASESOR (identificador en la nota Quiter) =====
+  // Se calcula por defecto desde el nombre, pero puedes fijarlas aquí por id.
+  inicialesAsesor: {
+    1: "PAR",  // Pablo Andrey Rincón
+    2: "JBT",  // Johana Betancurth
+    3: "JDV",  // Juan Diego Villa
+    4: "KJC",  // Karen Julieth Corchuelo
+    5: "JMB",  // Juan Manuel Botero (alias Juan M)
+    6: "APU",  // Alejandro Puerta (alias Alejo)
+    7: "PAA",  // Paula Andrea Arévalo
+    8: "NVA",  // Natalia Vargas
+    9: "ACA"   // Alejandro Castaño
   },
 
   sedes: [

@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.11.0';
+import { DATA } from './data.js?v=1.12.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -184,10 +184,17 @@ function renderHome(){
     ? 'Vista de coordinación — métricas del equipo CETA.'
     : 'Tu consola para atención telefónica, digital y operativa.';
 
+  // Stats REALES calculadas desde las gestiones guardadas.
   const equipo = p.homeEquipo;
+  const hoyStr2 = new Date().toISOString().slice(0,10);
+  const todas = getGestionesLocal();
+  const propias = equipo ? todas : todas.filter(g => (g.asesorCeta||g.asignadoAlias) === S.user.alias);
+  const deHoy = propias.filter(g => new Date(g._ts||0).toISOString().slice(0,10) === hoyStr2);
+  const agend = propias.filter(g => g.resultado === 'agenda').length;
+  const pend = propias.filter(g => g.resultado === 'pendiente').length;
   const stats = equipo
-    ? [['94%','Citas confirmadas','var(--ok)'],['42','Casos en gestión',''],['3','SLA en riesgo','var(--wr)'],['14','Leads nuevos','']]
-    : [['—','Mis gestiones hoy',''],['—','Mis agendadas','var(--ok)'],['<2h','Meta 1er contacto',''],['20','Días propiedad lead','']];
+    ? [[String(todas.length),'Gestiones totales',''],[String(todas.filter(g=>g.resultado==='agenda').length),'Agendadas','var(--ok)'],[String(todas.filter(g=>g.resultado==='pendiente').length),'Pendientes','var(--wr)'],[String(deHoy.length),'Hoy','']]
+    : [[String(deHoy.length),'Mis gestiones hoy',''],[String(agend),'Mis agendadas','var(--ok)'],[String(pend),'Mis pendientes','var(--wr)'],[String(propias.length),'Mi total','']];
   $('#homeStats').innerHTML = stats.map(([n,l,c]) =>
     `<div><div style="font-family:var(--fd);font-weight:700;font-size:20px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${l}</div></div>`
   ).join('');
@@ -518,6 +525,17 @@ function renderInternos(){
       <button class="btn btn-ac btn-big" id="inRadicar" style="margin-top:10px"><i class="fas fa-shuffle"></i> Radicar y asignar</button>
     </div>
 
+    ${can('config') ? `<div class="fb">
+      <div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-file-csv"></i></span>Carga masiva (CSV)</div>
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Sube un archivo .csv y el sistema asignará cada caso por la rotación aleatoria (mismas reglas). Columnas requeridas:</div>
+      <div class="out-box mono" style="margin-bottom:8px">placa,nombre,telefono,ciudad,servicio,grupoChat,nota</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="font-size:11px">
+        <button class="btn btn-gh" id="csvPlantilla"><i class="fas fa-download"></i> Descargar plantilla</button>
+      </div>
+      <div id="csvResultado" style="margin-top:8px"></div>
+    </div>` : ''}
+
     <div class="sub-l" style="margin-top:16px"><i class="fas fa-bell"></i>Bandeja de pendientes</div>
     <div id="internosBandeja"></div>`;
   el.dataset.built = '1';
@@ -525,8 +543,76 @@ function renderInternos(){
   // Listeners del FORMULARIO (se enlazan una sola vez; no se vuelven a tocar).
   $('#inPlaca').addEventListener('input', renderDupAviso);
   $('#inRadicar').addEventListener('click', radicarCaso);
+  const csvF = $('#csvFile'); if (csvF) csvF.addEventListener('change', procesarCSV);
+  const csvP = $('#csvPlantilla'); if (csvP) csvP.addEventListener('click', descargarPlantillaCSV);
 
   renderBandeja();
+}
+
+// Descarga una plantilla CSV de ejemplo para la carga masiva.
+function descargarPlantillaCSV(){
+  const contenido = 'placa,nombre,telefono,ciudad,servicio,grupoChat,nota\n' +
+    'ABC123,Sr. Juan Pérez,3001112233,Pereira,Mantenimiento,Citas Taller,Cliente pide cita esta semana\n' +
+    'XYZ789,Sra. Ana Ruiz,3014445566,Manizales,Garantía,G Manizales,Revisar ruido motor';
+  const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'plantilla_casos_internos.csv'; a.click();
+  toast('Plantilla descargada');
+}
+
+// Procesa el CSV: parsea, valida y radica cada fila con la rotación normal.
+function procesarCSV(e){
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const filas = parseCSV(String(reader.result || ''));
+    if (!filas.length) { $('#csvResultado').innerHTML = `<div class="al wr" style="font-size:11px;padding:8px"><i class="fas fa-triangle-exclamation"></i><div>El archivo está vacío o no tiene filas válidas.</div></div>`; return; }
+    const requeridas = ['placa','nombre','ciudad','servicio'];
+    let creados = 0, errores = [];
+    filas.forEach((f, i) => {
+      const falta = requeridas.filter(k => !(f[k] && f[k].trim()));
+      if (falta.length) { errores.push(`Fila ${i+2}: falta ${falta.join(', ')}`); return; }
+      // validar servicio contra los tipos conocidos (si no, igual entra a Cola A)
+      crearCasoInterno({
+        tipoRadicacion: 'Nuevo',
+        placa: f.placa.toUpperCase().trim(),
+        nombre: f.nombre.trim(),
+        telefono: (f.telefono||'').trim(),
+        ciudad: (f.ciudad||'').trim(),
+        servicio: (f.servicio||'').trim(),
+        grupoChat: (f.grupoChat||'').trim(),
+        notaSolicitante: (f.nota||'').trim()
+      });
+      creados++;
+    });
+    $('#csvResultado').innerHTML = `<div class="al ${errores.length?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados} casos cargados y asignados.</strong>${errores.length?`<br>${errores.length} con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
+    e.target.value = '';   // permite recargar el mismo archivo
+    renderBandeja(); updateInternosBadges();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Parser CSV simple (soporta comas dentro de comillas y separador , o ;).
+function parseCSV(texto){
+  const lineas = texto.split(/\r?\n/).filter(l => l.trim());
+  if (lineas.length < 2) return [];
+  const sep = (lineas[0].split(';').length > lineas[0].split(',').length) ? ';' : ',';
+  const corta = (linea) => {
+    const out = []; let cur = '', dentro = false;
+    for (let i=0;i<linea.length;i++){ const c=linea[i];
+      if (c === '"') { if (dentro && linea[i+1] === '"') { cur+='"'; i++; } else dentro = !dentro; }
+      else if (c === sep && !dentro) { out.push(cur); cur=''; }
+      else cur += c;
+    }
+    out.push(cur); return out.map(s => s.trim());
+  };
+  const cab = corta(lineas[0]).map(h => h.toLowerCase());
+  return lineas.slice(1).map(l => {
+    const vals = corta(l); const o = {};
+    cab.forEach((h,i) => o[h] = vals[i] || '');
+    return o;
+  });
 }
 
 // Refresca SOLO el encabezado (contador) y el listado de pendientes.
@@ -967,7 +1053,7 @@ function openReasignar(id){
       <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Caso <strong>${esc(g.placa||'—')}</strong> · ${esc(g.nombre||'')}<br>Actualmente: <strong>${esc(g.asignadoAlias||g.asesorCeta||'—')}</strong></div>
       <div class="ff"><label>Reasignar a</label><select id="reSel">
         <option value="">— Selecciona asesor —</option>
-        ${rotacionPool().filter(u=>u.id!==g.asignadoId).map(u=>`<option value="${u.id}">${esc(u.alias)} (${esc(u.nombre)})</option>`).join('')}
+        ${rotacionPool().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
       </select></div>
     </div>
     <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="reGo"><i class="fas fa-check"></i> Reasignar</button></div>`);
@@ -1034,7 +1120,7 @@ function openCaseDetail(id){
       ${S.user?.rol==='coordinador'?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
       <div class="rr"><div class="ff"><select id="mdReasignar">
         <option value="">— Mantener: ${esc(g.asignadoAlias||g.asesorCeta||'—')} —</option>
-        ${rotacionPool().filter(u=>u.id!==g.asignadoId).map(u=>`<option value="${u.id}">${esc(u.alias)} (${esc(u.nombre)})</option>`).join('')}
+        ${rotacionPool().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
       </select></div><div class="ff" style="flex:0 0 auto"><button class="btn btn-gh" id="mdReasignarBtn" style="margin-top:14px"><i class="fas fa-people-arrows"></i> Reasignar</button></div></div>`:''}
 
       <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
@@ -1279,6 +1365,14 @@ function renderConfig(){
   renderAsesoresServicioConfig();
   renderListasConfig();
   renderConexionConfig();
+  const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
+    confirmModal('Borrar gestiones', `Esto eliminará <strong>todas las gestiones guardadas en este navegador</strong> (casos, agendas, pendientes). No se puede deshacer.<br><br>Las del Google Sheet NO se tocan (esas se borran manual). ¿Continuar?`, () => {
+      localStorage.removeItem(LS_GESTIONES);
+      try { localStorage.removeItem('ceta_colas'); } catch {}
+      toast('Gestiones locales borradas');
+      renderControl(); if ($('#v-internos')?.dataset.built==='1') renderBandeja(); updateInternosBadges(); renderHome();
+    });
+  });
 }
 
 // Gestión de asesores de servicio por ciudad (coordinador).
@@ -1475,7 +1569,7 @@ function goTo(v){
   if (v === 'control') renderControl();   // refresca con las gestiones más recientes
   if (v === 'internos') renderInternos(); // refresca bandeja y temporizadores
   if (v === 'alertas' && can('config')) renderAlertas();
-  if (v === 'home') renderHomeAlertas();  // alertas frescas al volver al home
+  if (v === 'home') { renderHome(); renderHomeAlertas(); }  // stats y alertas frescas al volver
 }
 
 // =============================================================
@@ -1648,15 +1742,28 @@ function setApiUrl(url){ localStorage.setItem(LS_API_URL, (url||'').trim()); }
 async function apiCall(action, params, method){
   const base = getApiUrl();
   if (!base) throw new Error('Sin URL configurada');
-  const url = base + (base.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) +
-              (params ? '&' + new URLSearchParams(params).toString() : '');
+  const sep = base.includes('?') ? '&' : '?';
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), DATA.config.apiTimeoutMs || 3000);
   try {
-    const opt = { signal: ctrl.signal };
-    if (method === 'POST') { opt.method = 'POST'; opt.body = JSON.stringify(params || {}); }
-    const r = await fetch(url, opt);
-    return await r.json();
+    if (method === 'POST') {
+      // action en la query; payload en el body como text/plain → SIN preflight CORS.
+      const url = base + sep + 'action=' + encodeURIComponent(action);
+      const r = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify(params || {}),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        signal: ctrl.signal,
+        redirect: 'follow'
+      });
+      // Intentar leer JSON; si Apps Script redirige y no se puede leer, asumir éxito.
+      try { return await r.json(); } catch { return { success: true, _noBody: true }; }
+    } else {
+      const url = base + sep + 'action=' + encodeURIComponent(action) +
+                  (params ? '&' + new URLSearchParams(params).toString() : '');
+      const r = await fetch(url, { signal: ctrl.signal, redirect: 'follow' });
+      return await r.json();
+    }
   } finally { clearTimeout(to); }
 }
 
@@ -1703,6 +1810,23 @@ function poblarAsesorTaller(selPrevio){
   else if (prev === '__otro__') sel.value = '__otro__';
   else sel.value = '';
   toggleAsesorOtro();
+}
+// Puebla "Quién recoge" del We Go según la ciudad seleccionada (primero = preseleccionado).
+function poblarWgQuien(){
+  const sel = $('#wgQuienSel'); if (!sel) return;
+  const ciudad = ($('[data-f="ciudad"]')?.value || '').trim();
+  const lista = (DATA.weGoRecoge && DATA.weGoRecoge[ciudad]) || ['Alfred'];
+  const prev = sel.value;
+  sel.innerHTML = lista.map(n => `<option>${esc(n)}</option>`).join('');
+  if (lista.includes(prev)) sel.value = prev;   // conservar si sigue válido
+}
+// Iniciales del asesor para identificar quién gestionó (DATA.inicialesAsesor o derivadas del nombre).
+function inicialesDe(user){
+  if (!user) return '';
+  const fijas = DATA.inicialesAsesor && DATA.inicialesAsesor[user.id];
+  if (fijas) return fijas;
+  const partes = (user.nombre || user.alias || '').trim().split(/\s+/).slice(0,3);
+  return partes.map(p => p[0] ? p[0].toUpperCase() : '').join('');
 }
 function toggleAsesorOtro(){
   const sel = $('#asesorTallerSel');
@@ -1846,7 +1970,7 @@ function u(){
   syncState();
   // Si cambió la ciudad, repoblar el select de asesor de taller (lista dependiente).
   const ciudadActual = ($('[data-f="ciudad"]')?.value || '').trim();
-  if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); renderPanelAlertas(); }
+  if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); poblarWgQuien(); renderPanelAlertas(); }
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
   const pre = [pla, tel].filter(Boolean).join(' // ');
@@ -1878,7 +2002,9 @@ function u(){
     if (S.adicionales.has('accesorios') && f.accesorios) pts.push('ACCESORIOS: ' + f.accesorios.toUpperCase());
     if (S.hasWG) pts.push('APLICA WE GO');
     if (f.asesorTaller) pts.push('RECIBE: ' + f.asesorTaller.toUpperCase());
-    nota = pts.filter(Boolean).join(' // ') + ` // CALL CENTER${signo}`;
+    if (f.observacion) pts.push('OBS: ' + f.observacion.toUpperCase());   // #2 observación dentro de la nota
+    const ini = inicialesDe(S.user);
+    nota = pts.filter(Boolean).join(' // ') + ` // CALL CENTER${signo}${ini?` /${ini}`:''}`;
 
     const svCli = {Mantenimiento:'el mantenimiento',Revisión:'la revisión',Garantía:'la atención de garantía',Inspección:'la inspección',Especializada:'el diagnóstico'}[motivo] || 'el servicio';
     const lineas = [
@@ -1913,6 +2039,13 @@ function u(){
     mot = 'CLIENTE NO INTERESADO'; voz = 'NO DESEA RECIBIR INFORMACIÓN';
     nota = [pre, 'NO VOLVER A CONTACTAR'].filter(Boolean).join(' // ');
     cli = 'Gracias por su atención. Quedamos atentos si en el futuro requiere nuestros servicios.';
+  }
+
+  // Para resultados distintos de "agenda": añadir observación e iniciales a la nota.
+  if (r !== 'agenda' && nota) {
+    if (f.observacion) nota += ' // OBS: ' + f.observacion.toUpperCase();
+    const iniR = inicialesDe(S.user);
+    if (iniR) nota += ` /${iniR}`;
   }
 
   $('#outNota').textContent = nota || '—';
@@ -2373,10 +2506,11 @@ function resetPanel(){
   $('#wegoOk').classList.remove('hidden'); $('#wegoBlocked').classList.add('hidden');
   $$('.pill[data-ad]').forEach(p => p.classList.remove('on'));
   $$('.pill[data-chk]').forEach(p => p.classList.toggle('on', S.checks.has(p.dataset.chk)));
-  // repoblar el select de asesor de taller para la ciudad por defecto
+  // repoblar el select de asesor de taller y "quién recoge" para la ciudad por defecto
   _ultCiudadPanel = null;
   $('#asesorTallerOtroWrap')?.classList.add('hidden');
   poblarAsesorTaller('');
+  poblarWgQuien();
   pickRes($('#resP .pill[data-r="agenda"]'));
 }
 
