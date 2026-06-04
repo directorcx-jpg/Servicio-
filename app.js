@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.12.0';
+import { DATA } from './data.js?v=1.13.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -560,21 +560,22 @@ function descargarPlantillaCSV(){
   toast('Plantilla descargada');
 }
 
-// Procesa el CSV: parsea, valida y radica cada fila con la rotación normal.
+// Procesa el CSV: crea TODOS local primero (rápido), luego los envía al Sheet
+// UNO POR UNO con espera, para no saturar Apps Script (que es de un solo hilo).
 function procesarCSV(e){
   const file = e.target.files && e.target.files[0];
   if (!file) return;
+  const out = $('#csvResultado');
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const filas = parseCSV(String(reader.result || ''));
-    if (!filas.length) { $('#csvResultado').innerHTML = `<div class="al wr" style="font-size:11px;padding:8px"><i class="fas fa-triangle-exclamation"></i><div>El archivo está vacío o no tiene filas válidas.</div></div>`; return; }
+    if (!filas.length) { out.innerHTML = `<div class="al wr" style="font-size:11px;padding:8px"><i class="fas fa-triangle-exclamation"></i><div>El archivo está vacío o no tiene filas válidas.</div></div>`; return; }
     const requeridas = ['placa','nombre','ciudad','servicio'];
-    let creados = 0, errores = [];
+    const creados = []; const errores = [];
     filas.forEach((f, i) => {
       const falta = requeridas.filter(k => !(f[k] && f[k].trim()));
       if (falta.length) { errores.push(`Fila ${i+2}: falta ${falta.join(', ')}`); return; }
-      // validar servicio contra los tipos conocidos (si no, igual entra a Cola A)
-      crearCasoInterno({
+      const g = crearCasoInterno({
         tipoRadicacion: 'Nuevo',
         placa: f.placa.toUpperCase().trim(),
         nombre: f.nombre.trim(),
@@ -583,12 +584,29 @@ function procesarCSV(e){
         servicio: (f.servicio||'').trim(),
         grupoChat: (f.grupoChat||'').trim(),
         notaSolicitante: (f.nota||'').trim()
-      });
-      creados++;
+      }, { masivo: true });
+      creados.push(g);
     });
-    $('#csvResultado').innerHTML = `<div class="al ${errores.length?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados} casos cargados y asignados.</strong>${errores.length?`<br>${errores.length} con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
     e.target.value = '';   // permite recargar el mismo archivo
     renderBandeja(); updateInternosBadges();
+
+    // Envío secuencial al Sheet (si hay conexión), con progreso y reintento.
+    if (getApiUrl() && creados.length) {
+      let enviados = 0, fallos = 0;
+      for (const g of creados) {
+        out.innerHTML = `<div class="al in" style="font-size:11px;padding:8px"><i class="fas fa-spinner fa-spin"></i><div>Sincronizando con Google… ${enviados+1}/${creados.length}</div></div>`;
+        let ok = false;
+        for (let intento = 0; intento < 2 && !ok; intento++) {     // 1 reintento
+          try { const r = await apiCall('guardarGestion', g, 'POST'); ok = !r || r.success !== false; }
+          catch { ok = false; }
+          if (!ok) await new Promise(res => setTimeout(res, 400));
+        }
+        ok ? enviados++ : fallos++;
+      }
+      out.innerHTML = `<div class="al ${(errores.length||fallos)?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados.length} casos cargados y asignados.</strong><br>Google Sheet: ${enviados} enviados${fallos?`, ${fallos} fallaron (quedaron en local, usa Sincronizar)`:''}.${errores.length?`<br>${errores.length} filas con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
+    } else {
+      out.innerHTML = `<div class="al ${errores.length?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados.length} casos cargados (local).</strong>${errores.length?`<br>${errores.length} con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
+    }
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -688,7 +706,10 @@ function radicarCaso(){
   crearCasoInterno(payload);
 }
 
-function crearCasoInterno(payload){
+// opciones.masivo = true → NO envía al Sheet aquí ni toca la UI (lo hace el llamador
+// de forma secuencial). Devuelve el registro creado.
+function crearCasoInterno(payload, opciones){
+  opciones = opciones || {};
   const asign = asignarCaso(payload.placa, payload.servicio);
   const now = Date.now();
   const g = {
@@ -707,11 +728,13 @@ function crearCasoInterno(payload){
   const list = getGestionesLocal();
   list.unshift(g);
   localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500)));
-  // sync al Sheet si hay conexión (no bloquea la UI)
+  if (opciones.masivo) return g;   // el envío al Sheet + UI lo maneja el llamador
+  // Caso individual: sync al Sheet si hay conexión (no bloquea la UI)
   if (getApiUrl()) { apiCall('guardarGestion', g, 'POST').catch(()=>{}); }
   toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
   limpiarFormInternos();
   renderBandeja(); updateInternosBadges();   // refresca solo el listado, no el formulario
+  return g;
 }
 
 // Limpia los campos del formulario de radicación tras crear un caso.
@@ -1017,31 +1040,56 @@ function renderControl(){
 }
 
 // Trae las gestiones del Sheet (todo el equipo) y las fusiona con las locales por id.
+// Sincronización BIDIRECCIONAL:
+//  1) baja las del Sheet y las fusiona en local
+//  2) sube al Sheet (uno por uno) las locales que aún no están allá
 async function sincronizarGestiones(){
   if (!getApiUrl()) { toast('Sin conexión configurada'); return; }
-  toast('Sincronizando…');
+  const syn = $('#ctrlSync');
+  const setBtn = (html, dis) => { if (syn) { syn.innerHTML = html; syn.disabled = !!dis; } };
+  setBtn('<i class="fas fa-spinner fa-spin"></i> Sincronizando…', true);
   try {
     const r = await apiCall('listarGestiones');
-    if (!r || !r.success || !Array.isArray(r.rows)) { toast('El servidor no devolvió datos'); return; }
+    if (!r || !r.success || !Array.isArray(r.rows)) { toast('El servidor no devolvió datos'); setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar'); return; }
+
     const locales = getGestionesLocal();
     const porId = {};
     locales.forEach(g => { if (g.id) porId[g.id] = g; });
-    let nuevas = 0;
+    const idsEnSheet = new Set();
+    let bajadas = 0;
     r.rows.forEach(row => {
       if (!row.id) return;
-      // reconstruir historial desde JSON si vino como texto
+      idsEnSheet.add(String(row.id));
       if (typeof row.historialJSON === 'string' && row.historialJSON) {
         try { row.historial = JSON.parse(row.historialJSON); } catch { row.historial = []; }
       }
       if (!row._ts) row._ts = Date.now();
-      if (!porId[row.id]) { porId[row.id] = row; nuevas++; }
+      if (!porId[row.id]) { porId[row.id] = row; bajadas++; }
       else { porId[row.id] = { ...porId[row.id], ...row }; }  // el Sheet manda en conflicto
     });
     const fusion = Object.values(porId).sort((a,b)=>(b._ts||0)-(a._ts||0));
     localStorage.setItem(LS_GESTIONES, JSON.stringify(fusion.slice(0,1000)));
+
+    // 2) Subir las locales que NO están en el Sheet (uno por uno, con reintento).
+    const faltantes = fusion.filter(g => g.id && !idsEnSheet.has(String(g.id)));
+    let subidas = 0, fallos = 0;
+    for (let i = 0; i < faltantes.length; i++) {
+      setBtn(`<i class="fas fa-spinner fa-spin"></i> Subiendo ${i+1}/${faltantes.length}`, true);
+      let ok = false;
+      for (let intento = 0; intento < 2 && !ok; intento++) {
+        try { const rr = await apiCall('guardarGestion', faltantes[i], 'POST'); ok = !rr || rr.success !== false; }
+        catch { ok = false; }
+        if (!ok) await new Promise(res => setTimeout(res, 400));
+      }
+      ok ? subidas++ : fallos++;
+    }
+    setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
     renderControl();
-    toast(`✅ Sincronizado · ${r.rows.length} del servidor (${nuevas} nuevas)`);
-  } catch { toast('⚠️ No se pudo sincronizar (revisa la conexión)'); }
+    toast(`✅ Sincronizado · ${bajadas} bajadas, ${subidas} subidas${fallos?`, ${fallos} fallaron`:''}`);
+  } catch {
+    setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
+    toast('⚠️ No se pudo sincronizar (revisa la conexión)');
+  }
 }
 
 // Mini-modal de reasignación rápida (botón en la fila de Control).
