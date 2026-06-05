@@ -8,6 +8,8 @@
  *    · POST  ?action=actualizarGestion     → actualiza fila existente (por columna id)
  *    · GET   ?action=buscarPlaca           → busca cliente por placa
  *    · GET   ?action=listarGestiones       → tabla para Control de Gestión (coordinador)
+ *    · GET   ?action=listarUsuarios        → lista de perfiles compartida del equipo
+ *    · POST  ?action=guardarUsuarios       → reemplaza la lista de perfiles (sincroniza dispositivos)
  *
  *  ───────────────────────────────────────────────────────────────
  *  PASOS PARA PUBLICAR (Pablo):
@@ -83,6 +85,8 @@ function route_(e, method) {
     if (action === 'consultarCotizador') return json_(consultarCotizador_(e));
     if (action === 'buscarPlaca')        return json_(buscarPlaca_(e));
     if (action === 'listarGestiones')    return json_(listarGestiones_(e));
+    if (action === 'listarUsuarios')     return json_(listarUsuarios_(e));
+    if (method === 'POST' && action === 'guardarUsuarios') return json_(guardarUsuarios_(e));
     return json_({ success: false, error: 'Acción no reconocida: ' + action });
   } catch (err) {
     return json_({ success: false, error: String(err) });
@@ -219,4 +223,30 @@ function listarGestiones_(e) {
     rows.push(o);
   }
   return { success: true, rows: rows };
+}
+
+// ----------------------------------------------------------------
+//  USUARIOS — lista compartida del equipo (pestaña "Usuarios", col A = JSON)
+//  Permite que los perfiles que el coordinador crea/edita se vean en TODOS
+//  los dispositivos. guardarUsuarios reemplaza la lista completa.
+// ----------------------------------------------------------------
+var USUARIOS_TAB = 'Usuarios';
+
+function listarUsuarios_(e) {
+  var sh = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID).getSheetByName(USUARIOS_TAB);
+  if (!sh || sh.getLastRow() < 1) return { success: true, usuarios: [] };
+  var celda = sh.getRange(1, 1).getValue();
+  if (!celda) return { success: true, usuarios: [] };
+  try { return { success: true, usuarios: JSON.parse(celda) }; }
+  catch (err) { return { success: true, usuarios: [] }; }
+}
+
+function guardarUsuarios_(e) {
+  var data = JSON.parse(e.postData.contents);   // { usuarios: [...] }
+  var lista = data.usuarios || [];
+  var ss = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID);
+  var sh = ss.getSheetByName(USUARIOS_TAB);
+  if (!sh) sh = ss.insertSheet(USUARIOS_TAB);
+  sh.getRange(1, 1).setValue(JSON.stringify(lista));
+  return { success: true, total: lista.length };
 }

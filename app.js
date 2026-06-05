@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.14.0';
+import { DATA } from './data.js?v=1.15.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -34,7 +34,7 @@ const LS_SESSION = 'ceta_session';
 const LS_USERS_SEED = 'ceta_usuarios_seed';
 // Versión del seed de data.js. Súbela cuando cambies DATA.usuarios y quieras
 // que el cambio llegue a navegadores que ya tengan usuarios en localStorage.
-const USERS_SEED_VERSION = 3;
+const USERS_SEED_VERSION = 4;
 
 function getUsuarios(){
   let ov = null;
@@ -44,29 +44,20 @@ function getUsuarios(){
   if (!Array.isArray(ov) || !ov.length) {
     // primera vez: sembrar desde data.js
     const seed = DATA.usuarios.map(u => ({...u}));
-    saveUsuarios(seed);
+    saveUsuarios(seed, { noSync:true });
     localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
     return seed;
   }
 
-  // Si el seed de data.js avanzó, reconciliar: aplicar nombre/alias/rol del seed
-  // a los perfiles base por id, conservando el PIN/activo que el coordinador haya tocado.
+  // Migración de seed: SOLO agrega perfiles base nuevos que falten (por id).
+  // NO pisa nombre/alias/rol de los existentes — la fuente de verdad de las
+  // ediciones es el coordinador (y el Sheet compartido), no el seed de data.js.
   if (seedVer < USERS_SEED_VERSION) {
-    const byId = Object.fromEntries(ov.map(u => [u.id, u]));
-    const merged = DATA.usuarios.map(s => {
-      const prev = byId[s.id];
-      return prev ? { ...s, pin: prev.pin, activo: prev.activo } : { ...s };
-    });
-    // conservar perfiles agregados por el coordinador que no estén en el seed
-    ov.forEach(u => { if (!DATA.usuarios.some(s => s.id === u.id)) merged.push(u); });
-    saveUsuarios(merged);
-    // re-vincular casos históricos cuyo alias cambió en este salto de seed
-    DATA.usuarios.forEach(s => {
-      const prev = byId[s.id];
-      if (prev && prev.alias && prev.alias !== s.alias) relinkCasos(prev.alias, s.alias, s.id);
-    });
+    const ids = new Set(ov.map(u => u.id));
+    DATA.usuarios.forEach(s => { if (!ids.has(s.id)) ov.push({ ...s }); });
+    saveUsuarios(ov, { noSync:true });
     localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
-    return sanearUsuarios(merged);
+    return sanearUsuarios(ov);
   }
 
   return sanearUsuarios(ov);
@@ -90,11 +81,38 @@ function sanearUsuarios(list){
     limpia = limpia.map(u => DATA.usuarios.some(s => s.id === u.id) ? { ...u, activo: true } : u);
     faltaron = true;
   }
-  // 4) persistir solo si hubo reparación
-  if (faltaron || limpia.length !== list.length) saveUsuarios(limpia);
+  // 4) persistir solo si hubo reparación (sin re-subir al Sheet: es saneo local)
+  if (faltaron || limpia.length !== list.length) saveUsuarios(limpia, { noSync:true });
   return limpia;
 }
-function saveUsuarios(list){ localStorage.setItem(LS_USERS, JSON.stringify(list)); }
+function saveUsuarios(list, opciones){
+  localStorage.setItem(LS_USERS, JSON.stringify(list));
+  // Subir al Sheet para que el resto de dispositivos vean los mismos perfiles.
+  // (opciones.noSync evita el envío en escrituras internas de saneo/migración).
+  if (!(opciones && opciones.noSync) && typeof getApiUrl === 'function' && getApiUrl()) {
+    try { apiCall('guardarUsuarios', { usuarios: list }, 'POST').catch(()=>{}); } catch {}
+  }
+}
+
+// Baja la lista de usuarios del Sheet (fuente de verdad compartida) y la fusiona
+// con la local. El Sheet manda. Se llama al entrar si hay conexión.
+async function sincronizarUsuarios(){
+  if (!getApiUrl()) return false;
+  try {
+    const r = await apiCall('listarUsuarios');
+    if (r && r.success && Array.isArray(r.usuarios) && r.usuarios.length) {
+      const saneada = sanearUsuarios(r.usuarios);   // valida/repara lo que venga del Sheet
+      localStorage.setItem(LS_USERS, JSON.stringify(saneada));
+      localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
+      return true;
+    } else if (r && r.success) {
+      // El Sheet está vacío (primera vez): sube la lista local como base inicial.
+      const local = getUsuarios();
+      apiCall('guardarUsuarios', { usuarios: local }, 'POST').catch(()=>{});
+    }
+  } catch {}
+  return false;
+}
 
 // =============================================================
 //  AUTENTICACIÓN
@@ -167,12 +185,19 @@ function enterApp(){
   refrescarAlertasUI();
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
+
+  // Auto-sincronizar gestiones del equipo al entrar (si hay conexión).
+  if (getApiUrl()) sincronizarGestiones({ silencioso:true });
+
   // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
-  // Solo refresca el LISTADO (renderBandeja), nunca el formulario de creación.
   if (!window._slaTimer) window._slaTimer = setInterval(() => {
     if ($('#v-internos')?.classList.contains('active')) renderBandeja();
     updateInternosBadges();
   }, 30000);
+  // Auto-sincronización periódica con el Sheet cada 3 min (gestiones + usuarios).
+  if (!window._syncTimer) window._syncTimer = setInterval(() => {
+    if (getApiUrl()) { sincronizarGestiones({ silencioso:true }); sincronizarUsuarios(); }
+  }, 180000);
 }
 
 // =============================================================
@@ -1077,14 +1102,17 @@ function renderControl(){
 // Sincronización BIDIRECCIONAL:
 //  1) baja las del Sheet y las fusiona en local
 //  2) sube al Sheet (uno por uno) las locales que aún no están allá
-async function sincronizarGestiones(){
-  if (!getApiUrl()) { toast('Sin conexión configurada'); return; }
+async function sincronizarGestiones(opts){
+  opts = opts || {};
+  const silencioso = !!opts.silencioso;
+  if (!getApiUrl()) { if (!silencioso) toast('Sin conexión configurada'); return; }
   const syn = $('#ctrlSync');
   const setBtn = (html, dis) => { if (syn) { syn.innerHTML = html; syn.disabled = !!dis; } };
+  const aviso = (m) => { if (!silencioso) toast(m); };
   setBtn('<i class="fas fa-spinner fa-spin"></i> Sincronizando…', true);
   try {
     const r = await apiCall('listarGestiones');
-    if (!r || !r.success || !Array.isArray(r.rows)) { toast('El servidor no devolvió datos'); setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar'); return; }
+    if (!r || !r.success || !Array.isArray(r.rows)) { aviso('El servidor no devolvió datos'); setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar'); return; }
 
     const locales = getGestionesLocal();
     const porId = {};
@@ -1118,11 +1146,15 @@ async function sincronizarGestiones(){
       ok ? subidas++ : fallos++;
     }
     setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
-    renderControl();
-    toast(`✅ Sincronizado · ${bajadas} bajadas, ${subidas} subidas${fallos?`, ${fallos} fallaron`:''}`);
+    // refrescar todo lo que depende de las gestiones
+    if ($('#v-control')?.classList.contains('active')) renderControl();
+    if ($('#v-internos')?.dataset.built === '1') renderBandeja();
+    if ($('#v-home')?.classList.contains('active')) renderHome();
+    updateInternosBadges();
+    aviso(`✅ Sincronizado · ${bajadas} bajadas, ${subidas} subidas${fallos?`, ${fallos} fallaron`:''}`);
   } catch {
     setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
-    toast('⚠️ No se pudo sincronizar (revisa la conexión)');
+    aviso('⚠️ No se pudo sincronizar (revisa la conexión)');
   }
 }
 
@@ -2780,6 +2812,12 @@ function init(){
   $('#ftVer').textContent = 'v' + DATA.config.version;
   actualizarModoFooter();
 
-  if (restoreSession()) enterApp();
+  // Sincronizar usuarios del Sheet ANTES de mostrar el login (perfiles compartidos).
+  // Si no hay conexión, usa los locales. No bloquea más de 3s (timeout de apiCall).
+  if (getApiUrl()) {
+    sincronizarUsuarios().then(ok => { if (ok) renderLoginUsers(); if (restoreSession()) enterApp(); });
+  } else {
+    if (restoreSession()) enterApp();
+  }
 }
 init();
