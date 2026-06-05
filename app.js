@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.15.0';
+import { DATA } from './data.js?v=1.15.2';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -1895,13 +1895,15 @@ function getApiUrl(){
   return ov || (DATA.config.endpoints.base || '');
 }
 function setApiUrl(url){ localStorage.setItem(LS_API_URL, (url||'').trim()); }
-// Llama una acción del Web App. Devuelve el JSON o lanza error (timeout 3s).
-async function apiCall(action, params, method){
+// Llama una acción del Web App. opts.timeout permite ampliar el tiempo de espera
+// (Apps Script suele tardar 4-8s, sobre todo en lecturas grandes o el primer hit).
+async function apiCall(action, params, method, opts){
+  opts = opts || {};
   const base = getApiUrl();
   if (!base) throw new Error('Sin URL configurada');
   const sep = base.includes('?') ? '&' : '?';
   const ctrl = new AbortController();
-  const to = setTimeout(() => ctrl.abort(), DATA.config.apiTimeoutMs || 3000);
+  const to = setTimeout(() => ctrl.abort(), opts.timeout || 9000);
   try {
     if (method === 'POST') {
       // action en la query; payload en el body como text/plain → SIN preflight CORS.

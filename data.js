@@ -11,20 +11,19 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.15.0",
+    version: "1.15.2",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
-    // Backend Apps Script. La URL /exec del despliegue se pega desde
-    // Configuración → Conexión Apps Script (se guarda en localStorage).
-    // `base` es una URL de respaldo opcional; normalmente queda vacía.
+    // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
+    // Se puede sobreescribir desde Configuración → Conexión Apps Script (localStorage).
     endpoints: {
-      base: "",                // URL /exec del Web App (se sobreescribe desde Config)
+      base: "https://script.google.com/macros/s/AKfycbzp1vS4R5BRTHQhAH0Ckxzrkp4RjPJnpqQjLAjyHIKZq_Jl3GI_-G6s0o7Bd7Ysec6u/exec",
       guardarGestion: "",      // (legado) los endpoints reales usan ?action= sobre base
       actualizarGestion: "",
       consultarCotizador: "",
       buscarPlaca: ""
     },
-    apiTimeoutMs: 3000,
+    apiTimeoutMs: 9000,   // Apps Script tarda; margen amplio para lecturas/escrituras
     lineas: { Manizales: "3116097675", Armenia: "3148144259", Pereira: "3206320999" }
   },
 
