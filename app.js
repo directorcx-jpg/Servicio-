@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.13.0';
+import { DATA } from './data.js?v=1.13.1';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -65,10 +65,33 @@ function getUsuarios(){
       if (prev && prev.alias && prev.alias !== s.alias) relinkCasos(prev.alias, s.alias, s.id);
     });
     localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
-    return merged;
+    return sanearUsuarios(merged);
   }
 
-  return ov;
+  return sanearUsuarios(ov);
+}
+
+// AUTO-REPARACIÓN: garantiza que la lista de usuarios sea usable.
+//  - Si faltan perfiles base del seed (lista incompleta/corrupta), los RE-AGREGA
+//    conservando los que el coordinador haya editado o creado.
+//  - Descarta entradas inválidas (sin id, sin nombre, sin rol o sin PIN de 4 dígitos).
+//  - Si todos los del seed están inactivos (login quedaría vacío), reactiva los base.
+function sanearUsuarios(list){
+  if (!Array.isArray(list)) list = [];
+  // 1) limpiar entradas corruptas
+  let limpia = list.filter(u => u && u.id != null && u.nombre && u.rol && /^\d{4}$/.test(String(u.pin||'')));
+  // 2) re-agregar perfiles del seed que falten (por id), sin pisar los editados
+  const ids = new Set(limpia.map(u => u.id));
+  let faltaron = false;
+  DATA.usuarios.forEach(s => { if (!ids.has(s.id)) { limpia.push({ ...s }); faltaron = true; } });
+  // 3) si no quedó ningún usuario activo, reactivar los del seed (evita login vacío)
+  if (!limpia.some(u => u.activo)) {
+    limpia = limpia.map(u => DATA.usuarios.some(s => s.id === u.id) ? { ...u, activo: true } : u);
+    faltaron = true;
+  }
+  // 4) persistir solo si hubo reparación
+  if (faltaron || limpia.length !== list.length) saveUsuarios(limpia);
+  return limpia;
 }
 function saveUsuarios(list){ localStorage.setItem(LS_USERS, JSON.stringify(list)); }
 
@@ -77,8 +100,15 @@ function saveUsuarios(list){ localStorage.setItem(LS_USERS, JSON.stringify(list)
 // =============================================================
 function renderLoginUsers(){
   const sel = $('#loginUser');
+  if (!sel) return;
   sel.innerHTML = '';
-  getUsuarios().filter(u => u.activo).forEach(u => {
+  const activos = getUsuarios().filter(u => u.activo);
+  if (!activos.length) {
+    // Salvavidas extremo: si aún no hay usuarios, sembrar desde el seed.
+    DATA.usuarios.forEach(u => activos.push({ ...u }));
+    saveUsuarios(activos);
+  }
+  activos.forEach(u => {
     const o = document.createElement('option');
     o.value = u.id; o.textContent = `${u.nombre} · ${rolLabel(u.rol)}`;
     sel.appendChild(o);
