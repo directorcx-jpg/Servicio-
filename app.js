@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.13.1';
+import { DATA } from './data.js?v=1.14.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -12,14 +12,15 @@ const S = {
   hasNovedad: false,
   hasWG: false,
   adicionales: new Set(),
-  checks: new Set(['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE']),
+  checks: new Set(),          // botones "para el taller" arrancan apagados (punto 11)
+  teleAcepta: false,          // cliente acepta contratar telemetría (punto 10)
   f: {},                      // campos data-f sincronizados
   // Estado de rotación de Casos Internos (REGLA 2/3). Persistido por día.
   // { fecha:'YYYY-MM-DD', A:{orden:[ids],pos:N}, B:{orden:[ids],pos:N} }
   colas: null,
   casoActivo: null            // id del caso interno precargado en el panel (si lo hay)
 };
-const CHECKS_DEF = ['VALIDAR CAMPAÑA ACTIVA','VALIDAR EMBELLECIMIENTO','VALIDAR ADICIONALES','VALIDAR ACCESORIOS','VALIDAR QUE MAS REQUIERE'];
+const CHECKS_DEF = [];   // por defecto ningún check del taller activo (punto 11)
 
 const $  = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
@@ -155,6 +156,9 @@ function enterApp(){
   $('#appRoot').style.display = 'grid';
   applyRole();
   poblarListasPanel();
+  poblarHoras();             // selects de hora por franjas (punto 14)
+  poblarComunicaSub();       // sub-motivos de "Cliente se comunica" (punto 5)
+  poblarWgQuien();           // quién recoge según ciudad (puntos 8/9)
   cargarCotizadorEnVivo();   // 3 capas: cache → API → seed; rellena precios y puebla
   renderHome();
   renderContent();
@@ -1657,25 +1661,64 @@ function pickRes(b){
   if (!b) return;
   $$('#resP .pill').forEach(p => p.classList.remove('on'));
   b.classList.add('on'); S.resultado = b.dataset.r;
-  ['noc-f','sinKm-f','otroTaller-f'].forEach(id => $('#'+id).classList.add('hidden'));
-  const agSec = ['sCotiz','sNovedad','sWego','sAdic'];
-  if (S.resultado === 'agenda') {
-    agSec.forEach(s => $('#'+s).classList.remove('hidden'));
+  // ocultar todos los sub-formularios de resultado
+  ['noc-f','sinKm-f','otroTaller-f','seg-f','comunica-f','actualizar-f'].forEach(id => { const e=$('#'+id); if(e) e.classList.add('hidden'); });
+
+  const r = S.resultado;
+  const mostrar = id => $('#'+id) && $('#'+id).classList.remove('hidden');
+  const ocultar = id => $('#'+id) && $('#'+id).classList.add('hidden');
+  const todasSec = ['sCotiz','sNovedad','sWego','sAdic'];
+
+  if (r === 'agenda') {
+    todasSec.forEach(mostrar);
+    poblarComunicaSub(); poblarHoras();
   } else {
-    agSec.forEach(s => $('#'+s).classList.add('hidden'));
-    if (S.resultado === 'noc')        $('#noc-f').classList.remove('hidden');
-    if (S.resultado === 'sinKm')      $('#sinKm-f').classList.remove('hidden');
-    if (S.resultado === 'otroTaller') $('#otroTaller-f').classList.remove('hidden');
-    // En "seguimiento" mostramos también Novedad (1+3+6)
-    if (S.resultado === 'seg')        $('#sNovedad').classList.remove('hidden');
+    todasSec.forEach(ocultar);
+    if (r === 'noc')        mostrar('noc-f');
+    if (r === 'sinKm')      { mostrar('sinKm-f'); prellenarKmSinKm(); }
+    if (r === 'otroTaller') mostrar('otroTaller-f');
+    if (r === 'seg')        { mostrar('seg-f'); mostrar('sNovedad'); poblarHoras(); }   // seguimiento: novedad + callback
+    if (r === 'comunica')   { mostrar('comunica-f'); poblarComunicaSub(); }
+    if (r === 'actualizar') mostrar('actualizar-f');   // solo datos del cliente (sección 1) + motivo
   }
+
+  // Cotizador SOLO con motivo Mantenimiento o Cotización, y solo si el resultado lo permite. Punto 1.
+  aplicarVisibilidadCotizador();
+
   // Caso interno Cola B (no factura): Cotización y We Go nunca aplican.
   if (S.casoActivo) {
     const ca = getGestionesLocal().find(x => x.id === S.casoActivo);
     if (ca && colaDeServicio(ca.servicio) === 'B') {
-      $('#sCotiz').classList.add('hidden'); $('#sWego').classList.add('hidden');
+      ocultar('sCotiz'); ocultar('sWego');
     }
   }
+  u();
+}
+
+// Muestra el cotizador solo cuando el motivo es Mantenimiento o Cotización Y el resultado lo amerita. Punto 1.
+function aplicarVisibilidadCotizador(){
+  const sec = $('#sCotiz'); if (!sec) return;
+  const motivo = ($('#motivoSel')?.value || '').toLowerCase();
+  const motivoOk = motivo === 'mantenimiento' || motivo === 'cotización' || motivo === 'cotizacion';
+  // resultados donde tiene sentido cotizar
+  const resOk = ['agenda','comunica','seg'].includes(S.resultado);
+  // caso interno Cola B nunca cotiza
+  let colaB = false;
+  if (S.casoActivo) { const ca = getGestionesLocal().find(x=>x.id===S.casoActivo); colaB = ca && colaDeServicio(ca.servicio)==='B'; }
+  sec.classList.toggle('hidden', !(motivoOk && resOk && !colaB));
+}
+
+// Punto 7: al elegir "Sin km", precargar el km actual en "Km que tiene" si está vacío.
+function prellenarKmSinKm(){
+  const kmActual = $('[data-f="kmActual"]')?.value || '';
+  const campo = $('[data-f="kmNoAplica"]');
+  if (campo && !campo.value && kmActual) campo.value = kmActual;
+}
+
+// Punto 10: toggle de "cliente acepta contratar Telemetría".
+function togTeleAcepta(){
+  S.teleAcepta = !S.teleAcepta;
+  $('#teleAceptaSw')?.classList.toggle('on', S.teleAcepta);
   u();
 }
 
@@ -1703,6 +1746,10 @@ function togAd(b){
   if (S.adicionales.has(k)) { S.adicionales.delete(k); b.classList.remove('on'); }
   else { S.adicionales.add(k); b.classList.add('on'); }
   $('#accF').classList.toggle('hidden', !S.adicionales.has('accesorios'));
+  // Telemetría: mostrar casilla "acepta"; si se apaga, resetear el estado.
+  const teleOn = S.adicionales.has('telemetria');
+  $('#teleF')?.classList.toggle('hidden', !teleOn);
+  if (!teleOn && S.teleAcepta) { S.teleAcepta = false; $('#teleAceptaSw')?.classList.remove('on'); }
   u();
 }
 function togChk(b){
@@ -1862,6 +1909,35 @@ function poblarListasPanel(){
   }
 }
 
+// Genera opciones de hora por franjas (07:00–18:00 cada 20 min). Punto 14.
+function opcionesHora(){
+  const out = ['<option value="">—</option>'];
+  for (let h = 7; h <= 18; h++) {
+    for (let m = 0; m < 60; m += 20) {
+      if (h === 18 && m > 0) break;   // tope 18:00
+      const hh = String(h).padStart(2,'0'), mm = String(m).padStart(2,'0');
+      const ampm = h < 12 ? 'a.m.' : 'p.m.';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      out.push(`<option value="${hh}:${mm}">${h12}:${mm} ${ampm}</option>`);
+    }
+  }
+  return out.join('');
+}
+// Puebla todos los selects de hora (.hora-sel) y el de seguimiento, conservando valor.
+function poblarHoras(){
+  const html = opcionesHora();
+  $$('.hora-sel').forEach(sel => { const prev = sel.value; sel.innerHTML = html; if (prev) sel.value = prev; });
+  const seg = $('#segHoraSel'); if (seg) { const p = seg.value; seg.innerHTML = html; if (p) seg.value = p; }
+}
+// Puebla el sub-motivo de "Cliente se comunica". Punto 5.
+function poblarComunicaSub(){
+  const sel = $('#comunicaSubSel'); if (!sel) return;
+  const subs = DATA.tipificador.comunicaSubmotivos || {};
+  const prev = sel.value;
+  sel.innerHTML = Object.entries(subs).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('');
+  if (subs[prev]) sel.value = prev;
+}
+
 const LS_ASESORES_SRV = 'ceta_asesores_servicio';
 function getAsesoresServicio(){
   try {
@@ -1891,11 +1967,20 @@ function poblarAsesorTaller(selPrevio){
 }
 // Puebla "Quién recoge" del We Go según la ciudad seleccionada (primero = preseleccionado).
 function poblarWgQuien(){
-  const sel = $('#wgQuienSel'); if (!sel) return;
   const ciudad = ($('[data-f="ciudad"]')?.value || '').trim();
-  const lista = (DATA.weGoRecoge && DATA.weGoRecoge[ciudad]) || ['Alfred'];
+  const sinCobertura = (DATA.weGoSinCobertura || []).includes(ciudad);
+  // Punto 9: ocultar toda la sección We Go en ciudades sin cobertura.
+  const sWego = $('#sWego');
+  if (sWego) {
+    sWego.classList.toggle('hidden', sinCobertura);
+    if (sinCobertura && S.hasWG) {   // si estaba activo, desactivarlo
+      S.hasWG = false; $('#wgSw')?.classList.remove('on'); $('#wgF')?.classList.add('hidden');
+    }
+  }
+  const sel = $('#wgQuienSel'); if (!sel) return;
+  const lista = (DATA.weGoRecoge && DATA.weGoRecoge[ciudad]) || [];   // Alfred solo donde corresponde (punto 8)
   const prev = sel.value;
-  sel.innerHTML = lista.map(n => `<option>${esc(n)}</option>`).join('');
+  sel.innerHTML = lista.length ? lista.map(n => `<option>${esc(n)}</option>`).join('') : '<option value="">— Sin cobertura —</option>';
   if (lista.includes(prev)) sel.value = prev;   // conservar si sigue válido
 }
 // Iniciales del asesor para identificar quién gestionó (DATA.inicialesAsesor o derivadas del nombre).
@@ -1920,18 +2005,33 @@ function sel_val_otro_vacio(){ const s=$('#asesorTallerSel'); return s && s.valu
 //  COTIZADOR KIA (Módulo 3) — seed de precios + detalle por km
 // =============================================================
 function fmtCOP(n){ return '$ ' + Math.round(n).toLocaleString('es-CO'); }
-// Extrae el número de km de una descripción "RV. 10.000 KM" → 10000
-function kmDeDesc(desc){ const m = String(desc).match(/([\d.]+)\s*KM/i); return m ? parseInt(m[1].replace(/\./g,''),10) : null; }
+// Extrae el km real de la etiqueta del servicio. Punto 6.2:
+//  - "RV. 10.000 KM"              → 10000 (formato con miles)
+//  - "RV. 10,30,50, 110,130,150"  → toma el PRIMER número (10) ×1000 → 10000
+//  - "RV. 5,15,25,35..."          → 5 ×1000 → 5000
+// Heurística: si el primer número es >= 1000 ya viene en km; si es < 1000, ×1000.
+function kmDeDesc(desc){
+  const s = String(desc);
+  const m = s.match(/(\d[\d.,]*)/);     // primer número (con posibles . o , de miles/listas)
+  if (!m) return null;
+  // tomar solo los dígitos del PRIMER grupo antes de cualquier coma de lista
+  const primero = m[1].split(',')[0].replace(/\./g,'');
+  let n = parseInt(primero, 10);
+  if (isNaN(n)) return null;
+  if (n < 1000) n = n * 1000;           // "10" → 10000 ; "5" → 5000
+  return n;
+}
 
 // Devuelve la lista de servicios [desc, manoObra, repuestos, kit] de un modelo.
 function preciosDeModelo(modelo){ return (DATA.cotizador.precios||{})[modelo] || []; }
 
 // Busca el detalle (incluido/noIncluido) por combustión + km más cercano.
+// Punto 6.3: el Stonic está en Gasolina, no busca "Stonic Híbrido" aparte (ya viene clasificado así).
 function detallePorKm(combustion, km){
   const porComb = (DATA.cotizador.detalle||{})[combustion];
   if (!porComb || km == null) return null;
   if (porComb[String(km)]) return porComb[String(km)];
-  // km más cercano disponible
+  // km más cercano disponible (eléctricos van de 15k en 15k → el más cercano funciona igual)
   const claves = Object.keys(porComb).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
   if (!claves.length) return null;
   let mejor = claves[0];
@@ -2044,11 +2144,15 @@ function renderCotDetalle(q){
 //  MASTER UPDATE — regenera salidas desde S
 // =============================================================
 let _ultCiudadPanel = null;
+let _ultMotivoPanel = null;
 function u(){
   syncState();
-  // Si cambió la ciudad, repoblar el select de asesor de taller (lista dependiente).
+  // Si cambió la ciudad, repoblar asesor de taller + We Go (listas dependientes).
   const ciudadActual = ($('[data-f="ciudad"]')?.value || '').trim();
   if (ciudadActual !== _ultCiudadPanel) { _ultCiudadPanel = ciudadActual; poblarAsesorTaller(''); poblarWgQuien(); renderPanelAlertas(); }
+  // Si cambió el motivo, re-evaluar si el cotizador debe mostrarse (punto 1).
+  const motivoActual = ($('#motivoSel')?.value || '');
+  if (motivoActual !== _ultMotivoPanel) { _ultMotivoPanel = motivoActual; aplicarVisibilidadCotizador(); }
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
   const pre = [pla, tel].filter(Boolean).join(' // ');
@@ -2074,13 +2178,16 @@ function u(){
     voz = (S.hasNovedad && f.novedad) ? f.novedad.toUpperCase() : 'MANTENIMIENTO PREVENTIVO';
     const valor = q.found ? q.texto.replace('$ ','') : 'CONSULTAR';
     const pts = [pre, f.kmActual?`${f.kmActual} KM`:'', `${f.modelo||''} ${kmTxt} $ ${valor} IVA INCLUIDO`.trim()];
-    if (S.hasNovedad && f.novedad) pts.push(f.novedad.toUpperCase());
+    if (S.hasNovedad && f.novedad) pts.push('NOVEDAD: ' + f.novedad.toUpperCase());
     S.checks.forEach(c => pts.push(c));
-    if (S.adicionales.has('telemetria')) pts.push('VALIDAR TELEMETRIA');
+    if (S.adicionales.has('telemetria')) pts.push(S.teleAcepta ? 'CONTRATA TELEMETRIA' : 'OFRECE TELEMETRIA');   // #10
     if (S.adicionales.has('accesorios') && f.accesorios) pts.push('ACCESORIOS: ' + f.accesorios.toUpperCase());
-    if (S.hasWG) pts.push('APLICA WE GO');
+    if (S.hasWG) pts.push('APLICA WE GO' + (f.wgQuien?` (${f.wgQuien.toUpperCase()})`:''));
+    // #12 embellecimiento con costo
+    if (q.found && q.valorCombo > 0) pts.push(`EMBELLECIMIENTO ${(f.embellecimiento||'').toUpperCase()} $ ${fmtCOP(q.valorCombo).replace('$ ','')}`);
+    if (f.srvAdicional) pts.push('SERV. ADICIONAL: ' + f.srvAdicional.toUpperCase());   // #13
     if (f.asesorTaller) pts.push('RECIBE: ' + f.asesorTaller.toUpperCase());
-    if (f.observacion) pts.push('OBS: ' + f.observacion.toUpperCase());   // #2 observación dentro de la nota
+    if (f.observacion) pts.push('OBS: ' + f.observacion.toUpperCase());
     const ini = inicialesDe(S.user);
     nota = pts.filter(Boolean).join(' // ') + ` // CALL CENTER${signo}${ini?` /${ini}`:''}`;
 
@@ -2090,6 +2197,7 @@ function u(){
       `🔧 ${cap(svCli)}${f.modelo?` · ${f.modelo}`:''}${kmTxt?` · ${kmTxt}`:''}`,
       `💰 Valor: ${q.texto} (IVA incluido)`
     ];
+    if (q.found && q.valorCombo > 0) lineas.push(`✨ Embellecimiento ${f.embellecimiento}: ${fmtCOP(q.valorCombo)}`);
     if (f.fechaCita || f.horaCita) lineas.push(`📅 Cita: ${[f.fechaCita,f.horaCita].filter(Boolean).join(' · ')}${f.asesorTaller?` con ${f.asesorTaller}`:''}`);
     if (S.hasWG) lineas.push('🚗 Incluimos We Go *sin costo*: recogemos su vehículo y se lo devolvemos.');
     lineas.push('', 'No incluye filtro de aire motor, filtro A/C ni plumillas (sujetos a verificación del técnico).', '', '¡Lo esperamos!');
@@ -2101,8 +2209,27 @@ function u(){
     cli = 'Hola 👋 Le saludamos de Armotor. Intentamos comunicarnos sin éxito. Cuando esté disponible, con gusto le atendemos.';
   } else if (r === 'seg') {
     mot = 'CLIENTE OCUPADO'; voz = 'SOLICITA LLAMAR EN OTRO MOMENTO';
-    nota = [pre, 'SE REPROGRAMA CONTACTO'].filter(Boolean).join(' // ');
+    const segPts = [pre, 'SE REPROGRAMA CONTACTO'];
+    if (f.segFecha || f.segHora) segPts.push('LLAMAR ' + [f.segFecha, f.segHora].filter(Boolean).join(' ').toUpperCase());
+    if (S.hasNovedad && f.novedad) { segPts.push('NOVEDAD: ' + f.novedad.toUpperCase()); voz = f.novedad.toUpperCase(); }  // #4
+    if (f.segObs) segPts.push('OBS: ' + f.segObs.toUpperCase());   // #3
+    nota = segPts.filter(Boolean).join(' // ');
     cli = 'Quedamos en contacto. Cuando lo prefiera retomamos su solicitud. 😊';
+  } else if (r === 'comunica') {
+    // #5 Cliente se comunica con sub-motivo
+    const sub = (DATA.tipificador.comunicaSubmotivos || {})[f.comunicaSub] || {};
+    mot = sub.motivo || 'CLIENTE SE COMUNICA'; voz = sub.voz || 'CLIENTE SE COMUNICA';
+    const cPts = [pre, mot];
+    if (f.comunicaObs) cPts.push('OBS: ' + f.comunicaObs.toUpperCase());
+    nota = cPts.filter(Boolean).join(' // ');
+    cli = 'Con gusto le ayudamos con su solicitud. Quedamos atentos. 😊';
+  } else if (r === 'actualizar') {
+    // #2 Actualización de datos (cliente ya no es dueño)
+    mot = (f.motivoCambio || 'ACTUALIZACIÓN DE DATOS').toUpperCase(); voz = 'ACTUALIZACIÓN DE DATOS DEL CLIENTE';
+    const aPts = [pre, 'ACTUALIZACION DE DATOS', mot];
+    if (f.actualizarObs) aPts.push('OBS: ' + f.actualizarObs.toUpperCase());
+    nota = aPts.filter(Boolean).join(' // ');
+    cli = 'Hemos actualizado sus datos. Gracias por informarnos. 😊';
   } else if (r === 'sinKm') {
     mot = 'SERVICIO NO APLICA'; voz = 'AÚN NO CUMPLE KMS';
     nota = [pre, f.kmNoAplica?`SOLO ${f.kmNoAplica} KMS`:'NO CUMPLE KM', f.reprograma?`SE REPROGRAMA PARA ${f.reprograma.toUpperCase()}`:'SE REPROGRAMA', 'SE ENVIA PLANTILLA'].filter(Boolean).join(' // ');
@@ -2119,9 +2246,11 @@ function u(){
     cli = 'Gracias por su atención. Quedamos atentos si en el futuro requiere nuestros servicios.';
   }
 
-  // Para resultados distintos de "agenda": añadir observación e iniciales a la nota.
+  // Para resultados distintos de "agenda": añadir iniciales del asesor a la nota.
+  // (seg/comunica/actualizar ya incluyen su propia observación con campo dedicado;
+  //  para noc/sinKm/otroTaller/noContactar se anexa la observación general si existe.)
   if (r !== 'agenda' && nota) {
-    if (f.observacion) nota += ' // OBS: ' + f.observacion.toUpperCase();
+    if (f.observacion && ['noc','sinKm','otroTaller','noContactar'].includes(r)) nota += ' // OBS: ' + f.observacion.toUpperCase();
     const iniR = inicialesDe(S.user);
     if (iniR) nota += ` /${iniR}`;
   }
@@ -2236,11 +2365,12 @@ function buildPayload(){
     novedad: S.hasNovedad ? 'Sí' : 'No', descNovedad:f.novedad||'',
     weGo: S.hasWG ? 'Sí' : 'No', wgFecha:f.wgFecha||'', wgHora:f.wgHora||'',
     wgDireccion:f.wgDireccion||'', wgQuien:f.wgQuien||'', wgTrayectos:f.wgTrayectos||'',
-    telemetria: S.adicionales.has('telemetria') ? 'Sí':'No',
+    telemetria: S.adicionales.has('telemetria') ? (S.teleAcepta ? 'Contrata' : 'Ofrecida') : 'No',
     accesoriosOf: S.adicionales.has('accesorios') ? 'Sí':'No', cualesAccesorios:f.accesorios||'',
     srvAdicional:f.srvAdicional||'',
     resultado:S.resultado, asesorTaller:f.asesorTaller||'', fechaCita:f.fechaCita||'', horaCita:f.horaCita||'',
-    observacion:f.observacion||'',
+    observacion:f.observacion||'', comunicaSub:f.comunicaSub||'', motivoCambio:f.motivoCambio||'',
+    segFecha:f.segFecha||'', segHora:f.segHora||'', segObs:f.segObs||'', comunicaObs:f.comunicaObs||'', actualizarObs:f.actualizarObs||'',
     notaQuiter: $('#outNota').textContent,
     evoEstado: $('#eEst').textContent, evoCausa: $('#eCau').textContent,
     evoMotivo: $('#eMot').textContent, evoVoz: $('#eVoz').textContent,
@@ -2577,18 +2707,20 @@ function resetPanel(){
   $$('[data-f]').forEach(i => { if (i.tagName==='SELECT') i.selectedIndex=0; else i.value=''; });
   // repoblar la cascada del cotizador (modelo/km dependientes)
   poblarCotizador();
-  S.hasNovedad=false; S.hasWG=false; S.adicionales.clear();
-  S.checks = new Set(CHECKS_DEF);
+  S.hasNovedad=false; S.hasWG=false; S.teleAcepta=false; S.adicionales.clear();
+  S.checks = new Set(CHECKS_DEF);   // CHECKS_DEF ahora vacío → botones del taller apagados (punto 11)
   $('#novSw').classList.remove('warn'); $('#wgSw').classList.remove('on');
   $('#novedadF').classList.add('hidden'); $('#wgF').classList.add('hidden'); $('#accF').classList.add('hidden');
+  $('#teleF')?.classList.add('hidden'); $('#teleAceptaSw')?.classList.remove('on');
   $('#wegoOk').classList.remove('hidden'); $('#wegoBlocked').classList.add('hidden');
   $$('.pill[data-ad]').forEach(p => p.classList.remove('on'));
-  $$('.pill[data-chk]').forEach(p => p.classList.toggle('on', S.checks.has(p.dataset.chk)));
-  // repoblar el select de asesor de taller y "quién recoge" para la ciudad por defecto
-  _ultCiudadPanel = null;
+  $$('.pill[data-chk]').forEach(p => p.classList.remove('on'));   // todos apagados
+  // repoblar selects dependientes + horas
+  _ultCiudadPanel = null; _ultMotivoPanel = null;
   $('#asesorTallerOtroWrap')?.classList.add('hidden');
   poblarAsesorTaller('');
   poblarWgQuien();
+  poblarHoras();
   pickRes($('#resP .pill[data-r="agenda"]'));
 }
 
@@ -2627,7 +2759,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
 
 // =============================================================
 //  INIT

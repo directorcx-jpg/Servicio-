@@ -353,9 +353,11 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       <div class="pills" id="resP">
         <button class="pill on" data-r="agenda" onclick="pickRes(this)">✅ Agendado</button>
         <button class="pill" data-r="seg" onclick="pickRes(this)">🔄 Seguimiento</button>
+        <button class="pill" data-r="comunica" onclick="pickRes(this)">📞 Se comunica</button>
         <button class="pill" data-r="noc" onclick="pickRes(this)">📵 No contesta</button>
         <button class="pill" data-r="sinKm" onclick="pickRes(this)">⏳ Sin km</button>
         <button class="pill" data-r="otroTaller" onclick="pickRes(this)">🏃 Otro taller</button>
+        <button class="pill" data-r="actualizar" onclick="pickRes(this)">✏️ Actualizar datos</button>
         <button class="pill" data-r="noContactar" onclick="pickRes(this)">🚫 No contactar</button>
       </div>
       <div id="noc-f" class="hidden" style="margin-top:6px">
@@ -367,6 +369,22 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       </div>
       <div id="otroTaller-f" class="hidden" style="margin-top:6px">
         <div class="ff"><label>Razón</label><select data-f="razonOtro" onchange="u()"><option value="PRECIO">Precio</option><option value="UBICACION">Ubicación</option><option value="PROVEEDOR">Histórico otro taller</option></select></div>
+      </div>
+      <!-- Seguimiento: agendar callback (punto 3) -->
+      <div id="seg-f" class="hidden" style="margin-top:6px">
+        <div class="rr"><div class="ff"><label>¿Llamar otro día?</label><input type="date" data-f="segFecha" onchange="u()"></div><div class="ff"><label>Hora</label><select data-f="segHora" id="segHoraSel" onchange="u()"></select></div></div>
+        <div class="rr full"><div class="ff"><label>Observación seguimiento</label><input data-f="segObs" placeholder="Cliente pide llamar el viernes en la tarde…" oninput="u()"></div></div>
+      </div>
+      <!-- Cliente se comunica: sub-motivo + observación (punto 5) -->
+      <div id="comunica-f" class="hidden" style="margin-top:6px">
+        <div class="ff"><label>¿Qué solicita el cliente?</label><select data-f="comunicaSub" id="comunicaSubSel" onchange="u()"></select></div>
+        <div class="rr full" style="margin-top:5px"><div class="ff"><label>Observación</label><input data-f="comunicaObs" placeholder="Detalle de lo que solicita…" oninput="u()"></div></div>
+      </div>
+      <!-- Actualización de datos: cliente ya no es dueño (punto 2) -->
+      <div id="actualizar-f" class="hidden" style="margin-top:6px">
+        <div class="al in" style="margin:0 0 6px;padding:6px 8px;font-size:10px"><i class="fas fa-info-circle"></i>Actualiza los datos del nuevo responsable del vehículo (Sección 1).</div>
+        <div class="ff"><label>Motivo del cambio</label><select data-f="motivoCambio" onchange="u()"><option>Vendió el vehículo</option><option>Cambio de propietario</option><option>Número equivocado</option><option>Otro</option></select></div>
+        <div class="rr full" style="margin-top:5px"><div class="ff"><label>Observación</label><input data-f="actualizarObs" placeholder="Detalle de la actualización…" oninput="u()"></div></div>
       </div>
     </div>
 
@@ -399,7 +417,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       <div id="wegoOk">
         <label class="tog" onclick="togWego()"><span class="tog-sw" id="wgSw"></span>¿Aplica We Go?</label>
         <div id="wgF" class="hidden" style="margin-top:6px">
-          <div class="rr"><div class="ff"><label>Fecha</label><input type="date" data-f="wgFecha"></div><div class="ff"><label>Hora</label><input type="time" data-f="wgHora"></div></div>
+          <div class="rr"><div class="ff"><label>Fecha</label><input type="date" data-f="wgFecha"></div><div class="ff"><label>Hora</label><select data-f="wgHora" class="hora-sel"></select></div></div>
           <div class="rr full"><div class="ff"><label>Dirección</label><input data-f="wgDireccion" placeholder="Cra 23 #45-12"></div></div>
           <div class="rr"><div class="ff"><label>Quién recoge</label><select data-f="wgQuien" id="wgQuienSel"></select></div><div class="ff"><label>Trayectos</label><select data-f="wgTrayectos"><option>2</option><option>1</option></select></div></div>
         </div>
@@ -415,14 +433,15 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
         <button class="pill" data-ad="telemetria" onclick="togAd(this)">📡 Telemetría</button>
         <button class="pill" data-ad="accesorios" onclick="togAd(this)">🔧 Accesorios</button>
       </div>
+      <div id="teleF" class="hidden" style="margin-top:4px"><label class="tog" onclick="togTeleAcepta()"><span class="tog-sw" id="teleAceptaSw"></span>¿El cliente acepta contratar Telemetría?</label></div>
       <div id="accF" class="hidden" style="margin-top:4px"><div class="ff"><label>Cuáles accesorios</label><input data-f="accesorios" placeholder="Tapetes, rines, kit seguridad" oninput="u()"></div></div>
-      <div class="sub-l" style="margin-top:10px"><i class="fas fa-wrench"></i>Para el taller</div>
+      <div class="sub-l" style="margin-top:10px"><i class="fas fa-wrench"></i>Para el taller <span style="font-weight:400;text-transform:none;color:var(--tx3)">(activa lo que ofreciste)</span></div>
       <div class="pills">
-        <button class="pill on" data-chk="VALIDAR CAMPAÑA ACTIVA" onclick="togChk(this)">Campaña</button>
-        <button class="pill on" data-chk="VALIDAR EMBELLECIMIENTO" onclick="togChk(this)">Embellecimiento</button>
-        <button class="pill on" data-chk="VALIDAR ADICIONALES" onclick="togChk(this)">Adicionales</button>
-        <button class="pill on" data-chk="VALIDAR ACCESORIOS" onclick="togChk(this)">Accesorios</button>
-        <button class="pill on" data-chk="VALIDAR QUE MAS REQUIERE" onclick="togChk(this)">Qué más requiere</button>
+        <button class="pill" data-chk="VALIDAR CAMPAÑA ACTIVA" onclick="togChk(this)">Campaña</button>
+        <button class="pill" data-chk="VALIDAR EMBELLECIMIENTO" onclick="togChk(this)">Embellecimiento</button>
+        <button class="pill" data-chk="VALIDAR ADICIONALES" onclick="togChk(this)">Adicionales</button>
+        <button class="pill" data-chk="VALIDAR ACCESORIOS" onclick="togChk(this)">Accesorios</button>
+        <button class="pill" data-chk="VALIDAR QUE MAS REQUIERE" onclick="togChk(this)">Qué más requiere</button>
         <button class="pill" data-chk="ESPECIALIZADA O COLISION" onclick="togChk(this)">Especializada</button>
         <button class="pill" data-chk="COTIZAR TAPETES RINES LLANTAS" onclick="togChk(this)">Cotizar tapetes/rines</button>
       </div>
@@ -430,7 +449,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       <div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
       <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><select data-f="asesorTaller" id="asesorTallerSel" onchange="onAsesorTaller()"><option value="">— Elige la ciudad primero —</option></select></div></div>
       <div class="rr full hidden" id="asesorTallerOtroWrap"><div class="ff"><label>Nombre del asesor (otro)</label><input data-f="asesorTallerOtro" id="asesorTallerOtro" placeholder="Escribe el nombre" oninput="u()"></div></div>
-      <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" data-f="fechaCita" onchange="u()"></div><div class="ff"><label>Hora cita</label><input type="time" data-f="horaCita" onchange="u()"></div></div>
+      <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" data-f="fechaCita" onchange="u()"></div><div class="ff"><label>Hora cita</label><select data-f="horaCita" class="hora-sel" onchange="u()"></select></div></div>
       <div class="rr full"><div class="ff"><label>Observación</label><input data-f="observacion" placeholder="Nota adicional..." oninput="u()"></div></div>
     </div>
 
@@ -491,6 +510,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.13.1"></script>
+<script type="module" src="app.js?v=1.14.0"></script>
 </body>
 </html>

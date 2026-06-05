@@ -1,6 +1,8 @@
-// Semilla completa del cotizador KIA — respaldo local (fallback capa 3)
-// Precios: 41 modelos, 535 servicios | Detalle: gasolina + diésel + híbrida
-// Combos embellecimiento: 7 opciones | Combustión: 4 tipos clasificados
+// Semilla completa del cotizador KIA — VERSIÓN FINAL
+// Precios: 41 modelos, 535 servicios
+// Detalle: Gasolina (15 rev) + Diésel (30 rev) + Híbrida (16 rev) + Eléctrica (11 rev)
+// Combos embellecimiento: 7 opciones
+// Stonic híbrido: usa tablas de Gasolina (micro-híbrido MHEV)
 
 export const COTIZADOR_SEED = {
   "combustion": {
@@ -5789,8 +5791,325 @@ export const COTIZADOR_SEED = {
         ]
       }
     },
-    "Eléctrica": "PENDIENTE",
-    "Stonic Híbrido": "PENDIENTE"
+    "Eléctrica": {
+      "15000": {
+        "total": 21,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "30000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio Líquido de frenos",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "45000": {
+        "total": 21,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "60000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio Líquido de frenos",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "75000": {
+        "total": 21,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "90000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio Líquido de frenos",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "105000": {
+        "total": 23,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio del líquido refrigerante",
+          "Cambio Líquido del Reductor de engranajes",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "120000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio Líquido de frenos",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "135000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio del líquido refrigerante",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "150000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio Líquido de frenos",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      },
+      "165000": {
+        "total": 22,
+        "incluido": [
+          "Diagnóstico Eléctrico KDS 2.0",
+          "Diagnóstico Especializado Batería de Alto Voltaje",
+          "Diagnóstico Especializado Batería 12V",
+          "Inspección frenos delanteros y traseros",
+          "Inspección Conductos y Mangueras de freno",
+          "Inspección nivel líquido de frenos",
+          "Inspección dirección, rótulas y guardapolvos",
+          "Inspección Suspensión y soportes",
+          "Inspección fugas engranaje de reducción",
+          "Inspección funcionamiento luces",
+          "Inspección Limpiabrisas/lavavidrios",
+          "Inspección Sist. Refrigeración",
+          "Inspección sistema A/C",
+          "Inspección Posicionamiento Cinturones Seguridad",
+          "Lubricación Cerraduras y Bisagras Puertas",
+          "Cambio del líquido refrigerante",
+          "Inspección banda rodadura Neumáticos",
+          "Alineación, Balanceo y Rotación de Llantas",
+          "LDC técnico y revisión solicitudes",
+          "Prueba de Ruta",
+          "Lavado exterior y aspirado interior"
+        ],
+        "noIncluido": [
+          "Cambio Filtro de Aire del A/C"
+        ]
+      }
+    }
   },
   "reglas": {
     "noIncluido_siempre": "Filtro aire A/C, Filtro aire motor, Caucho plumillas — sujetos a inspección del técnico",

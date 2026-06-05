@@ -5,14 +5,13 @@
 //  Fase 3: contenido real de los 5 docs de /docs.
 //  Módulo 3: cotizador KIA real (seed de precios + detalle de servicios).
 // =============================================================
-import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.9.0';
-import { FEED_DETALLE } from './feed-detalle.js?v=1.9.0';
+import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.14.0';
 
 export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.13.1",
+    version: "1.14.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. La URL /exec del despliegue se pega desde
@@ -53,8 +52,8 @@ export const DATA = {
   },
 
   // ===== COTIZADOR KIA (Módulo 3) =====
-  // Fuentes: cotizador-seed.js (modelos/precios/combos, respaldo capa 3) y
-  // feed-detalle.js (detalle de servicios por combustión+km, estático).
+  // Fuente única: cotizador-seed.js (modelos/precios/combos + detalleServicios
+  // de las 4 combustiones: Gasolina, Diésel, Híbrida, Eléctrica).
   // Solo KIA. Honda/FAW deshabilitados. Cálculo y búsqueda en app.js.
   cotizador: {
     soloMarca: "KIA",
@@ -62,8 +61,8 @@ export const DATA = {
     // combustión {tipo:[modelos]} y precios {modelo:[[desc,manoObra,repuestos,kit],...]}
     combustion: COTIZADOR_SEED.combustion,
     precios: COTIZADOR_SEED.precios,
-    combos: COTIZADOR_SEED.combos,        // [[nombre, valor],...]
-    detalle: FEED_DETALLE,                 // {combustion:{km:{total,incluido[],noIncluido[]}}}
+    combos: COTIZADOR_SEED.combos,                 // [[nombre, valor],...]
+    detalle: COTIZADOR_SEED.detalleServicios,      // {combustion:{km:{total,incluido[],noIncluido[]}}}
     descuentos: ["0%","10%","20%","30%","40%","50%"],
     reglas: COTIZADOR_SEED.reglas,
     // No incluido por defecto (sujeto a inspección) cuando el km no esté en el detalle
@@ -89,7 +88,17 @@ export const DATA = {
       "noc":         { estado: "NO CONTACTO", causa: "NO CONTESTA" },
       "sinKm":       { estado: "CONTACTO",    causa: "NO TIENE KILOMETRAJE" },
       "otroTaller":  { estado: "CONTACTO",    causa: "VISITA OTRO TALLER" },
-      "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" }
+      "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" },
+      "actualizar":  { estado: "CONTACTO",    causa: "ACTUALIZACIÓN DE DATOS" },
+      "comunica":    { estado: "CONTACTO",    causa: "CLIENTE SE COMUNICA" }
+    },
+    // Sub-motivos del resultado "Cliente se comunica" → tipificación Evolution.
+    comunicaSubmotivos: {
+      "cotizacion":  { label: "Solicita cotización",   motivo: "SOLICITA COTIZACIÓN",  voz: "CLIENTE SOLICITA COTIZACIÓN" },
+      "proximaFecha":{ label: "Pide próxima fecha",    motivo: "CONSULTA PRÓXIMA FECHA",voz: "CLIENTE CONSULTA PRÓXIMA REVISIÓN" },
+      "reagendar":   { label: "Reagendar cita",        motivo: "REAGENDAMIENTO",       voz: "CLIENTE SOLICITA REAGENDAR" },
+      "llamarDespues":{ label: "Llamar después",       motivo: "RECONTACTO SOLICITADO", voz: "CLIENTE SOLICITA LLAMAR DESPUÉS" },
+      "informacion": { label: "Información general",    motivo: "INFORMACIÓN",          voz: "CLIENTE SOLICITA INFORMACIÓN" }
     }
   },
 
@@ -525,13 +534,17 @@ export const DATA = {
 
   // ===== WE GO — quién recoge por ciudad (select dependiente) =====
   // El primero de la lista queda preseleccionado. Manizales/Armenia usan su taller; Pereira usa Alfred.
+  // Quién recoge por ciudad. Alfred SOLO en Pereira (punto 8).
+  // Cartago y La Dorada NO tienen We Go (punto 9) → lista vacía.
   weGoRecoge: {
     "Pereira":   ["Alfred", "Taller Pereira"],
-    "Manizales": ["Taller Manizales", "Alfred"],
-    "Armenia":   ["Taller Armenia", "Alfred"],
-    "Cartago":   ["Taller Cartago", "Alfred"],
-    "La Dorada": ["Taller La Dorada", "Alfred"]
+    "Manizales": ["Taller Manizales"],
+    "Armenia":   ["Taller Armenia"],
+    "Cartago":   [],
+    "La Dorada": []
   },
+  // Ciudades SIN cobertura We Go.
+  weGoSinCobertura: ["Cartago", "La Dorada"],
 
   // ===== INICIALES POR ASESOR (identificador en la nota Quiter) =====
   // Se calcula por defecto desde el nombre, pero puedes fijarlas aquí por id.
