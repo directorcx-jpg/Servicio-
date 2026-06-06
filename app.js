@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.15.2';
+import { DATA } from './data.js?v=1.15.3';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -1889,12 +1889,23 @@ function saveListas(obj){ localStorage.setItem(LS_LISTAS, JSON.stringify(obj)); 
 
 // ===== CONEXIÓN APPS SCRIPT (URL del despliegue) =====
 const LS_API_URL = 'ceta_api_url';
-// La URL efectiva: override de localStorage o la de data.js (vacía por defecto).
+const LS_API_OVERRIDE = 'ceta_api_override';   // '1' si el coordinador la cambió a mano
+// La URL efectiva: el código (data.js) MANDA, salvo que el coordinador haya puesto
+// una manualmente desde Configuración (override). Así, al publicar una URL nueva,
+// todos los dispositivos la toman aunque tuvieran una vieja en localStorage.
 function getApiUrl(){
-  const ov = (localStorage.getItem(LS_API_URL) || '').trim();
-  return ov || (DATA.config.endpoints.base || '');
+  const fija = (DATA.config.endpoints.base || '').trim();
+  const override = localStorage.getItem(LS_API_OVERRIDE) === '1';
+  const guardada = (localStorage.getItem(LS_API_URL) || '').trim();
+  if (override && guardada) return guardada;   // el coordinador la fijó a mano
+  return fija || guardada;                      // por defecto manda la del código
 }
-function setApiUrl(url){ localStorage.setItem(LS_API_URL, (url||'').trim()); }
+// Guarda una URL puesta a mano (marca override para que no la pise el código).
+function setApiUrl(url){
+  const u = (url||'').trim();
+  localStorage.setItem(LS_API_URL, u);
+  localStorage.setItem(LS_API_OVERRIDE, u ? '1' : '0');
+}
 // Llama una acción del Web App. opts.timeout permite ampliar el tiempo de espera
 // (Apps Script suele tardar 4-8s, sobre todo en lecturas grandes o el primer hit).
 async function apiCall(action, params, method, opts){

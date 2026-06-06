@@ -11,13 +11,13 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.15.2",
+    version: "1.15.3",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
     // Se puede sobreescribir desde Configuración → Conexión Apps Script (localStorage).
     endpoints: {
-      base: "https://script.google.com/macros/s/AKfycbzp1vS4R5BRTHQhAH0Ckxzrkp4RjPJnpqQjLAjyHIKZq_Jl3GI_-G6s0o7Bd7Ysec6u/exec",
+      base: "https://script.google.com/macros/s/AKfycbxnQdGX94VZybyjgeqt2NapH8VcNk8IdtdIzIgJMa6ZrgqzECq3v1mQjoNF9Ls-LSwM/exec",
       guardarGestion: "",      // (legado) los endpoints reales usan ?action= sobre base
       actualizarGestion: "",
       consultarCotizador: "",
