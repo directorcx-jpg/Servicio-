@@ -34,7 +34,7 @@
 // ===== CONFIGURA AQUÍ LOS IDs DE TUS SHEETS =====
 var CFG = {
   // Sheet unificado de gestiones (se crea automáticamente si no existe la hoja)
-  GESTIONES_SHEET_ID: 'PEGAR_ID_DEL_SHEET_CETA_Gestiones_2026',
+  GESTIONES_SHEET_ID: '1ZVMwyCdXPWto8qA6feHGyaB6UbcKSd4YsCmcDmnvSJE',
   GESTIONES_TAB: 'Form_Responses',
 
   // Sheet del cotizador KIA (Módulo 3 — pestaña real "Kits Kia")
