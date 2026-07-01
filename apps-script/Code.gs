@@ -106,6 +106,18 @@ function json_(obj) {
 // ----------------------------------------------------------------
 function guardarGestion_(e) {
   var data = JSON.parse(e.postData.contents);
+
+  // GUARDIÁN ANTI-RESURRECCIÓN: si hubo una purga global, rechazar cualquier
+  // caso creado ANTES de esa purga. Esto evita que un dispositivo con la app
+  // vieja (o con caché) vuelva a subir los casos de prueba ya borrados.
+  var purga = Number(PropertiesService.getScriptProperties().getProperty('PURGA_TS') || 0);
+  if (purga && data && data.id) {
+    var creado = tsDesdeId_(data.id);
+    if (creado && creado < purga) {
+      return { success: true, skipped: 'purgado', id: data.id };
+    }
+  }
+
   var ss = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID);
   var sh = ss.getSheetByName(CFG.GESTIONES_TAB);
   if (!sh) {
@@ -119,6 +131,17 @@ function guardarGestion_(e) {
   var row = rowFromData_(data);
   sh.appendRow(row);
   return { success: true, row: sh.getLastRow(), id: data.id || '' };
+}
+
+// Decodifica la marca de tiempo (ms) embebida en el id del caso.
+// Formato del front: 'g' + Date.now().toString(36) + 5 caracteres aleatorios.
+// Devuelve 0 si el id no tiene ese formato (falla en seguro: NO bloquea).
+function tsDesdeId_(id) {
+  id = String(id || '');
+  if (id.charAt(0) !== 'g' || id.length < 7) return 0;
+  var base36 = id.slice(1, id.length - 5);   // quita 'g' inicial y 5 aleatorios finales
+  var ms = parseInt(base36, 36);
+  return (isFinite(ms) && ms > 0) ? ms : 0;
 }
 
 // Convierte el objeto del front en el arreglo de columnas (incluye id/historial).
