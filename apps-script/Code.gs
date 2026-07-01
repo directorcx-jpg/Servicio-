@@ -10,6 +10,7 @@
  *    · GET   ?action=listarGestiones       → tabla para Control de Gestión (coordinador)
  *    · GET   ?action=listarUsuarios        → lista de perfiles compartida del equipo
  *    · POST  ?action=guardarUsuarios       → reemplaza la lista de perfiles (sincroniza dispositivos)
+ *    · POST  ?action=purgarGestiones       → BORRA todas las gestiones (global) + marca de purga
  *
  *  ───────────────────────────────────────────────────────────────
  *  PASOS PARA PUBLICAR (Pablo):
@@ -87,6 +88,7 @@ function route_(e, method) {
     if (action === 'listarGestiones')    return json_(listarGestiones_(e));
     if (action === 'listarUsuarios')     return json_(listarUsuarios_(e));
     if (method === 'POST' && action === 'guardarUsuarios') return json_(guardarUsuarios_(e));
+    if (method === 'POST' && action === 'purgarGestiones') return json_(purgarGestiones_(e));
     return json_({ success: false, error: 'Acción no reconocida: ' + action });
   } catch (err) {
     return json_({ success: false, error: String(err) });
@@ -210,11 +212,15 @@ function buscarPlaca_(e) {
 }
 
 // ----------------------------------------------------------------
-//  GET /listarGestiones?desde=YYYY-MM-DD   (para Control de Gestión)
+//  GET /listarGestiones   (para Control de Gestión)
+//  Devuelve también `purga`: timestamp de la última purga global. Los
+//  dispositivos usan ese valor para borrar sus casos locales viejos y no
+//  volver a subirlos (evita que los casos borrados "resuciten").
 // ----------------------------------------------------------------
 function listarGestiones_(e) {
+  var purga = PropertiesService.getScriptProperties().getProperty('PURGA_TS') || '';
   var sh = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID).getSheetByName(CFG.GESTIONES_TAB);
-  if (!sh || sh.getLastRow() < 2) return { success: true, rows: [] };
+  if (!sh || sh.getLastRow() < 2) return { success: true, rows: [], purga: purga };
   var values = sh.getDataRange().getValues();
   var rows = [];
   for (var i = 1; i < values.length; i++) {
@@ -222,7 +228,7 @@ function listarGestiones_(e) {
     for (var c = 0; c < COLS.length; c++) o[COLS[c]] = values[i][c];
     rows.push(o);
   }
-  return { success: true, rows: rows };
+  return { success: true, rows: rows, purga: purga };
 }
 
 // ----------------------------------------------------------------
@@ -249,4 +255,23 @@ function guardarUsuarios_(e) {
   if (!sh) sh = ss.insertSheet(USUARIOS_TAB);
   sh.getRange(1, 1).setValue(JSON.stringify(lista));
   return { success: true, total: lista.length };
+}
+
+// ----------------------------------------------------------------
+//  POST /purgarGestiones  — BORRADO GLOBAL (solo coordinador desde la app)
+//  Borra TODAS las filas de datos del Sheet (conserva encabezados) y guarda
+//  un timestamp de purga. Los dispositivos, al sincronizar, verán ese
+//  timestamp y limpiarán sus casos locales viejos sin volver a subirlos.
+// ----------------------------------------------------------------
+function purgarGestiones_(e) {
+  var ss = SpreadsheetApp.openById(CFG.GESTIONES_SHEET_ID);
+  var sh = ss.getSheetByName(CFG.GESTIONES_TAB);
+  var borradas = 0;
+  if (sh && sh.getLastRow() > 1) {
+    borradas = sh.getLastRow() - 1;
+    sh.deleteRows(2, borradas);   // borra desde la fila 2 hasta el final
+  }
+  var ts = String(Date.now());
+  PropertiesService.getScriptProperties().setProperty('PURGA_TS', ts);
+  return { success: true, borradas: borradas, purga: ts };
 }

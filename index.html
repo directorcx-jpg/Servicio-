@@ -282,9 +282,11 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
     <div class="fb"><div id="conexionBox"></div></div>
     <div class="sub-l" style="margin-top:16px"><i class="fas fa-broom"></i>Datos y pruebas</div>
     <div class="fb">
-      <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Borra las gestiones de prueba antes de salir a producción. Esto limpia las gestiones de <strong>este navegador</strong>. Las del Google Sheet se borran aparte (ver instrucción).</div>
-      <button class="btn btn-gh" id="btnBorrarCasos" style="border-color:var(--ac);color:var(--ac)"><i class="fas fa-trash"></i> Borrar todas las gestiones (local)</button>
-      <div class="al in" style="margin-top:10px;font-size:11px"><i class="fas fa-circle-info"></i><div>Para limpiar el <strong>Google Sheet</strong>: abre <strong>CETA_Gestiones_2026</strong> en Drive, selecciona las filas de datos (de la 2 en adelante) y bórralas. Conserva la fila 1 (encabezados).</div></div>
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Borra las gestiones de prueba antes de salir a producción.</div>
+      <button class="btn btn-ac" id="btnBorrarGlobal"><i class="fas fa-trash-can"></i> Borrar TODO para todos (global)</button>
+      <div style="font-size:11px;color:var(--tx3);margin:10px 0 6px">Esto vacía el <strong>Google Sheet</strong> y ordena a <strong>todos los dispositivos</strong> eliminar los casos de prueba en su próxima sincronización. No hay que borrar nada manual en Drive.</div>
+      <button class="btn btn-gh" id="btnBorrarCasos" style="border-color:var(--tx3);color:var(--tx3)"><i class="fas fa-trash"></i> Borrar solo en este navegador</button>
+      <div class="al in" style="margin-top:10px;font-size:11px"><i class="fas fa-circle-info"></i><div><strong>Borrar TODO para todos</strong> requiere conexión configurada. Cada asesor verá los casos desaparecer al abrir la app o al sincronizar (máx. 3 min).</div></div>
     </div>
     <div class="al in"><i class="fas fa-circle-info"></i><div>Los cambios se guardan en este navegador (localStorage). La conexión a Google Sheets se activa pegando la URL del despliegue.</div></div>
   </div>
@@ -510,6 +512,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.15.3"></script>
+<script type="module" src="app.js?v=1.16.0"></script>
 </body>
 </html>

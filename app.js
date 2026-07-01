@@ -1114,6 +1114,19 @@ async function sincronizarGestiones(opts){
     const r = await apiCall('listarGestiones');
     if (!r || !r.success || !Array.isArray(r.rows)) { aviso('El servidor no devolvió datos'); setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar'); return; }
 
+    // 0) Marca de purga global: si el coordinador borró TODO en el servidor,
+    //    cada dispositivo elimina sus casos locales anteriores a esa purga y
+    //    NO los vuelve a subir (así no "resucitan" los casos de prueba).
+    const purgaServidor = Number(r.purga || 0);
+    const purgaLocal = Number(localStorage.getItem(LS_PURGA) || 0);
+    if (purgaServidor && purgaServidor > purgaLocal) {
+      const idsVivos = new Set(r.rows.filter(x => x.id).map(x => String(x.id)));
+      const conservados = getGestionesLocal().filter(g => idsVivos.has(String(g.id)));
+      localStorage.setItem(LS_GESTIONES, JSON.stringify(conservados));
+      localStorage.setItem(LS_PURGA, String(purgaServidor));
+      try { localStorage.removeItem('ceta_colas'); } catch {}
+    }
+
     const locales = getGestionesLocal();
     const porId = {};
     locales.forEach(g => { if (g.id) porId[g.id] = g; });
@@ -1480,11 +1493,33 @@ function renderConfig(){
   renderListasConfig();
   renderConexionConfig();
   const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
-    confirmModal('Borrar gestiones', `Esto eliminará <strong>todas las gestiones guardadas en este navegador</strong> (casos, agendas, pendientes). No se puede deshacer.<br><br>Las del Google Sheet NO se tocan (esas se borran manual). ¿Continuar?`, () => {
+    confirmModal('Borrar gestiones', `Esto eliminará <strong>todas las gestiones guardadas en este navegador</strong> (casos, agendas, pendientes). No se puede deshacer.<br><br>Las del Google Sheet y las de otros dispositivos NO se tocan. ¿Continuar?`, () => {
       localStorage.removeItem(LS_GESTIONES);
       try { localStorage.removeItem('ceta_colas'); } catch {}
       toast('Gestiones locales borradas');
       renderControl(); if ($('#v-internos')?.dataset.built==='1') renderBandeja(); updateInternosBadges(); renderHome();
+    });
+  });
+  const bg = $('#btnBorrarGlobal'); if (bg) bg.addEventListener('click', () => {
+    if (!getApiUrl()) { toast('Configura la conexión Apps Script primero'); return; }
+    confirmModal('Borrar TODO para todos', `Esto <strong>vacía el Google Sheet</strong> y ordena a <strong>todos los dispositivos</strong> (todos los asesores) eliminar sus casos. Se usa para limpiar las pruebas antes del piloto.<br><br><strong>No se puede deshacer.</strong> ¿Continuar?`, async () => {
+      const btn = $('#btnBorrarGlobal');
+      const prev = btn ? btn.innerHTML : '';
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Borrando en todos…'; }
+      try {
+        const r = await apiCall('purgarGestiones', {}, 'POST', { timeout: 15000 });
+        if (!r || r.success === false) throw new Error('resp');
+        // Aplicar la purga también aquí, de una vez.
+        localStorage.removeItem(LS_GESTIONES);
+        try { localStorage.removeItem('ceta_colas'); } catch {}
+        if (r.purga) localStorage.setItem(LS_PURGA, String(r.purga));
+        renderControl(); if ($('#v-internos')?.dataset.built==='1') renderBandeja(); updateInternosBadges(); renderHome();
+        toast(`✅ Borrado global: ${r.borradas||0} casos. Los demás dispositivos se limpiarán al sincronizar.`);
+      } catch {
+        toast('⚠️ No se pudo borrar en el servidor (revisa conexión y redespliegue)');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = prev; }
+      }
     });
   });
 }
@@ -2464,6 +2499,7 @@ async function saveGestion(){
 
 // ===== Persistencia local de gestiones (respaldo / fuente de Control de Gestión) =====
 const LS_GESTIONES = 'ceta_gestiones';
+const LS_PURGA = 'ceta_purga_ts';   // marca de la última purga global aplicada en este dispositivo
 function newCaseId(){ return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
 function getGestionesLocal(){
