@@ -1,0 +1,13 @@
+# Variables de entorno (Supabase) — NO commitear
+.env.local
+.env.*.local
+
+# Dependencias y build
+node_modules/
+dist/
+
+# Sistema operativo
+.DS_Store
+
+# Configuración local del asistente/editor
+.claude/
