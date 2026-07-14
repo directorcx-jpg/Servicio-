@@ -27,23 +27,13 @@ export const DATA = {
     lineas: { Manizales: "3116097675", Armenia: "3148144259", Pereira: "3206320999" }
   },
 
-  // ===== USUARIOS Y ROLES =====
-  // ⚠️ PINs TEMPORALES sembrados para poder probar el login HOY.
-  //    Pablo debe cambiarlos desde Configuración → Usuarios.
-  //    Roles válidos: coordinador | analista | asesor_cc | asesor_digital
-  usuarios: [
-    { id: 1, nombre: "Pablo Andrey Rincón",  alias: "Pablo R.",  rol: "coordinador",     pin: "2468", activo: true },
-    { id: 2, nombre: "Johana Betancurth",    alias: "Johana",    rol: "asesor_cc",       pin: "1102", activo: true },
-    { id: 3, nombre: "Juan Diego Villa",     alias: "Juan Villa",rol: "asesor_cc",       pin: "1103", activo: true },
-    { id: 4, nombre: "Karen Julieth Corchuelo", alias: "Karen",  rol: "asesor_cc",       pin: "1104", activo: true },
-    { id: 5, nombre: "Alejandra Tabares",    alias: "Juan M",    rol: "asesor_cc",       pin: "1105", activo: true },
-    { id: 6, nombre: "Julio Pineda",         alias: "Alejo",     rol: "asesor_cc",       pin: "1106", activo: true },
-    { id: 7, nombre: "Paula Andrea Arévalo", alias: "Paula",     rol: "asesor_digital",  pin: "1107", activo: true },
-    { id: 8, nombre: "Natalia Vargas",       alias: "Nata",      rol: "asesor_digital",  pin: "1108", activo: true },
-    { id: 9, nombre: "Alejandro Castaño",    alias: "Coordinador Ceta", rol: "coordinador", pin: "1109", activo: true }
-  ],
-
+  // ===== ROLES Y PERMISOS =====
+  // Los usuarios ya NO viven aquí: la identidad y la lista de perfiles se
+  // gestionan 100% en Supabase (public.usuarios + usuarios_autorizados + trigger).
+  // Las claves de `permisos` deben coincidir EXACTAMENTE con el enum rol_usuario
+  // de Supabase: administrador | coordinador | analista | asesor_cc | asesor_digital.
   permisos: {
+    administrador:  { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true,  usuarios_manage: true },
     coordinador:    { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true },
     analista:       { homeEquipo: true,  registrar: false, verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: false, editarContenido: false, config: false, internosAsignar: false, exportar: true },
     asesor_cc:      { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: "ver", exportar: false },

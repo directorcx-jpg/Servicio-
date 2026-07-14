@@ -4,10 +4,14 @@
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
 import { DATA } from './data.js?v=1.15.3';
+import { supabaseEnabled } from './src/lib/supabaseClient.js';
+import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
+import { listarAsesoresCC } from './src/lib/usuarios.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
-  user: null,                 // usuario logueado {id,nombre,alias,rol}
+  user: null,                 // usuario logueado {id,email,nombre,alias,rol,sede_asignada} (id = UUID Supabase)
+  asesoresCC: [],             // caché de asesores call center (Supabase) para la rotación síncrona
   resultado: 'agenda',
   hasNovedad: false,
   hasWG: false,
@@ -26,147 +30,98 @@ const $  = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 
 // =============================================================
-//  USUARIOS (con override de localStorage para PINs/edición)
+//  ASESORES CC (caché desde Supabase para la rotación síncrona)
 // =============================================================
-const LS_USERS = 'ceta_usuarios';
-const LS_SESSION = 'ceta_session';
-
-const LS_USERS_SEED = 'ceta_usuarios_seed';
-// Versión del seed de data.js. Súbela cuando cambies DATA.usuarios y quieras
-// que el cambio llegue a navegadores que ya tengan usuarios en localStorage.
-const USERS_SEED_VERSION = 4;
-
-function getUsuarios(){
-  let ov = null;
-  try { ov = JSON.parse(localStorage.getItem(LS_USERS) || 'null'); } catch {}
-  const seedVer = parseInt(localStorage.getItem(LS_USERS_SEED) || '0', 10);
-
-  if (!Array.isArray(ov) || !ov.length) {
-    // primera vez: sembrar desde data.js
-    const seed = DATA.usuarios.map(u => ({...u}));
-    saveUsuarios(seed, { noSync:true });
-    localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
-    return seed;
-  }
-
-  // Migración de seed: SOLO agrega perfiles base nuevos que falten (por id).
-  // NO pisa nombre/alias/rol de los existentes — la fuente de verdad de las
-  // ediciones es el coordinador (y el Sheet compartido), no el seed de data.js.
-  if (seedVer < USERS_SEED_VERSION) {
-    const ids = new Set(ov.map(u => u.id));
-    DATA.usuarios.forEach(s => { if (!ids.has(s.id)) ov.push({ ...s }); });
-    saveUsuarios(ov, { noSync:true });
-    localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
-    return sanearUsuarios(ov);
-  }
-
-  return sanearUsuarios(ov);
+// La identidad la maneja Supabase Auth (ver src/lib/auth.js). Aquí solo
+// cacheamos los asesores de call center para que la asignación de casos
+// (asignarCaso, barajarPool, siguienteDeCola, reasignarCaso) siga siendo
+// síncrona y sin llamadas a base de datos dentro de bucles.
+async function cargarAsesoresCC(){
+  try { S.asesoresCC = await listarAsesoresCC(); }
+  catch (e) { console.error('[CETA] No se pudieron cargar los asesores CC', e); S.asesoresCC = []; }
 }
 
-// AUTO-REPARACIÓN: garantiza que la lista de usuarios sea usable.
-//  - Si faltan perfiles base del seed (lista incompleta/corrupta), los RE-AGREGA
-//    conservando los que el coordinador haya editado o creado.
-//  - Descarta entradas inválidas (sin id, sin nombre, sin rol o sin PIN de 4 dígitos).
-//  - Si todos los del seed están inactivos (login quedaría vacío), reactiva los base.
-function sanearUsuarios(list){
-  if (!Array.isArray(list)) list = [];
-  // 1) limpiar entradas corruptas
-  let limpia = list.filter(u => u && u.id != null && u.nombre && u.rol && /^\d{4}$/.test(String(u.pin||'')));
-  // 2) re-agregar perfiles del seed que falten (por id), sin pisar los editados
-  const ids = new Set(limpia.map(u => u.id));
-  let faltaron = false;
-  DATA.usuarios.forEach(s => { if (!ids.has(s.id)) { limpia.push({ ...s }); faltaron = true; } });
-  // 3) si no quedó ningún usuario activo, reactivar los del seed (evita login vacío)
-  if (!limpia.some(u => u.activo)) {
-    limpia = limpia.map(u => DATA.usuarios.some(s => s.id === u.id) ? { ...u, activo: true } : u);
-    faltaron = true;
-  }
-  // 4) persistir solo si hubo reparación (sin re-subir al Sheet: es saneo local)
-  if (faltaron || limpia.length !== list.length) saveUsuarios(limpia, { noSync:true });
-  return limpia;
-}
-function saveUsuarios(list, opciones){
-  localStorage.setItem(LS_USERS, JSON.stringify(list));
-  // Subir al Sheet para que el resto de dispositivos vean los mismos perfiles.
-  // (opciones.noSync evita el envío en escrituras internas de saneo/migración).
-  if (!(opciones && opciones.noSync) && typeof getApiUrl === 'function' && getApiUrl()) {
-    try { apiCall('guardarUsuarios', { usuarios: list }, 'POST').catch(()=>{}); } catch {}
-  }
+// Resuelve un asesor por su id (UUID) desde la caché. Reemplaza los
+// getUsuarios().find(...) del sistema anterior.
+function asesorPorId(id){
+  return (S.asesoresCC || []).find(u => String(u.id) === String(id)) || null;
 }
 
-// Baja la lista de usuarios del Sheet (fuente de verdad compartida) y la fusiona
-// con la local. El Sheet manda. Se llama al entrar si hay conexión.
-async function sincronizarUsuarios(){
-  if (!getApiUrl()) return false;
+// =============================================================
+//  AUTENTICACIÓN (Google Workspace SSO vía Supabase)
+// =============================================================
+const SS_AUTH_ERR = 'ceta_auth_err';   // mensaje de error que sobrevive al reload de signOut()
+
+function mostrarLogin(){
+  $('#appRoot').style.display = 'none';
+  $('#loginScreen').style.display = 'flex';
+}
+
+function mostrarErrorLogin(msg){
+  const err = $('#loginErr');
+  if (err) { err.style.display = 'block'; err.textContent = msg; }
+}
+
+// Arranque de sesión: si hay sesión activa carga el perfil y entra; si no,
+// muestra el login. Además escucha cambios de auth en tiempo real.
+async function initAuth(){
+  // Mensaje pendiente de un intento no autorizado previo (tras el reload de signOut).
   try {
-    const r = await apiCall('listarUsuarios');
-    if (r && r.success && Array.isArray(r.usuarios) && r.usuarios.length) {
-      const saneada = sanearUsuarios(r.usuarios);   // valida/repara lo que venga del Sheet
-      localStorage.setItem(LS_USERS, JSON.stringify(saneada));
-      localStorage.setItem(LS_USERS_SEED, String(USERS_SEED_VERSION));
-      return true;
-    } else if (r && r.success) {
-      // El Sheet está vacío (primera vez): sube la lista local como base inicial.
-      const local = getUsuarios();
-      apiCall('guardarUsuarios', { usuarios: local }, 'POST').catch(()=>{});
-    }
+    const pend = sessionStorage.getItem(SS_AUTH_ERR);
+    if (pend) { mostrarErrorLogin(pend); sessionStorage.removeItem(SS_AUTH_ERR); }
   } catch {}
-  return false;
-}
 
-// =============================================================
-//  AUTENTICACIÓN
-// =============================================================
-function renderLoginUsers(){
-  const sel = $('#loginUser');
-  if (!sel) return;
-  sel.innerHTML = '';
-  const activos = getUsuarios().filter(u => u.activo);
-  if (!activos.length) {
-    // Salvavidas extremo: si aún no hay usuarios, sembrar desde el seed.
-    DATA.usuarios.forEach(u => activos.push({ ...u }));
-    saveUsuarios(activos);
+  if (!supabaseEnabled) {
+    mostrarErrorLogin('Configuración de Supabase incompleta. Revisa los meta tags supabase-url / supabase-anon-key.');
+    mostrarLogin();
+    return;
   }
-  activos.forEach(u => {
-    const o = document.createElement('option');
-    o.value = u.id; o.textContent = `${u.nombre} · ${rolLabel(u.rol)}`;
-    sel.appendChild(o);
+
+  const { data: { session } } = await getCurrentSession();
+  if (session && session.user) {
+    await onLoginExitoso(session.user);
+  } else {
+    mostrarLogin();
+  }
+
+  // Reaccionar en tiempo real al login (tras el redirect de Google) y al logout.
+  onAuthStateChange((event, sess) => {
+    if (event === 'SIGNED_IN' && sess && sess.user) onLoginExitoso(sess.user);
+    else if (event === 'SIGNED_OUT') mostrarLogin();
   });
 }
 
-function doLogin(){
-  const id = +$('#loginUser').value;
-  const pin = $('#loginPin').value.trim();
-  const err = $('#loginErr');
-  const user = getUsuarios().find(u => u.id === id && u.activo);
-  if (!user) { err.textContent = 'Usuario no válido.'; return; }
-  if (pin !== String(user.pin)) { err.textContent = 'PIN incorrecto.'; $('#loginPin').value=''; return; }
-  err.textContent = '';
-  S.user = { id:user.id, nombre:user.nombre, alias:user.alias, rol:user.rol };
-  localStorage.setItem(LS_SESSION, JSON.stringify(S.user));
+// Login exitoso a nivel de Google: valida el perfil contra public.usuarios.
+async function onLoginExitoso(authUser){
+  // Idempotente: si ya entramos con este mismo usuario, no re-entrar
+  // (getCurrentSession y el listener SIGNED_IN pueden dispararse ambos).
+  if (S.user && S.user.id === authUser.id) return;
+
+  const perfil = await loadUserProfile(authUser.id);
+  if (!perfil || !perfil.activo) {
+    const msg = 'Tu cuenta no está autorizada. Contacta al coordinador.';
+    try { sessionStorage.setItem(SS_AUTH_ERR, msg); } catch {}
+    mostrarErrorLogin(msg);
+    await signOut();   // cierra la sesión de Google que quedó (recarga la página)
+    return;
+  }
+
+  let alias = perfil.alias;
+  if (!alias) {
+    console.warn('[Auth] alias null en public.usuarios para', perfil.email, '— usando primer nombre como fallback');
+    alias = (perfil.nombre || '').trim().split(/\s+/)[0] || perfil.email;
+  }
+  S.user = {
+    id: perfil.id, email: perfil.email, nombre: perfil.nombre,
+    alias, rol: perfil.rol, sede_asignada: perfil.sede_asignada
+  };
+  await cargarAsesoresCC();
   enterApp();
 }
 
+// Cierra sesión: Supabase limpia el estado y recarga; initAuth mostrará el login.
 function logout(){
-  localStorage.removeItem(LS_SESSION);
-  S.user = null;
-  const vi = $('#v-internos'); if (vi) vi.dataset.built = '';  // forzar reconstrucción para el próximo usuario
-  $('#appRoot').style.display = 'none';
-  $('#loginScreen').style.display = 'flex';
-  $('#loginPin').value = '';
-  renderLoginUsers();
-}
-
-function restoreSession(){
-  try {
-    const s = JSON.parse(localStorage.getItem(LS_SESSION) || 'null');
-    if (s && s.id) {
-      // revalidar contra lista actual (por si cambió rol/activo)
-      const fresh = getUsuarios().find(u => u.id === s.id && u.activo);
-      if (fresh) { S.user = {id:fresh.id, nombre:fresh.nombre, alias:fresh.alias, rol:fresh.rol}; return true; }
-    }
-  } catch {}
-  return false;
+  signOut();
 }
 
 function enterApp(){
@@ -194,9 +149,9 @@ function enterApp(){
     if ($('#v-internos')?.classList.contains('active')) renderBandeja();
     updateInternosBadges();
   }, 30000);
-  // Auto-sincronización periódica con el Sheet cada 3 min (gestiones + usuarios).
+  // Auto-sincronización periódica de gestiones con el Sheet cada 3 min.
   if (!window._syncTimer) window._syncTimer = setInterval(() => {
-    if (getApiUrl()) { sincronizarGestiones({ silencioso:true }); sincronizarUsuarios(); }
+    if (getApiUrl()) sincronizarGestiones({ silencioso:true });
   }, 180000);
 }
 
@@ -204,10 +159,12 @@ function enterApp(){
 //  ROLES Y PERMISOS
 // =============================================================
 function rolLabel(r){
-  return { coordinador:'Coordinador', analista:'Analista', asesor_cc:'Asesor Taller', asesor_digital:'Asesor Digital' }[r] || r;
+  return { administrador:'Administrador', coordinador:'Coordinador', analista:'Analista', asesor_cc:'Asesor Taller', asesor_digital:'Asesor Digital' }[r] || r;
 }
 function perms(){ return DATA.permisos[S.user?.rol] || {}; }
 function can(p){ return !!perms()[p]; }
+// administrador y coordinador comparten el mando operativo (ver/editar todo).
+function esCoordinacion(){ return !!S.user && (S.user.rol === 'coordinador' || S.user.rol === 'administrador'); }
 
 function applyRole(){
   const u = S.user, p = perms();
@@ -1081,7 +1038,7 @@ function renderControl(){
     <div class="fb">
       ${fil.length?(() => {
         const cols = getCtrlCols().map(k => CTRL_COLUMNS.find(c=>c.key===k)).filter(Boolean);
-        const esCoord = S.user?.rol === 'coordinador';
+        const esCoord = can('reasignar');
         return `<table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}${esCoord?'<th style="width:30px"></th>':''}<th style="width:24px"></th></tr></thead><tbody>
           ${fil.map(g=>`<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer">${cols.map(c=>`<td>${c.render(g)}</td>`).join('')}${esCoord?`<td><button class="btn btn-gh ctrl-reasignar" data-id="${esc(g.id)}" title="Reasignar a otro asesor" style="padding:3px 7px"><i class="fas fa-people-arrows"></i></button></td>`:''}<td style="color:var(--tx3)"><i class="fas fa-chevron-right" style="font-size:10px"></i></td></tr>`).join('')}
         </tbody></table>`;
@@ -1244,7 +1201,7 @@ function openCaseDetail(id){
 
       ${(editable && g.origen==='Interno' && g.resultado==='pendiente')?`<button class="btn btn-ac btn-big" id="mdGestionar" style="margin-bottom:12px"><i class="fas fa-headset"></i> Gestionar en el panel →</button>`:''}
 
-      ${S.user?.rol==='coordinador'?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
+      ${can('reasignar')?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
       <div class="rr"><div class="ff"><select id="mdReasignar">
         <option value="">— Mantener: ${esc(g.asignadoAlias||g.asesorCeta||'—')} —</option>
         ${rotacionPool().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
@@ -1420,75 +1377,12 @@ function renderTV(){
 }
 
 // =============================================================
-//  CONFIG (gestión de usuarios — solo coordinador)
+//  CONFIG (solo coordinador) — los usuarios se gestionan en Supabase
 // =============================================================
-const ROLES = ['coordinador','analista','asesor_cc','asesor_digital'];
 const inpStyle = 'border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:5px 7px;border-radius:5px;font-size:11px;font-family:var(--f)';
 
 function renderConfig(){
   if (!can('config')) return;
-  const list = getUsuarios();
-  $('#usersTable').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:11px;color:var(--tx3)">${list.length} perfiles · puedes editar nombre, rol, PIN, activar/desactivar, agregar o eliminar.</div>
-      <button class="btn btn-ac" id="cfgAdd"><i class="fas fa-user-plus"></i> Agregar perfil</button>
-    </div>
-    <table class="tbl"><thead><tr><th>Nombre completo</th><th>Alias</th><th>Rol</th><th>PIN</th><th>Activo</th><th></th></tr></thead><tbody>
-    ${list.map(u => `<tr data-id="${u.id}">
-      <td><input class="cfg-nombre" value="${esc(u.nombre)}" style="${inpStyle};width:150px"></td>
-      <td><input class="cfg-alias" value="${esc(u.alias)}" style="${inpStyle};width:90px;font-family:var(--fm)" title="Al cambiar el alias, los casos de esa persona se re-vinculan automáticamente"></td>
-      <td><select class="cfg-rol" style="${inpStyle}">${ROLES.map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${rolLabel(r)}</option>`).join('')}</select></td>
-      <td><input class="cfg-pin" value="${esc(u.pin)}" maxlength="4" inputmode="numeric" style="${inpStyle};width:60px;font-family:var(--fm);text-align:center"></td>
-      <td><label class="tog"><span class="tog-sw cfg-act ${u.activo?'on':''}"></span></label></td>
-      <td style="white-space:nowrap"><button class="btn btn-ok cfg-save"><i class="fas fa-floppy-disk"></i></button> <button class="btn btn-gh cfg-del" title="Eliminar perfil"><i class="fas fa-trash" style="color:var(--ac)"></i></button></td>
-    </tr>`).join('')}
-    </tbody></table>`;
-
-  $$('#usersTable .cfg-act').forEach(sw => sw.addEventListener('click', () => sw.classList.toggle('on')));
-
-  $$('#usersTable .cfg-save').forEach(btn => btn.addEventListener('click', e => {
-    const tr = e.target.closest('tr'); const id = +tr.dataset.id;
-    const nombre = tr.querySelector('.cfg-nombre').value.trim();
-    const alias = tr.querySelector('.cfg-alias').value.trim();
-    const rol = tr.querySelector('.cfg-rol').value;
-    const pin = tr.querySelector('.cfg-pin').value.trim();
-    const activo = tr.querySelector('.cfg-act').classList.contains('on');
-    if (!nombre) { toast('El nombre no puede estar vacío'); return; }
-    if (!alias) { toast('El alias no puede estar vacío'); return; }
-    if (!/^\d{4}$/.test(pin)) { toast('El PIN debe ser de 4 dígitos'); return; }
-    const actual = getUsuarios();
-    const aliasPrev = actual.find(u => u.id === id)?.alias || '';
-    if (alias.toLowerCase() !== aliasPrev.toLowerCase() && actual.some(u => u.id !== id && u.alias.toLowerCase() === alias.toLowerCase())) {
-      toast('Ya existe otro perfil con ese alias'); return;
-    }
-    const aplicar = () => {
-      const list2 = getUsuarios().map(u => u.id===id ? {...u, nombre, alias, rol, pin, activo} : u);
-      saveUsuarios(list2);
-      if (aliasPrev && alias !== aliasPrev) relinkCasos(aliasPrev, alias, id);  // re-vincular casos históricos
-      if (S.user && S.user.id === id) { S.user.nombre = nombre; S.user.alias = alias; S.user.rol = rol; localStorage.setItem(LS_SESSION, JSON.stringify(S.user)); applyRole(); renderHome(); }
-      renderConfig(); toast('Perfil actualizado ✓');
-    };
-    // Si cambia el alias y la persona tiene casos, confirmar la re-vinculación.
-    const nCasos = aliasPrev && alias !== aliasPrev ? contarCasosDeAlias(aliasPrev) : 0;
-    if (nCasos > 0) {
-      confirmModal('Cambiar alias',
-        `Vas a cambiar el alias <strong>${esc(aliasPrev)}</strong> → <strong>${esc(alias)}</strong>.<br><br>Se re-vincularán <strong>${nCasos}</strong> caso(s) y la posición en la rotación a este nuevo alias. ¿Continuar?`,
-        aplicar);
-    } else { aplicar(); }
-  }));
-
-  $$('#usersTable .cfg-del').forEach(btn => btn.addEventListener('click', e => {
-    const tr = e.target.closest('tr'); const id = +tr.dataset.id;
-    const u = getUsuarios().find(x => x.id === id);
-    if (S.user && S.user.id === id) { toast('No puedes eliminar tu propio perfil mientras lo usas'); return; }
-    confirmModal(
-      `Eliminar perfil`,
-      `¿Eliminar el perfil <strong>${esc(u.nombre)}</strong> (${esc(u.alias)})? Sus casos históricos se conservan, pero ya no podrá iniciar sesión.<br><br>Si solo quiere pausarlo, mejor <strong>desactívelo</strong> con el interruptor.`,
-      () => { saveUsuarios(getUsuarios().filter(x => x.id !== id)); renderConfig(); toast('Perfil eliminado'); }
-    );
-  }));
-
-  $('#cfgAdd').addEventListener('click', openAddUser);
   renderAsesoresServicioConfig();
   renderListasConfig();
   renderConexionConfig();
@@ -1633,36 +1527,6 @@ function renderConexionConfig(){
 }
 function actualizarModoFooter(){
   const el = $('#ftMode'); if (el) el.textContent = getApiUrl() ? 'En línea' : 'Local';
-}
-
-// Modal para agregar un perfil nuevo.
-function openAddUser(){
-  modalOpen(`
-    <div class="modal-head"><h3><i class="fas fa-user-plus"></i> Nuevo perfil</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
-    <div class="modal-body">
-      <div class="ff" style="margin-bottom:8px"><label>Nombre completo</label><input id="auNombre" placeholder="Ej: Alejandro Castaño"></div>
-      <div class="ff" style="margin-bottom:8px"><label>Alias (nombre corto, fijo)</label><input id="auAlias" placeholder="Ej: Alejandro"></div>
-      <div class="rr"><div class="ff"><label>Rol</label><select id="auRol">${ROLES.map(r=>`<option value="${r}">${rolLabel(r)}</option>`).join('')}</select></div><div class="ff"><label>PIN (4 dígitos)</label><input id="auPin" maxlength="4" inputmode="numeric" class="mono" placeholder="0000"></div></div>
-      <div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-circle-info"></i><div>Solo los roles <strong>asesor taller</strong> participan en la rotación de Casos Internos.</div></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-gh" data-modal-close>Cancelar</button>
-      <button class="btn btn-ac" id="auSave"><i class="fas fa-check"></i> Crear perfil</button>
-    </div>`);
-  $('#auSave').addEventListener('click', () => {
-    const nombre = $('#auNombre').value.trim();
-    const alias = $('#auAlias').value.trim();
-    const rol = $('#auRol').value;
-    const pin = $('#auPin').value.trim();
-    if (!nombre || !alias) { toast('Nombre y alias son obligatorios'); return; }
-    if (!/^\d{4}$/.test(pin)) { toast('El PIN debe ser de 4 dígitos'); return; }
-    const list = getUsuarios();
-    if (list.some(u => u.alias.toLowerCase() === alias.toLowerCase())) { toast('Ya existe un perfil con ese alias'); return; }
-    const nuevoId = Math.max(0, ...list.map(u => u.id)) + 1;
-    list.push({ id: nuevoId, nombre, alias, rol, pin, activo: true });
-    saveUsuarios(list);
-    modalClose(); renderConfig(); toast('Perfil creado ✓');
-  });
 }
 
 // Modal de confirmación genérico (sí/no).
@@ -2558,11 +2422,11 @@ function updateGestionLocal(id, changes, nota){
 // Cambia el dueño (asignadoId/createdBy) para que el nuevo asesor pueda editarlo,
 // y deja constancia en el historial. No altera la rotación (esta es manual).
 function reasignarCaso(id, nuevoAsesorId){
-  if (S.user?.rol !== 'coordinador') { toast('Solo el coordinador puede reasignar'); return null; }
+  if (!can('reasignar')) { toast('No tienes permiso para reasignar'); return null; }
   const list = getGestionesLocal();
   const i = list.findIndex(g => g.id === id);
   if (i < 0) return null;
-  const nuevo = getUsuarios().find(u => u.id === nuevoAsesorId);
+  const nuevo = asesorPorId(nuevoAsesorId);
   if (!nuevo) { toast('Asesor no válido'); return null; }
   const g = list[i];
   const prevAlias = g.asignadoAlias || g.asesorCeta || '—';
@@ -2581,40 +2445,11 @@ function reasignarCaso(id, nuevoAsesorId){
   return g;
 }
 
-// Cuenta cuántas gestiones están vinculadas a un alias (por id o por alias).
-function contarCasosDeAlias(alias){
-  if (!alias) return 0;
-  const a = alias.toLowerCase();
-  return getGestionesLocal().filter(g =>
-    (g.asesorCeta||'').toLowerCase() === a ||
-    (g.asignadoAlias||'').toLowerCase() === a ||
-    (g.createdByAlias||'').toLowerCase() === a
-  ).length;
-}
-// Re-vincula las gestiones de un alias viejo al nuevo (mantiene la trazabilidad
-// al cambiar el alias de un perfil). userId ayuda a desambiguar por id.
-function relinkCasos(aliasViejo, aliasNuevo, userId){
-  const av = (aliasViejo||'').toLowerCase();
-  const list = getGestionesLocal();
-  let cambiados = 0;
-  list.forEach(g => {
-    const matchId = userId != null && (g.createdBy === userId || g.asignadoId === userId);
-    const matchAlias = (g.asesorCeta||'').toLowerCase() === av || (g.asignadoAlias||'').toLowerCase() === av || (g.createdByAlias||'').toLowerCase() === av;
-    if (!matchId && !matchAlias) return;
-    if ((g.asesorCeta||'').toLowerCase() === av || (matchId && g.asesorCeta)) g.asesorCeta = aliasNuevo;
-    if ((g.asignadoAlias||'').toLowerCase() === av || (matchId && g.asignadoAlias)) g.asignadoAlias = aliasNuevo;
-    if ((g.createdByAlias||'').toLowerCase() === av || (matchId && g.createdByAlias)) g.createdByAlias = aliasNuevo;
-    if ((g.radicadoPor||'').toLowerCase() === av) g.radicadoPor = aliasNuevo;
-    cambiados++;
-  });
-  if (cambiados) localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
-  return cambiados;
-}
-
-// Permiso de edición de un caso: coordinador edita todo; asesor solo el suyo; analista nunca.
+// Permiso de edición de un caso: administrador/coordinador editan todo;
+// asesor solo el suyo; analista nunca.
 function canEditCase(g){
   if (!S.user) return false;
-  if (S.user.rol === 'coordinador') return true;
+  if (esCoordinacion()) return true;
   if (S.user.rol === 'analista') return false;
   return g.createdBy != null && g.createdBy === S.user.id;
 }
@@ -2625,9 +2460,10 @@ function canEditCase(g){
 // =============================================================
 const LS_COLAS = 'ceta_colas';
 
-// Los 5 asesores que participan en la rotación, en orden de id.
+// Los asesores que participan en la rotación (asesor_cc activos), desde la
+// caché cargada al iniciar sesión (S.asesoresCC). Ver cargarAsesoresCC().
 function rotacionPool(){
-  return getUsuarios().filter(u => u.rol === 'asesor_cc' && u.activo);
+  return S.asesoresCC || [];
 }
 function hoyStr(){ const d = new Date(); return d.toISOString().slice(0,10); }   // YYYY-MM-DD
 function colaDeServicio(tipo){
@@ -2688,12 +2524,12 @@ function asignarCaso(placa, tipoServicio){
   // REGLA 0 — propiedad por placa (no consume slot del bloque)
   const dueno = duenoPorPropiedad(placa);
   if (dueno != null) {
-    const u = getUsuarios().find(x => x.id === dueno);
+    const u = asesorPorId(dueno);
     if (u) return { asesorId: u.id, alias: u.alias, motivo: 'Propiedad (10 días)', cola };
   }
   // REGLA 1/2 — rotación por cola en bloques de 5
   const asesorId = siguienteDeCola(cola);
-  const u = getUsuarios().find(x => x.id === asesorId);
+  const u = asesorPorId(asesorId);
   return { asesorId, alias: u ? u.alias : '—', motivo: `Rotación Cola ${cola}`, cola };
 }
 
@@ -2726,7 +2562,7 @@ function balanceDelDia(){
 function casosPendientes(){
   const all = getGestionesLocal().filter(g => g.origen === 'Interno' && g.resultado === 'pendiente');
   if (!S.user) return [];
-  if (S.user.rol === 'coordinador' || S.user.rol === 'analista') return all;
+  if (esCoordinacion() || S.user.rol === 'analista') return all;
   return all.filter(g => g.asignadoId === S.user.id);
 }
 
@@ -2819,7 +2655,6 @@ function buildSearchIndex(){
   (DATA.extensiones||[]).forEach(x => idx.push({t:`${x.nombre} (ext ${x.ext})`, k:'Extensión', go:'contactos'}));
   (DATA.vip||[]).forEach(v => idx.push({t:v.nombre, k:'VIP', go:'vip', extra:v.placa}));
   (DATA.campanias||[]).forEach(c => idx.push({t:c.titulo, k:'Campaña', go:'campanias'}));
-  (DATA.usuarios||[]).forEach(usr => { if (can('config')) idx.push({t:usr.nombre, k:'Usuario', go:'config'}); });
   [['Cotizador','Panel','inbound'],['Calificador de leads','Comercial','leads']].forEach(([t,k,go]) => idx.push({t,k,go}));
   return idx;
 }
@@ -2846,9 +2681,7 @@ Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTa
 //  INIT
 // =============================================================
 function init(){
-  renderLoginUsers();
-  $('#loginBtn').addEventListener('click', doLogin);
-  $('#loginPin').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+  $('#googleLoginBtn').addEventListener('click', () => signInWithGoogle());
   $('#themeBtn').addEventListener('click', togTheme);
   $('#userChip').addEventListener('click', () => { if (confirm('¿Cerrar sesión?')) logout(); });
   $('#resetBtn').addEventListener('click', resetPanel);
@@ -2861,12 +2694,8 @@ function init(){
   $('#ftVer').textContent = 'v' + DATA.config.version;
   actualizarModoFooter();
 
-  // Sincronizar usuarios del Sheet ANTES de mostrar el login (perfiles compartidos).
-  // Si no hay conexión, usa los locales. No bloquea más de 3s (timeout de apiCall).
-  if (getApiUrl()) {
-    sincronizarUsuarios().then(ok => { if (ok) renderLoginUsers(); if (restoreSession()) enterApp(); });
-  } else {
-    if (restoreSession()) enterApp();
-  }
+  // La sesión la maneja Supabase Auth (persistSession). initAuth decide entre
+  // mostrar el login o entrar directo si ya hay sesión válida.
+  initAuth();
 }
 init();
