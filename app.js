@@ -7,6 +7,14 @@ import { DATA } from './data.js?v=1.15.3';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC } from './src/lib/usuarios.js';
+import {
+  guardarGestion as sbGuardarGestion,
+  listarGestiones as sbListarGestiones,
+  listarCasosInternos as sbListarCasosInternos,
+  asignarCaso as sbAsignarCaso,
+  gestionarCaso as sbGestionarCaso,
+  actualizarCaso as sbActualizarCaso
+} from './src/lib/gestiones.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -141,18 +149,15 @@ function enterApp(){
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
 
-  // Auto-sincronizar gestiones del equipo al entrar (si hay conexión).
-  if (getApiUrl()) sincronizarGestiones({ silencioso:true });
+  // Traer las gestiones del equipo desde Supabase al entrar (la caché local
+  // pinta primero; esto revalida en fondo).
+  refrescarGestiones({ silencioso:true });
 
   // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
   if (!window._slaTimer) window._slaTimer = setInterval(() => {
     if ($('#v-internos')?.classList.contains('active')) renderBandeja();
     updateInternosBadges();
   }, 30000);
-  // Auto-sincronización periódica de gestiones con el Sheet cada 3 min.
-  if (!window._syncTimer) window._syncTimer = setInterval(() => {
-    if (getApiUrl()) sincronizarGestiones({ silencioso:true });
-  }, 180000);
 }
 
 // =============================================================
@@ -576,8 +581,8 @@ function descargarPlantillaCSV(){
   toast('Plantilla descargada');
 }
 
-// Procesa el CSV: crea TODOS local primero (rápido), luego los envía al Sheet
-// UNO POR UNO con espera, para no saturar Apps Script (que es de un solo hilo).
+// Procesa el CSV: radica los casos UNO POR UNO contra Supabase, con progreso.
+// Las filas que fallan se reportan para corregir y volver a cargar.
 function procesarCSV(e){
   const file = e.target.files && e.target.files[0];
   if (!file) return;
@@ -587,42 +592,33 @@ function procesarCSV(e){
     const filas = parseCSV(String(reader.result || ''));
     if (!filas.length) { out.innerHTML = `<div class="al wr" style="font-size:11px;padding:8px"><i class="fas fa-triangle-exclamation"></i><div>El archivo está vacío o no tiene filas válidas.</div></div>`; return; }
     const requeridas = ['placa','nombre','ciudad','servicio'];
-    const creados = []; const errores = [];
-    filas.forEach((f, i) => {
+    const errores = [];
+    let creados = 0;
+    for (let i = 0; i < filas.length; i++) {
+      const f = filas[i];
       const falta = requeridas.filter(k => !(f[k] && f[k].trim()));
-      if (falta.length) { errores.push(`Fila ${i+2}: falta ${falta.join(', ')}`); return; }
-      const g = crearCasoInterno({
-        tipoRadicacion: 'Nuevo',
-        placa: f.placa.toUpperCase().trim(),
-        nombre: f.nombre.trim(),
-        telefono: (f.telefono||'').trim(),
-        ciudad: (f.ciudad||'').trim(),
-        servicio: (f.servicio||'').trim(),
-        grupoChat: (f.grupoChat||'').trim(),
-        notaSolicitante: (f.nota||'').trim()
-      }, { masivo: true });
-      creados.push(g);
-    });
+      if (falta.length) { errores.push(`Fila ${i+2}: falta ${falta.join(', ')}`); continue; }
+      out.innerHTML = `<div class="al in" style="font-size:11px;padding:8px"><i class="fas fa-spinner fa-spin"></i><div>Radicando ${i+1}/${filas.length}…</div></div>`;
+      try {
+        await crearCasoInterno({
+          tipoRadicacion: 'Nuevo',
+          placa: f.placa.toUpperCase().trim(),
+          nombre: f.nombre.trim(),
+          telefono: (f.telefono||'').trim(),
+          ciudad: (f.ciudad||'').trim(),
+          servicio: (f.servicio||'').trim(),
+          grupoChat: (f.grupochat||'').trim(),
+          notaSolicitante: (f.nota||'').trim()
+        }, { masivo: true });
+        creados++;
+      } catch (err) {
+        errores.push(`Fila ${i+2}: no se pudo guardar (${err.message || 'error de conexión'})`);
+      }
+    }
     e.target.value = '';   // permite recargar el mismo archivo
     renderBandeja(); updateInternosBadges();
 
-    // Envío secuencial al Sheet (si hay conexión), con progreso y reintento.
-    if (getApiUrl() && creados.length) {
-      let enviados = 0, fallos = 0;
-      for (const g of creados) {
-        out.innerHTML = `<div class="al in" style="font-size:11px;padding:8px"><i class="fas fa-spinner fa-spin"></i><div>Sincronizando con Google… ${enviados+1}/${creados.length}</div></div>`;
-        let ok = false;
-        for (let intento = 0; intento < 2 && !ok; intento++) {     // 1 reintento
-          try { const r = await apiCall('guardarGestion', g, 'POST'); ok = !r || r.success !== false; }
-          catch { ok = false; }
-          if (!ok) await new Promise(res => setTimeout(res, 400));
-        }
-        ok ? enviados++ : fallos++;
-      }
-      out.innerHTML = `<div class="al ${(errores.length||fallos)?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados.length} casos cargados y asignados.</strong><br>Google Sheet: ${enviados} enviados${fallos?`, ${fallos} fallaron (quedaron en local, usa Sincronizar)`:''}.${errores.length?`<br>${errores.length} filas con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
-    } else {
-      out.innerHTML = `<div class="al ${errores.length?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados.length} casos cargados (local).</strong>${errores.length?`<br>${errores.length} con error:<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
-    }
+    out.innerHTML = `<div class="al ${errores.length?'wr':'in'}" style="font-size:11px;padding:8px"><i class="fas fa-circle-check"></i><div><strong>${creados} casos radicados y asignados.</strong>${errores.length?`<br>${errores.length} filas con error (corrígelas y vuelve a cargar solo esas):<br>${errores.slice(0,5).map(esc).join('<br>')}${errores.length>5?'<br>…':''}`:''}</div></div>`;
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -715,42 +711,42 @@ function radicarCaso(){
         <button class="btn btn-gh" id="dupNota"><i class="fas fa-pen"></i> Agregar nota al existente</button>
         <button class="btn btn-ac" id="dupCrear"><i class="fas fa-plus"></i> Crear de todos modos</button>
       </div>`);
-    $('#dupCrear').addEventListener('click', () => { modalClose(); crearCasoInterno(payload); });
+    $('#dupCrear').addEventListener('click', () => { modalClose(); crearCasoInterno(payload).catch(err => { console.error(err); toast('⚠️ No se pudo radicar el caso — reintenta'); }); });
     $('#dupNota').addEventListener('click', () => { modalClose(); openCaseDetail(dup.id); });
     return;
   }
-  crearCasoInterno(payload);
+  crearCasoInterno(payload).catch(err => { console.error(err); toast('⚠️ No se pudo radicar el caso — reintenta'); });
 }
 
-// opciones.masivo = true → NO envía al Sheet aquí ni toca la UI (lo hace el llamador
-// de forma secuencial). Devuelve el registro creado.
-function crearCasoInterno(payload, opciones){
+// opciones.masivo = true → NO toca la UI (lo hace el llamador). Escribe el
+// caso directamente en Supabase (estado 'pendiente'). Lanza Error si falla.
+// Nota: grupoChat/notaSolicitante/tipoRadicacion no tienen columna propia;
+// se pliegan en `observacion` (deuda registrada — candidatas a columnas).
+async function crearCasoInterno(payload, opciones){
   opciones = opciones || {};
   const asign = asignarCaso(payload.placa, payload.servicio);
-  const now = Date.now();
-  const g = {
+  const obsRadicacion = [
+    payload.notaSolicitante ? `Nota del solicitante: ${payload.notaSolicitante}` : '',
+    payload.grupoChat ? `Grupo: ${payload.grupoChat}` : '',
+    payload.tipoRadicacion ? `Radicación: ${payload.tipoRadicacion}` : ''
+  ].filter(Boolean).join(' · ');
+  const p = {
     ...payload,
-    id: newCaseId(),
     origen: 'Interno',
-    resultado: 'pendiente',
-    asignadoId: asign.asesorId, asignadoAlias: asign.alias, asignMotivo: asign.motivo, cola: asign.cola,
-    asesorCeta: asign.alias,         // dueño visible = asesor asignado
-    createdBy: asign.asesorId,       // el caso pertenece al asesor asignado (puede editarlo)
-    createdByAlias: asign.alias,
-    radicadoPor: S.user?.alias || '',
-    _ts: now, _updated: now,
-    historial: [{ ts: now, tipo: 'Creado', autor: S.user?.alias || '', resultado: 'pendiente', nota: `Radicado por ${S.user?.alias||'—'} → asignado a ${asign.alias} (${asign.motivo})` }]
+    resultado: '',                       // sin resultado → estado 'pendiente'
+    observacion: obsRadicacion,
+    asignadoId: asign.asesorId, asignMotivo: asign.motivo, cola: asign.cola,
+    historial: [{ ts: new Date().toISOString(), tipo: 'Creado', autor: S.user?.alias || '', resultado: 'pendiente', nota: `Radicado por ${S.user?.alias||'—'} → asignado a ${asign.alias} (${asign.motivo})` }]
   };
-  const list = getGestionesLocal();
-  list.unshift(g);
-  localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500)));
-  if (opciones.masivo) return g;   // el envío al Sheet + UI lo maneja el llamador
-  // Caso individual: sync al Sheet si hay conexión (no bloquea la UI)
-  if (getApiUrl()) { apiCall('guardarGestion', g, 'POST').catch(()=>{}); }
+  const fila = await sbGuardarGestion(p, S.user);
+  fila.asignadoAlias = asign.alias; fila.asesorCeta = asign.alias; fila.createdByAlias = asign.alias;
+  fila.notaSolicitante = payload.notaSolicitante || ''; fila.grupoChat = payload.grupoChat || '';
+  insertarEnCache(fila);
+  if (opciones.masivo) return fila;
   toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
   limpiarFormInternos();
   renderBandeja(); updateInternosBadges();   // refresca solo el listado, no el formulario
-  return g;
+  return fila;
 }
 
 // Limpia los campos del formulario de radicación tras crear un caso.
@@ -1012,7 +1008,7 @@ function renderControl(){
         <select id="ctrlResultado" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${ctrlFiltro.resultado===k?'selected':''}>${v}</option>`).join('')}</select></div>
       <button class="btn btn-gh" id="ctrlClear"><i class="fas fa-filter-circle-xmark"></i> Limpiar</button>
       <div style="margin-left:auto;display:flex;gap:6px">
-        ${getApiUrl()?`<button class="btn btn-gh" id="ctrlSync" title="Traer gestiones del equipo desde Google"><i class="fas fa-cloud-arrow-down"></i> Sincronizar</button>`:''}
+        ${supabaseEnabled?`<button class="btn btn-gh" id="ctrlSync" title="Traer las gestiones del equipo"><i class="fas fa-rotate"></i> Actualizar</button>`:''}
         ${can('config')?`<button class="btn btn-gh" id="ctrlCols" title="Configurar columnas"><i class="fas fa-gear"></i> Columnas</button>`:''}
         ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV"><i class="fas fa-tv"></i> Modo TV</button>`:''}
       </div>
@@ -1050,7 +1046,7 @@ function renderControl(){
   const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
-  const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', sincronizarGestiones);
+  const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', () => refrescarGestiones());
   $$('#v-control .ctrl-reasignar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openReasignar(b.dataset.id); }));
   $$('#v-control .ctrl-row').forEach(tr => tr.addEventListener('click', () => openCaseDetail(tr.dataset.id)));
 }
@@ -1059,72 +1055,44 @@ function renderControl(){
 // Sincronización BIDIRECCIONAL:
 //  1) baja las del Sheet y las fusiona en local
 //  2) sube al Sheet (uno por uno) las locales que aún no están allá
-async function sincronizarGestiones(opts){
+async function refrescarGestiones(opts){
+  // Lectura desde Supabase (fuente de verdad). Patrón stale-while-revalidate:
+  // la UI pinta primero la caché local y esta función la refresca en fondo.
   opts = opts || {};
   const silencioso = !!opts.silencioso;
-  if (!getApiUrl()) { if (!silencioso) toast('Sin conexión configurada'); return; }
-  const syn = $('#ctrlSync');
-  const setBtn = (html, dis) => { if (syn) { syn.innerHTML = html; syn.disabled = !!dis; } };
-  const aviso = (m) => { if (!silencioso) toast(m); };
-  setBtn('<i class="fas fa-spinner fa-spin"></i> Sincronizando…', true);
+  if (opts.throttle && Date.now() - (window._lastGesRefresh || 0) < 15000) return;
+  window._lastGesRefresh = Date.now();
   try {
-    const r = await apiCall('listarGestiones');
-    if (!r || !r.success || !Array.isArray(r.rows)) { aviso('El servidor no devolvió datos'); setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar'); return; }
-
-    // 0) Marca de purga global: si el coordinador borró TODO en el servidor,
-    //    cada dispositivo elimina sus casos locales anteriores a esa purga y
-    //    NO los vuelve a subir (así no "resucitan" los casos de prueba).
-    const purgaServidor = Number(r.purga || 0);
-    const purgaLocal = Number(localStorage.getItem(LS_PURGA) || 0);
-    if (purgaServidor && purgaServidor > purgaLocal) {
-      const idsVivos = new Set(r.rows.filter(x => x.id).map(x => String(x.id)));
-      const conservados = getGestionesLocal().filter(g => idsVivos.has(String(g.id)));
-      localStorage.setItem(LS_GESTIONES, JSON.stringify(conservados));
-      localStorage.setItem(LS_PURGA, String(purgaServidor));
-      try { localStorage.removeItem('ceta_colas'); } catch {}
-    }
-
-    const locales = getGestionesLocal();
-    const porId = {};
-    locales.forEach(g => { if (g.id) porId[g.id] = g; });
-    const idsEnSheet = new Set();
-    let bajadas = 0;
-    r.rows.forEach(row => {
-      if (!row.id) return;
-      idsEnSheet.add(String(row.id));
-      if (typeof row.historialJSON === 'string' && row.historialJSON) {
-        try { row.historial = JSON.parse(row.historialJSON); } catch { row.historial = []; }
-      }
-      if (!row._ts) row._ts = Date.now();
-      if (!porId[row.id]) { porId[row.id] = row; bajadas++; }
-      else { porId[row.id] = { ...porId[row.id], ...row }; }  // el Sheet manda en conflicto
-    });
-    const fusion = Object.values(porId).sort((a,b)=>(b._ts||0)-(a._ts||0));
-    localStorage.setItem(LS_GESTIONES, JSON.stringify(fusion.slice(0,1000)));
-
-    // 2) Subir las locales que NO están en el Sheet (uno por uno, con reintento).
-    const faltantes = fusion.filter(g => g.id && !idsEnSheet.has(String(g.id)));
-    let subidas = 0, fallos = 0;
-    for (let i = 0; i < faltantes.length; i++) {
-      setBtn(`<i class="fas fa-spinner fa-spin"></i> Subiendo ${i+1}/${faltantes.length}`, true);
-      let ok = false;
-      for (let intento = 0; intento < 2 && !ok; intento++) {
-        try { const rr = await apiCall('guardarGestion', faltantes[i], 'POST'); ok = !rr || rr.success !== false; }
-        catch { ok = false; }
-        if (!ok) await new Promise(res => setTimeout(res, 400));
-      }
-      ok ? subidas++ : fallos++;
-    }
-    setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
+    const rows = await sbListarGestiones({ limite: 500 });
+    conAliases(rows);
+    setGestionesLocal(rows);
     // refrescar todo lo que depende de las gestiones
     if ($('#v-control')?.classList.contains('active')) renderControl();
     if ($('#v-internos')?.dataset.built === '1') renderBandeja();
     if ($('#v-home')?.classList.contains('active')) renderHome();
     updateInternosBadges();
-    aviso(`✅ Sincronizado · ${bajadas} bajadas, ${subidas} subidas${fallos?`, ${fallos} fallaron`:''}`);
-  } catch {
-    setBtn('<i class="fas fa-cloud-arrow-down"></i> Sincronizar');
-    aviso('⚠️ No se pudo sincronizar (revisa la conexión)');
+    if (!silencioso) toast(`✅ Actualizado · ${rows.length} gestiones`);
+  } catch (err) {
+    console.error('[CETA] refrescarGestiones', err);
+    if (!silencioso) toast('⚠️ No se pudieron traer las gestiones (revisa la conexión)');
+  }
+}
+
+// Revalida SOLO los casos internos (bandeja): trae de Supabase los de
+// origen 'interno' y los funde en la caché conservando el resto.
+async function refrescarInternos(opts){
+  opts = opts || {};
+  if (opts.throttle && Date.now() - (window._lastIntRefresh || 0) < 15000) return;
+  window._lastIntRefresh = Date.now();
+  try {
+    const internos = await sbListarCasosInternos({});
+    conAliases(internos);
+    const otros = getGestionesLocal().filter(g => g.origen !== 'Interno');
+    setGestionesLocal([...internos, ...otros].sort((a,b)=>(b._ts||0)-(a._ts||0)));
+    if ($('#v-internos')?.dataset.built === '1') renderBandeja();
+    updateInternosBadges();
+  } catch (err) {
+    console.error('[CETA] refrescarInternos', err);
   }
 }
 
@@ -1141,11 +1109,13 @@ function openReasignar(id){
       </select></div>
     </div>
     <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="reGo"><i class="fas fa-check"></i> Reasignar</button></div>`);
-  $('#reGo').addEventListener('click', () => {
-    const nid = +($('#reSel').value || 0);
+  $('#reGo').addEventListener('click', async () => {
+    const nid = $('#reSel').value || '';
     if (!nid) { toast('Elige un asesor'); return; }
-    const r = reasignarCaso(id, nid);
-    if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); }
+    try {
+      const r = await reasignarCaso(id, nid);
+      if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); }
+    } catch (err) { console.error(err); toast('⚠️ No se pudo reasignar — reintenta'); }
   });
 }
 
@@ -1238,16 +1208,17 @@ function openCaseDetail(id){
   // Reasignar (solo coordinador) — disponible aunque el modal sea de otro asesor.
   const reBtn = $('#mdReasignarBtn');
   if (reBtn) reBtn.addEventListener('click', () => {
-    const nid = +($('#mdReasignar').value || 0);
+    const nid = $('#mdReasignar').value || '';
     if (!nid) { toast('Elige un asesor'); return; }
-    const r = reasignarCaso(id, nid);
-    if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); }
+    reasignarCaso(id, nid)
+      .then(r => { if (r) { modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast(`✅ Reasignado a ${r.asignadoAlias}`); } })
+      .catch(err => { console.error(err); toast('⚠️ No se pudo reasignar — reintenta'); });
   });
 
   if (editable) {
     const gest = $('#mdGestionar');
     if (gest) gest.addEventListener('click', () => { modalClose(); gestionarCaso(id); });
-    $('#mdSave').addEventListener('click', () => {
+    $('#mdSave').addEventListener('click', async () => {
       const changes = {
         telefono: $('#mdTelefono').value.trim(),
         kmActual: $('#mdKmActual').value.trim(),
@@ -1257,8 +1228,12 @@ function openCaseDetail(id){
         asesorTaller: $('#mdAsesorTaller').value.trim()
       };
       const nota = $('#mdNota').value.trim();
-      updateGestionLocal(id, changes, nota);
-      modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast('✅ Caso actualizado');
+      try {
+        const fila = await sbActualizarCaso(id, changes, nota, S.user?.alias || '');
+        conAliases([fila]);
+        reemplazarEnCache(fila);
+        modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast('✅ Caso actualizado');
+      } catch (err) { console.error(err); toast('⚠️ No se pudo actualizar — reintenta'); }
     });
   }
 }
@@ -1387,33 +1362,12 @@ function renderConfig(){
   renderListasConfig();
   renderConexionConfig();
   const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
-    confirmModal('Borrar gestiones', `Esto eliminará <strong>todas las gestiones guardadas en este navegador</strong> (casos, agendas, pendientes). No se puede deshacer.<br><br>Las del Google Sheet y las de otros dispositivos NO se tocan. ¿Continuar?`, () => {
+    confirmModal('Limpiar caché local', `Esto borra la <strong>caché de gestiones de este navegador</strong>. Los datos reales viven en Supabase y se recargan al sincronizar. ¿Continuar?`, () => {
       localStorage.removeItem(LS_GESTIONES);
       try { localStorage.removeItem('ceta_colas'); } catch {}
-      toast('Gestiones locales borradas');
+      toast('Caché local limpiada');
+      refrescarGestiones({ silencioso:true });
       renderControl(); if ($('#v-internos')?.dataset.built==='1') renderBandeja(); updateInternosBadges(); renderHome();
-    });
-  });
-  const bg = $('#btnBorrarGlobal'); if (bg) bg.addEventListener('click', () => {
-    if (!getApiUrl()) { toast('Configura la conexión Apps Script primero'); return; }
-    confirmModal('Borrar TODO para todos', `Esto <strong>vacía el Google Sheet</strong> y ordena a <strong>todos los dispositivos</strong> (todos los asesores) eliminar sus casos. Se usa para limpiar las pruebas antes del piloto.<br><br><strong>No se puede deshacer.</strong> ¿Continuar?`, async () => {
-      const btn = $('#btnBorrarGlobal');
-      const prev = btn ? btn.innerHTML : '';
-      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Borrando en todos…'; }
-      try {
-        const r = await apiCall('purgarGestiones', {}, 'POST', { timeout: 15000 });
-        if (!r || r.success === false) throw new Error('resp');
-        // Aplicar la purga también aquí, de una vez.
-        localStorage.removeItem(LS_GESTIONES);
-        try { localStorage.removeItem('ceta_colas'); } catch {}
-        if (r.purga) localStorage.setItem(LS_PURGA, String(r.purga));
-        renderControl(); if ($('#v-internos')?.dataset.built==='1') renderBandeja(); updateInternosBadges(); renderHome();
-        toast(`✅ Borrado global: ${r.borradas||0} casos. Los demás dispositivos se limpiarán al sincronizar.`);
-      } catch {
-        toast('⚠️ No se pudo borrar en el servidor (revisa conexión y redespliegue)');
-      } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = prev; }
-      }
     });
   });
 }
@@ -1579,10 +1533,12 @@ function goTo(v){
   const nav = $(`.ni[data-v="${v}"]`); if (nav) nav.classList.add('active');
   $$('.view').forEach(vw => vw.classList.remove('active'));
   const target = $('#v-'+v); if (target) target.classList.add('active');
-  if (v === 'control') renderControl();   // refresca con las gestiones más recientes
-  if (v === 'internos') renderInternos(); // refresca bandeja y temporizadores
+  // Stale-while-revalidate: cada vista pinta al instante con la caché local y
+  // dispara en fondo la lectura fresca desde Supabase (con throttle de 15 s).
+  if (v === 'control') { renderControl(); refrescarGestiones({ silencioso:true, throttle:true }); }
+  if (v === 'internos') { renderInternos(); refrescarInternos({ throttle:true }); }
   if (v === 'alertas' && can('config')) renderAlertas();
-  if (v === 'home') { renderHome(); renderHomeAlertas(); }  // stats y alertas frescas al volver
+  if (v === 'home') { renderHome(); renderHomeAlertas(); refrescarGestiones({ silencioso:true, throttle:true }); }
 }
 
 // =============================================================
@@ -2325,124 +2281,98 @@ function buildPayload(){
 async function saveGestion(){
   if (!can('registrar')) { toast('Tu rol no permite registrar'); return; }
   const payload = buildPayload();
+  const btn = $('#btnSave');
+  if (btn) { btn.disabled = true; }
 
-  // Si se está gestionando un caso interno: actualizar el MISMO registro
-  // (pendiente → resultado final), no crear uno nuevo.
-  if (S.casoActivo) {
-    const changes = {
-      telefono: payload.telefono, kmActual: payload.kmActual, ciudad: payload.ciudad,
-      marca: payload.marca, modelo: payload.modelo, combustion: payload.combustion,
-      servicio: payload.servicio, kmServicio: payload.kmServicio, valor: payload.valor,
-      resultado: payload.resultado, asesorTaller: payload.asesorTaller,
-      fechaCita: payload.fechaCita, horaCita: payload.horaCita,
-      novedad: payload.novedad, descNovedad: payload.descNovedad,
-      weGo: payload.weGo, observacion: payload.observacion,
-      notaQuiter: payload.notaQuiter, evoEstado: payload.evoEstado,
-      evoCausa: payload.evoCausa, evoMotivo: payload.evoMotivo, evoVoz: payload.evoVoz
-    };
-    updateGestionLocal(S.casoActivo, changes, `Gestionado: ${RESULT_LABEL[payload.resultado]||payload.resultado}`);
-    toast('✅ Caso gestionado');
-    cancelarCasoActivo();
-    setTimeout(() => { resetPanel(); renderInternos(); updateInternosBadges(); }, 600);
-    return;
-  }
+  try {
+    // Si se está gestionando un caso interno: actualizar el MISMO registro
+    // en Supabase (pendiente → resultado final), no crear uno nuevo.
+    if (S.casoActivo) {
+      const fila = await sbGestionarCaso(
+        S.casoActivo, payload.resultado,
+        `Gestionado: ${RESULT_LABEL[payload.resultado]||payload.resultado}`,
+        S.user?.alias || '',
+        { cita_fecha: payload.fechaCita || null, cita_hora: payload.horaCita || null,
+          observacion: payload.observacion || null, nota_quiter: payload.notaQuiter || null }
+      );
+      reemplazarEnCache(fila);
+      toast('✅ Caso gestionado');
+      cancelarCasoActivo();
+      limpiarBorrador();
+      setTimeout(() => { resetPanel(); renderInternos(); updateInternosBadges(); }, 600);
+      return;
+    }
 
-  // Caso normal (Inbound/Outbound): se registra localmente SIEMPRE (respaldo).
-  const g = pushGestionLocal(payload);
-  // Si hay conexión, además se escribe en el Sheet (no bloquea la UI).
-  if (getApiUrl()) {
-    try {
-      const r = await apiCall('guardarGestion', g, 'POST');
-      toast(r && r.success ? '✅ Gestión guardada (en línea)' : '⚠️ Guardada local (servidor sin OK)');
-    } catch { toast('⚠️ Guardada local (sin conexión al servidor)'); }
-  } else {
-    toast('✅ Gestión registrada (local)');
+    // Gestión normal (Inbound/Base/etc.): escritura directa en Supabase.
+    const fila = await sbGuardarGestion(payload, S.user);
+    fila.asesorCeta = S.user?.alias || '';
+    fila.createdByAlias = S.user?.alias || '';
+    insertarEnCache(fila);
+    limpiarBorrador();
+    toast('✅ Gestión guardada');
+    setTimeout(resetPanel, 600);
+    if ($('#v-control')?.classList.contains('active')) renderControl();
+    if ($('#v-home')?.classList.contains('active')) renderHome();
+  } catch (err) {
+    // Online-first: si falla, NO limpiar el formulario. Guardar borrador aparte.
+    console.error('[CETA] saveGestion', err);
+    try { localStorage.setItem(LS_BORRADOR, JSON.stringify({ ts: Date.now(), payload })); } catch {}
+    toast('⚠️ Sin conexión — la gestión no se guardó, reintenta');
+  } finally {
+    if (btn) { btn.disabled = false; }
   }
-  setTimeout(resetPanel, 600);
 }
 
-// ===== Persistencia local de gestiones (respaldo / fuente de Control de Gestión) =====
+// ===== Caché local de gestiones (solo lectura instantánea; la fuente de
+// verdad es Supabase). Se reescribe tras cada lectura/escritura exitosa. =====
 const LS_GESTIONES = 'ceta_gestiones';
-const LS_PURGA = 'ceta_purga_ts';   // marca de la última purga global aplicada en este dispositivo
-function newCaseId(){ return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+const LS_BORRADOR = 'ceta_borrador_gestion';   // borrador de seguridad si falla el guardado
 
 function getGestionesLocal(){
-  let list;
-  try { list = JSON.parse(localStorage.getItem(LS_GESTIONES) || '[]'); } catch { return []; }
-  // Migración perezosa: garantizar id, historial y _updated en gestiones antiguas (Fase 4).
-  let changed = false;
+  try { return JSON.parse(localStorage.getItem(LS_GESTIONES) || '[]'); } catch { return []; }
+}
+function setGestionesLocal(list){
+  try { localStorage.setItem(LS_GESTIONES, JSON.stringify((list || []).slice(0, 500))); } catch {}
+}
+function insertarEnCache(fila){
+  const list = getGestionesLocal();
+  list.unshift(fila);
+  setGestionesLocal(list);
+}
+function reemplazarEnCache(fila){
+  const list = getGestionesLocal();
+  const i = list.findIndex(g => g.id === fila.id);
+  if (i >= 0) list[i] = fila; else list.unshift(fila);
+  setGestionesLocal(list);
+}
+function limpiarBorrador(){ try { localStorage.removeItem(LS_BORRADOR); } catch {} }
+
+// Rellena los alias de asesor (la BD guarda UUIDs; la UI muestra alias).
+function conAliases(list){
   list.forEach(g => {
-    if (!g.id) { g.id = newCaseId(); changed = true; }
-    if (!g._updated) { g._updated = g._ts || Date.now(); changed = true; }
-    if (!Array.isArray(g.historial)) {
-      g.historial = [{ ts: g._ts || Date.now(), tipo: 'Creado', autor: g.asesorCeta || '', resultado: g.resultado, nota: g.observacion || '' }];
-      changed = true;
+    if (g.asignadoId && !g.asignadoAlias) { const u = asesorPorId(g.asignadoId); if (u) g.asignadoAlias = u.alias; }
+    if (g.createdBy && !g.asesorCeta) {
+      const u = asesorPorId(g.createdBy);
+      g.asesorCeta = u ? u.alias : (S.user && S.user.id === g.createdBy ? S.user.alias : '');
+      if (!g.createdByAlias) g.createdByAlias = g.asesorCeta;
     }
   });
-  if (changed) localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
   return list;
-}
-function pushGestionLocal(payload){
-  const list = getGestionesLocal();
-  const now = Date.now();
-  const g = {
-    ...payload,
-    id: newCaseId(),
-    createdBy: S.user?.id ?? null,        // dueño del caso (para permisos de edición)
-    createdByAlias: S.user?.alias || '',
-    _ts: now, _updated: now,
-    historial: [{ ts: now, tipo: 'Creado', autor: S.user?.alias || '', resultado: payload.resultado, nota: payload.observacion || '' }]
-  };
-  list.unshift(g);
-  localStorage.setItem(LS_GESTIONES, JSON.stringify(list.slice(0, 500))); // tope de seguridad
-  return g;
-}
-function updateGestionLocal(id, changes, nota){
-  const list = getGestionesLocal();
-  const i = list.findIndex(g => g.id === id);
-  if (i < 0) return null;
-  const g = list[i];
-  const now = Date.now();
-  Object.assign(g, changes);
-  g._updated = now;
-  g.historial = g.historial || [];
-  g.historial.push({
-    ts: now, tipo: 'Actualizado', autor: S.user?.alias || '',
-    resultado: changes.resultado != null ? changes.resultado : g.resultado,
-    nota: nota || ''
-  });
-  list[i] = g;
-  localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
-  // Sincronizar con el Sheet si hay conexión (no bloquea la UI).
-  if (getApiUrl()) { apiCall('actualizarGestion', g, 'POST').catch(()=>{}); }
-  return g;
 }
 
 // REASIGNAR un caso a otro asesor del pool de rotación (solo coordinador).
 // Cambia el dueño (asignadoId/createdBy) para que el nuevo asesor pueda editarlo,
 // y deja constancia en el historial. No altera la rotación (esta es manual).
-function reasignarCaso(id, nuevoAsesorId){
+async function reasignarCaso(id, nuevoAsesorId){
   if (!can('reasignar')) { toast('No tienes permiso para reasignar'); return null; }
-  const list = getGestionesLocal();
-  const i = list.findIndex(g => g.id === id);
-  if (i < 0) return null;
   const nuevo = asesorPorId(nuevoAsesorId);
   if (!nuevo) { toast('Asesor no válido'); return null; }
-  const g = list[i];
-  const prevAlias = g.asignadoAlias || g.asesorCeta || '—';
-  if (g.asignadoId === nuevo.id) { toast('El caso ya está asignado a ' + nuevo.alias); return null; }
-  const now = Date.now();
-  g.asignadoId = nuevo.id; g.asignadoAlias = nuevo.alias;
-  g.createdBy = nuevo.id; g.createdByAlias = nuevo.alias;  // el nuevo asesor pasa a poder editarlo
-  g.asesorCeta = nuevo.alias;
-  g._updated = now;
-  g.historial = g.historial || [];
-  g.historial.push({ ts: now, tipo: 'Reasignado', autor: S.user.alias, resultado: g.resultado,
-    nota: `Reasignado de ${prevAlias} → ${nuevo.alias} por ${S.user.alias}` });
-  list[i] = g;
-  localStorage.setItem(LS_GESTIONES, JSON.stringify(list));
-  if (getApiUrl()) { apiCall('actualizarGestion', g, 'POST').catch(()=>{}); }
-  return g;
+  const local = getGestionesLocal().find(g => g.id === id);
+  if (local && String(local.asignadoId) === String(nuevo.id)) { toast('El caso ya está asignado a ' + nuevo.alias); return null; }
+  const fila = await sbAsignarCaso(id, nuevo.id, 'Reasignación manual', S.user?.alias || '', nuevo.alias);
+  fila.asignadoAlias = nuevo.alias; fila.asesorCeta = nuevo.alias; fila.createdByAlias = nuevo.alias;
+  reemplazarEnCache(fila);
+  return fila;
 }
 
 // Permiso de edición de un caso: administrador/coordinador editan todo;
