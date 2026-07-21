@@ -29,6 +29,27 @@ function requiereSupabase(){
 }
 const oNull = v => (v === '' || v === undefined) ? null : v;   // '' → null (fechas/horas/enums)
 
+// Combina fecha (YYYY-MM-DD) + hora (HH:MM) de la UI en un timestamptz ISO,
+// interpretados en la hora local del navegador (Colombia). null si no hay fecha.
+function tsSeguimiento(fecha, hora){
+  if (!fecha) return null;
+  const d = new Date(`${fecha}T${(hora && /^\d{1,2}:\d{2}/.test(hora)) ? hora : '00:00'}`);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+// Inversa: timestamptz → { segFecha:'YYYY-MM-DD', segHora:'HH:MM' } en hora
+// local del navegador (lo que la UI espera en sus inputs date/time).
+function descomponerSeguimiento(ts){
+  if (!ts) return { segFecha: '', segHora: '' };
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return { segFecha: '', segHora: '' };
+  const p2 = n => String(n).padStart(2, '0');
+  return {
+    segFecha: `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,
+    segHora: `${p2(d.getHours())}:${p2(d.getMinutes())}`
+  };
+}
+
 // ---------------------------------------------------------------
 //  Clientes y vehículos (normalización al guardar)
 // ---------------------------------------------------------------
@@ -157,7 +178,7 @@ async function filaDesdePayload(p, usuario){
     cita_asesor_taller_nombre: asesor.nombreLibre,
     cita_fecha: oNull(p.fechaCita), cita_hora: oNull(p.horaCita),
     cita_observacion: null,
-    seguimiento_fecha: oNull(p.segFecha), seguimiento_hora: oNull(p.segHora),
+    fecha_seguimiento: tsSeguimiento(p.segFecha, p.segHora),
     seguimiento_observacion: oNull(p.segObs),
     se_comunica_sub: oNull(p.comunicaSub),
     actualizacion_motivo: oNull([p.motivoCambio, p.actualizarObs].filter(Boolean).join(' · ')),
@@ -245,7 +266,7 @@ export function uiDesdeFila(r){
     validaciones: r.chks_taller || [], srvAdicional: r.servicios_adicionales || '',
     asesorTaller: r.cita_asesor_taller_nombre || '',      // el nombre por FK se resuelve en la UI si hace falta
     fechaCita: r.cita_fecha || '', horaCita: r.cita_hora || '',
-    segFecha: r.seguimiento_fecha || '', segHora: r.seguimiento_hora || '', segObs: r.seguimiento_observacion || '',
+    ...descomponerSeguimiento(r.fecha_seguimiento), segObs: r.seguimiento_observacion || '',
     comunicaSub: r.se_comunica_sub || '',
     kmServicio: cot.km_servicio || '', valor: cot.valor_total != null ? cot.valor_total : '',
     alineacion: det.alineacion || '', descuento: det.descuento || '', embellecimiento: det.embellecimiento || '',
