@@ -194,7 +194,10 @@ async function filaDesdePayload(p, usuario){
     cola: oNull(p.cola),
     asignado_a: oNull(p.asignadoId),
     asignado_motivo: oNull(p.asignMotivo),
-    radicado_por: usuario.alias || usuario.email || null
+    radicado_por: usuario.alias || usuario.email || null,
+    grupo_chat: oNull(p.grupoChat),
+    nota_solicitante: oNull(p.notaSolicitante),
+    tipo_radicacion: oNull(p.tipoRadicacion)
   };
 }
 
@@ -278,6 +281,7 @@ export function uiDesdeFila(r){
     historial: r.historial || [],
     // internos / propiedad
     cola: r.cola || '', asignMotivo: r.asignado_motivo || '', radicadoPor: r.radicado_por || '',
+    grupoChat: r.grupo_chat || '', notaSolicitante: r.nota_solicitante || '', tipoRadicacion: r.tipo_radicacion || '',
     asignadoId: r.asignado_a || null, createdBy: r.asesor_cc_id || null,
     // alias de asesor: la UI los rellena con su caché (S.asesoresCC) si aplica
     asesorCeta: '', asignadoAlias: '', createdByAlias: '',

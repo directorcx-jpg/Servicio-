@@ -735,27 +735,20 @@ function radicarCaso(){
 
 // opciones.masivo = true → NO toca la UI (lo hace el llamador). Escribe el
 // caso directamente en Supabase (estado 'pendiente'). Lanza Error si falla.
-// Nota: grupoChat/notaSolicitante/tipoRadicacion no tienen columna propia;
-// se pliegan en `observacion` (deuda registrada — candidatas a columnas).
+// grupoChat/notaSolicitante/tipoRadicacion van en sus columnas propias; si
+// hay grupo_chat, la base dispara la alerta al espacio de Google Chat.
 async function crearCasoInterno(payload, opciones){
   opciones = opciones || {};
   const asign = asignarCaso(payload.placa, payload.servicio);
-  const obsRadicacion = [
-    payload.notaSolicitante ? `Nota del solicitante: ${payload.notaSolicitante}` : '',
-    payload.grupoChat ? `Grupo: ${payload.grupoChat}` : '',
-    payload.tipoRadicacion ? `Radicación: ${payload.tipoRadicacion}` : ''
-  ].filter(Boolean).join(' · ');
   const p = {
     ...payload,
     origen: 'Interno',
     resultado: '',                       // sin resultado → estado 'pendiente'
-    observacion: obsRadicacion,
     asignadoId: asign.asesorId, asignMotivo: asign.motivo, cola: asign.cola,
     historial: [{ ts: new Date().toISOString(), tipo: 'Creado', autor: S.user?.alias || '', resultado: 'pendiente', nota: `Radicado por ${S.user?.alias||'—'} → asignado a ${asign.alias} (${asign.motivo})` }]
   };
   const fila = await sbGuardarGestion(p, S.user);
   fila.asignadoAlias = asign.alias; fila.asesorCeta = asign.alias; fila.createdByAlias = asign.alias;
-  fila.notaSolicitante = payload.notaSolicitante || ''; fila.grupoChat = payload.grupoChat || '';
   insertarEnCache(fila);
   if (opciones.masivo) return fila;
   toast(`✅ Caso asignado a ${asign.alias} · ${asign.motivo}`);
