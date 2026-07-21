@@ -6,7 +6,7 @@
 import { DATA } from './data.js?v=1.15.3';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
-import { listarAsesoresCC } from './src/lib/usuarios.js';
+import { listarAsesoresCC, listarOperadoresCasos } from './src/lib/usuarios.js';
 import {
   guardarGestion as sbGuardarGestion,
   listarGestiones as sbListarGestiones,
@@ -19,7 +19,8 @@ import {
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
   user: null,                 // usuario logueado {id,email,nombre,alias,rol,sede_asignada} (id = UUID Supabase)
-  asesoresCC: [],             // caché de asesores call center (Supabase) para la rotación síncrona
+  asesoresCC: [],             // caché de asesores call center (Supabase) — SOLO para la rotación automática
+  operadores: [],             // caché de usuarios que operan casos (cc+coordinador+analista+admin) — asignación y alias
   resultado: 'agenda',
   hasNovedad: false,
   hasWG: false,
@@ -47,12 +48,22 @@ const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 async function cargarAsesoresCC(){
   try { S.asesoresCC = await listarAsesoresCC(); }
   catch (e) { console.error('[CETA] No se pudieron cargar los asesores CC', e); S.asesoresCC = []; }
+  try { S.operadores = await listarOperadoresCasos(); }
+  catch (e) { console.error('[CETA] No se pudieron cargar los operadores de casos', e); S.operadores = []; }
 }
 
-// Resuelve un asesor por su id (UUID) desde la caché. Reemplaza los
-// getUsuarios().find(...) del sistema anterior.
+// Resuelve una persona por su id (UUID) desde las cachés: primero operadores
+// (superconjunto: cc+coordinador+analista+admin), luego asesores CC.
 function asesorPorId(id){
-  return (S.asesoresCC || []).find(u => String(u.id) === String(id)) || null;
+  return (S.operadores || []).find(u => String(u.id) === String(id))
+      || (S.asesoresCC || []).find(u => String(u.id) === String(id))
+      || null;
+}
+
+// Pool para ASIGNAR/REASIGNAR casos internos (distinto de la rotación
+// automática, que sigue siendo solo asesor_cc — ver rotacionPool()).
+function poolAsignacion(){
+  return S.operadores || [];
 }
 
 // =============================================================
@@ -1085,6 +1096,10 @@ async function refrescarInternos(opts){
   if (opts.throttle && Date.now() - (window._lastIntRefresh || 0) < 15000) return;
   window._lastIntRefresh = Date.now();
   try {
+    // Revalidar también las cachés de personas (mismo patrón): si el admin
+    // activó/creó usuarios en Supabase, la lista de asignación se entera aquí.
+    try { S.operadores = await listarOperadoresCasos(); } catch (e) { console.warn('[CETA] operadores', e); }
+    try { S.asesoresCC = await listarAsesoresCC(); } catch (e) { console.warn('[CETA] asesoresCC', e); }
     const internos = await sbListarCasosInternos({});
     conAliases(internos);
     const otros = getGestionesLocal().filter(g => g.origen !== 'Interno');
@@ -1105,7 +1120,7 @@ function openReasignar(id){
       <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Caso <strong>${esc(g.placa||'—')}</strong> · ${esc(g.nombre||'')}<br>Actualmente: <strong>${esc(g.asignadoAlias||g.asesorCeta||'—')}</strong></div>
       <div class="ff"><label>Reasignar a</label><select id="reSel">
         <option value="">— Selecciona asesor —</option>
-        ${rotacionPool().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
+        ${poolAsignacion().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
       </select></div>
     </div>
     <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="reGo"><i class="fas fa-check"></i> Reasignar</button></div>`);
@@ -1174,7 +1189,7 @@ function openCaseDetail(id){
       ${can('reasignar')?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
       <div class="rr"><div class="ff"><select id="mdReasignar">
         <option value="">— Mantener: ${esc(g.asignadoAlias||g.asesorCeta||'—')} —</option>
-        ${rotacionPool().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
+        ${poolAsignacion().map(u=>`<option value="${u.id}" ${u.id===g.asignadoId?'disabled':''}>${esc(u.alias)} (${esc(u.nombre)})${u.id===g.asignadoId?' · actual':''}</option>`).join('')}
       </select></div><div class="ff" style="flex:0 0 auto"><button class="btn btn-gh" id="mdReasignarBtn" style="margin-top:14px"><i class="fas fa-people-arrows"></i> Reasignar</button></div></div>`:''}
 
       <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
@@ -1358,7 +1373,6 @@ const inpStyle = 'border:1px solid var(--bd);background:var(--bgs);color:var(--t
 
 function renderConfig(){
   if (!can('config')) return;
-  renderAsesoresServicioConfig();
   renderListasConfig();
   renderConexionConfig();
   const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
@@ -1372,48 +1386,7 @@ function renderConfig(){
   });
 }
 
-// Gestión de asesores de servicio por ciudad (coordinador).
 const CIUDADES_PANEL = ['Pereira','Manizales','Armenia','Cartago','La Dorada'];
-function renderAsesoresServicioConfig(){
-  const box = $('#asesoresSrvTable'); if (!box) return;
-  const data = getAsesoresServicio();
-  box.innerHTML = `
-    <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">Estos nombres alimentan el campo «Asesor servicio (taller)» del panel, filtrados por la ciudad de la cita.</div>
-    ${CIUDADES_PANEL.map(ciudad => {
-      const lista = data[ciudad] || [];
-      return `<div style="margin-bottom:12px">
-        <div style="font-weight:600;font-size:12px;margin-bottom:4px"><i class="fas fa-location-dot" style="color:var(--ac);font-size:10px"></i> ${esc(ciudad)}</div>
-        ${lista.length ? lista.map((n,idx) => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-          <input class="srv-name" data-ciudad="${esc(ciudad)}" data-idx="${idx}" value="${esc(n)}" style="${inpStyle};flex:1">
-          <button class="btn btn-gh srv-del" data-ciudad="${esc(ciudad)}" data-idx="${idx}" title="Quitar"><i class="fas fa-trash" style="color:var(--ac)"></i></button>
-        </div>`).join('') : `<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">Sin asesores cargados.</div>`}
-        <button class="btn btn-gh srv-add" data-ciudad="${esc(ciudad)}" style="margin-top:2px"><i class="fas fa-plus"></i> Agregar asesor</button>
-      </div>`;
-    }).join('')}
-    <button class="btn btn-ac" id="srvSave" style="margin-top:6px"><i class="fas fa-floppy-disk"></i> Guardar asesores de servicio</button>`;
-
-  $$('#asesoresSrvTable .srv-add').forEach(b => b.addEventListener('click', () => {
-    const c = b.dataset.ciudad; const d = getAsesoresServicio(); (d[c] = d[c] || []).push(''); saveAsesoresServicio(d); renderAsesoresServicioConfig();
-  }));
-  $$('#asesoresSrvTable .srv-del').forEach(b => b.addEventListener('click', () => {
-    const c = b.dataset.ciudad, i = +b.dataset.idx; const d = getAsesoresServicio();
-    // tomar valores actuales del DOM antes de borrar, para no perder ediciones sin guardar
-    leerSrvDom(d); d[c].splice(i,1); saveAsesoresServicio(d); renderAsesoresServicioConfig();
-  }));
-  $('#srvSave').addEventListener('click', () => {
-    const d = getAsesoresServicio(); leerSrvDom(d);
-    // limpiar vacíos
-    Object.keys(d).forEach(c => { d[c] = (d[c]||[]).map(s=>s.trim()).filter(Boolean); });
-    saveAsesoresServicio(d); renderAsesoresServicioConfig();
-    // si el panel está abierto, refrescar su select
-    _ultCiudadPanel = null; poblarAsesorTaller($('#asesorTallerSel')?.value || '');
-    toast('Asesores de servicio actualizados ✓');
-  });
-}
-// Lee los inputs de la tabla de asesores de servicio dentro del objeto dado.
-function leerSrvDom(d){
-  CIUDADES_PANEL.forEach(c => { if (d[c]) d[c] = d[c].map((_,i)=>{ const el = $(`#asesoresSrvTable .srv-name[data-ciudad="${c}"][data-idx="${i}"]`); return el ? el.value : d[c][i]; }); });
-}
 
 // Gestión de listas del panel: motivos y servicios (coordinador).
 function renderListasConfig(){
@@ -1838,15 +1811,12 @@ function poblarComunicaSub(){
   if (subs[prev]) sel.value = prev;
 }
 
-const LS_ASESORES_SRV = 'ceta_asesores_servicio';
+// Asesores de servicio (taller) para el select de cita, por ciudad.
+// Fuente: seed en data.js (solo lectura). La UI de edición se retiró: las
+// personas se administran en Supabase (usuarios_autorizados / asesores_taller).
 function getAsesoresServicio(){
-  try {
-    const ov = JSON.parse(localStorage.getItem(LS_ASESORES_SRV) || 'null');
-    if (ov && typeof ov === 'object') return ov;
-  } catch {}
   return JSON.parse(JSON.stringify(DATA.asesoresServicio || {}));
 }
-function saveAsesoresServicio(obj){ localStorage.setItem(LS_ASESORES_SRV, JSON.stringify(obj)); }
 
 // Llena el select de asesor de taller según la ciudad elegida en el panel.
 // Conserva el valor previo si sigue siendo válido. selPrevio permite forzar uno.
