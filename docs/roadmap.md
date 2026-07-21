@@ -39,29 +39,47 @@
 - Cierre de fase: verificación completa con el skill `verify-after-change`
   antes de declarar la Fase 1 terminada.
 
-## Fase 2 — Vista 360 completa (con datos externos)
+## Fase 2 — Base de conocimiento y flujos EDITABLES
+Hoy TODO el contenido operativo vive incrustado en el código (`data.js`):
+el flujo Inbound de 10 pasos, los guiones Outbound, las plantillas de
+WhatsApp, el calificador de leads, la base de conocimiento (crítico /
+productos / operativo), campañas, escalamiento, extensiones, VIP y pico y
+placa. Actualizar una tarifa o un guion exige editar código + commit +
+deploy — y el permiso `editarContenido` del coordinador existe pero no
+tiene ninguna UI detrás.
+
+Qué hará esta fase:
+- Migrar ese contenido a Supabase (colecciones versionables por tipo:
+  conocimiento, flujos, guiones, plantillas, campañas, directorio).
+- Editor dentro del CRM para el rol con `editarContenido` (coordinador/
+  admin): crear, editar, activar/desactivar entradas sin tocar código.
+- La app lee de Supabase con caché local y el seed de `data.js` queda solo
+  como respaldo offline (mismo patrón ya probado con asesores de taller).
+- Los cambios se ven en todos los dispositivos sin redeploy.
+
+## Fase 3 — Vista 360 completa (con datos externos)
 Unificar en la ficha del cliente todo su historial multi-canal. Requiere las
 integraciones de las fases siguientes; el diseño de la ficha puede empezar
 antes con los datos propios (Fase 1).
 
-## Fase 3 — Integración ERP Quiter
+## Fase 4 — Integración ERP Quiter
 Qué aportará: datos maestros del cliente y vehículo (historial de taller,
 facturación, órdenes de reparación), reemplazo de la nota manual
 "Quiter/iVuo" por registro directo. Prerrequisito: acceso/API de Quiter.
 
-## Fase 4 — Integración Evolution (telefonía)
+## Fase 5 — Integración Evolution (telefonía)
 Qué aportará: click-to-call desde la gestión, registro automático de
 llamadas (hoy la tipificación Evolution se copia a mano — `evolution_json`),
 y pop-up de la ficha del cliente al recibir llamada. Prerrequisito:
 acceso/API de Evolution.
 
-## Fase 5 — Integración Chatwoot (chat)
+## Fase 6 — Integración Chatwoot (chat)
 Qué aportará: conversaciones de WhatsApp/chat dentro del CRM, radicación de
 casos internos directamente desde un chat (hoy llegan por grupos y se
 transcriben a mano), y plantillas de mensajes conectadas. Prerrequisito:
 instancia y API de Chatwoot.
 
-## Fase 6 — Integración BD externa / analítica
+## Fase 7 — Integración BD externa / analítica
 Qué aportará: cruces con otras bases del grupo (campañas, retención,
 indicadores CX) y reportes para el analista. Se define cuando se concrete
 qué base y qué accesos.
@@ -69,7 +87,7 @@ qué base y qué accesos.
 ## Reglas del roadmap
 - Ninguna fase rompe lo ya desplegado: todo cambio pasa por el ciclo de
   skills y por verificación antes de cerrar.
-- El orden de las fases 3–6 puede cambiar según qué acceso llegue primero;
+- El orden de las fases 4–7 puede cambiar según qué acceso llegue primero;
   la estructura de datos actual (FKs cliente/vehículo/gestión) es la base
   que las recibe.
 - Cada integración nueva empieza con su spec en `docs/specs/`.
