@@ -511,8 +511,10 @@ export const DATA = {
   // =============================================================
   // ===== ASESORES DE SERVICIO POR CIUDAD (select dependiente del panel) =====
   // Lista curada que alimenta el campo "Asesor servicio (taller)" del panel de
-  // cierre, filtrada por la ciudad seleccionada. Editable desde Configuración
-  // (coordinador). Manizales agrupa Alto Tablazo + Santander.
+  // cierre, filtrada por la ciudad seleccionada.
+  // ⚠️ RESPALDO OFFLINE: la fuente de verdad es la tabla `asesores_taller` en
+  // Supabase (el coordinador la administra allá). Este seed solo se usa si la
+  // caché está vacía. Manizales agrupa Alto Tablazo + Santander.
   asesoresServicio: {
     "Pereira":   ["Daniela María Marín", "Luis Felipe Giraldo"],
     "Manizales": ["Lina Clemencia López"],

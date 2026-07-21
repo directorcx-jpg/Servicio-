@@ -6,14 +6,15 @@
 import { DATA } from './data.js?v=1.15.3';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
-import { listarAsesoresCC, listarOperadoresCasos } from './src/lib/usuarios.js';
+import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
 import {
   guardarGestion as sbGuardarGestion,
   listarGestiones as sbListarGestiones,
   listarCasosInternos as sbListarCasosInternos,
   asignarCaso as sbAsignarCaso,
   gestionarCaso as sbGestionarCaso,
-  actualizarCaso as sbActualizarCaso
+  actualizarCaso as sbActualizarCaso,
+  refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
@@ -21,6 +22,7 @@ const S = {
   user: null,                 // usuario logueado {id,email,nombre,alias,rol,sede_asignada} (id = UUID Supabase)
   asesoresCC: [],             // caché de asesores call center (Supabase) — SOLO para la rotación automática
   operadores: [],             // caché de usuarios que operan casos (cc+coordinador+analista+admin) — asignación y alias
+  asesoresTaller: [],         // caché de asesores de servicio del taller ({id,nombre,sede}) — select de cita
   resultado: 'agenda',
   hasNovedad: false,
   hasWG: false,
@@ -50,6 +52,8 @@ async function cargarAsesoresCC(){
   catch (e) { console.error('[CETA] No se pudieron cargar los asesores CC', e); S.asesoresCC = []; }
   try { S.operadores = await listarOperadoresCasos(); }
   catch (e) { console.error('[CETA] No se pudieron cargar los operadores de casos', e); S.operadores = []; }
+  try { S.asesoresTaller = await listarAsesoresTaller(); }
+  catch (e) { console.error('[CETA] No se pudieron cargar los asesores de taller', e); S.asesoresTaller = []; }
 }
 
 // Resuelve una persona por su id (UUID) desde las cachés: primero operadores
@@ -1097,9 +1101,10 @@ async function refrescarInternos(opts){
   window._lastIntRefresh = Date.now();
   try {
     // Revalidar también las cachés de personas (mismo patrón): si el admin
-    // activó/creó usuarios en Supabase, la lista de asignación se entera aquí.
+    // activó/creó usuarios o asesores de taller en Supabase, aquí se entera.
     try { S.operadores = await listarOperadoresCasos(); } catch (e) { console.warn('[CETA] operadores', e); }
     try { S.asesoresCC = await listarAsesoresCC(); } catch (e) { console.warn('[CETA] asesoresCC', e); }
+    try { S.asesoresTaller = await listarAsesoresTaller(); refrescarAsesoresTallerCache(); } catch (e) { console.warn('[CETA] asesoresTaller', e); }
     const internos = await sbListarCasosInternos({});
     conAliases(internos);
     const otros = getGestionesLocal().filter(g => g.origen !== 'Interno');
@@ -1812,9 +1817,16 @@ function poblarComunicaSub(){
 }
 
 // Asesores de servicio (taller) para el select de cita, por ciudad.
-// Fuente: seed en data.js (solo lectura). La UI de edición se retiró: las
-// personas se administran en Supabase (usuarios_autorizados / asesores_taller).
+// Fuente de verdad: tabla asesores_taller en Supabase (caché S.asesoresTaller,
+// cargada al login y revalidada al sincronizar). Si la caché está vacía
+// (offline / tabla sin poblar), cae al seed de data.js como respaldo.
 function getAsesoresServicio(){
+  const cache = S.asesoresTaller || [];
+  if (cache.length) {
+    const mapa = {};
+    cache.forEach(a => { if (a.sede) (mapa[a.sede] = mapa[a.sede] || []).push(a.nombre); });
+    if (Object.keys(mapa).length) return mapa;
+  }
   return JSON.parse(JSON.stringify(DATA.asesoresServicio || {}));
 }
 

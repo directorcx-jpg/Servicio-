@@ -1,5 +1,6 @@
 // src/lib/usuarios.js
-// Lecturas de public.usuarios que necesita la app.
+// Lecturas de personas en Supabase: usuarios de la app (public.usuarios)
+// y asesores de servicio del taller (public.asesores_taller).
 
 import { supabase } from './supabaseClient.js';
 
@@ -36,4 +37,19 @@ export async function listarOperadoresCasos() {
     .order('nombre', { ascending: true });
   if (error) throw new Error('No se pudo leer la lista de usuarios: ' + error.message);
   return data || [];
+}
+
+// Asesores de servicio del TALLER (para el select de cita), con su sede.
+// Fuente de verdad: public.asesores_taller, cuya sede es la FK sede_id →
+// public.sedes; aquí se aplana a `sede` = ciudad ('Pereira', 'Manizales'…)
+// que es lo que la UI usa para filtrar. Lanza Error explícito si falla.
+export async function listarAsesoresTaller() {
+  if (!supabase) throw new Error('Supabase no está configurado');
+  const { data, error } = await supabase
+    .from('asesores_taller')
+    .select('id, nombre, sedes(ciudad)')
+    .eq('activo', true)
+    .order('nombre', { ascending: true });
+  if (error) throw new Error('No se pudo leer los asesores de taller: ' + error.message);
+  return (data || []).map(a => ({ id: a.id, nombre: a.nombre, sede: a.sedes ? a.sedes.ciudad : null }));
 }

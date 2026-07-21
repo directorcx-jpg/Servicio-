@@ -129,6 +129,9 @@ export async function crearCotizacion(detalle){
 //  Asesor de taller: match por nombre contra asesores_taller
 // ---------------------------------------------------------------
 let _asesoresTallerCache = null;
+// Invalida la caché del match por nombre. Llamar cuando se recargue la lista
+// de asesores de taller (así un nombre recién creado matchea sin recargar).
+export function refrescarAsesoresTallerCache(){ _asesoresTallerCache = null; }
 async function resolverAsesorTaller(nombre){
   if (!nombre) return { id: null, nombreLibre: null };
   if (!_asesoresTallerCache) {
