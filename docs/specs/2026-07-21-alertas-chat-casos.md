@@ -93,3 +93,11 @@ Google Chat en segundos, en el formato de siempre.
 | Placa duplicada con caso abierto | Aviso de duplicado con opción de agregar nota o crear de todos modos (como hoy) | Si crea de todos modos, la alerta llega al mismo hilo de la placa, manteniendo la historia unida |
 | Usuario sin permiso de radicar | No ve el formulario de radicación | Permisos por rol ya vigentes; sin cambios |
 | Datos viejos en caché | La bandeja puede tardar unos segundos en reflejar el caso nuevo | La bandeja se revalida sola al entrar a la vista; las alertas salen del dato ya guardado, nunca de la caché |
+
+---
+**Verificada 2026-07-21 (verify-after-change): 9/10 PASA · 1 pendiente de
+sesión** — la prueba final del criterio de éxito (radicar desde la interfaz
+del CRM publicado) queda como tarea de Pablo; el motor completo (creación,
+avances, hilo por placa, 6 grupos, seguridad de webhooks, casos sin grupo /
+grupo inválido, regresión de no-internos) quedó probado en vivo con entrega
+HTTP 200.
