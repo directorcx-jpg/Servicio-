@@ -9,5 +9,6 @@ dist/
 # Sistema operativo
 .DS_Store
 
-# Configuración local del asistente/editor
-.claude/
+# Configuración local del asistente/editor (los skills SÍ se versionan)
+.claude/*
+!.claude/skills/
