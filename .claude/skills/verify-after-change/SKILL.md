@@ -37,8 +37,16 @@ se cierra o vuelve a la mesa.
 ## Proceso
 
 ### 1. Preparar
-- Leer la spec correspondiente en `docs/specs/` y el plan de la conversación.
-  Si no existe spec, decirlo (es un hallazgo, no un bloqueo).
+- Leer los DOS documentos de referencia del desarrollo, que deben
+  corresponder al mismo cambio:
+  - **La spec:** `docs/specs/YYYY-MM-DD-titulo.md` (la del desarrollo que se
+    está verificando).
+  - **El plan aprobado:** vive como archivo en `~/.claude/plans/` (en este
+    equipo: `C:\Users\D. Customer Experien\.claude\plans\`). Tomar el más
+    reciente relacionado con este desarrollo (o el de la conversación
+    activa) y leerlo completo antes de elegir los casos.
+  - Si no se encuentra plan o spec relacionados, reportarlo como hallazgo
+    (no bloquea la verificación).
 - Levantar el servidor y abrir la app. Primer chequeo siempre: consola sin
   errores (`read_console_messages` con onlyErrors).
 
@@ -64,8 +72,10 @@ Numerarlos 1–10 con: nombre corto, pasos, resultado esperado.
 - Registrar por caso: PASA / FALLA / PENDIENTE + evidencia de una línea.
 
 ### 4. Comparar y decidir
-- Contrastar resultados contra la spec (sección Comportamiento Esperado y
-  Alcance) y el plan: ¿todo lo del "Incluye" quedó cubierto?
+- Contrastar resultados contra AMBOS documentos: la spec (secciones
+  Comportamiento Esperado y Alcance: ¿todo lo del "Incluye" quedó
+  cubierto?) y el archivo de plan de `~/.claude/plans/` (¿cada paso del
+  plan se ejecutó y se refleja en las pruebas?).
 - Entregar la tabla de 10 casos con su veredicto y luego UNA de dos salidas:
   - **Faltantes:** lista concreta de lo que falla o no alcanza el objetivo,
     cada ítem con su corrección propuesta. Aplicar las correcciones (reglas
