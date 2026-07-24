@@ -13,7 +13,6 @@ import {
   listarCasosInternos as sbListarCasosInternos,
   asignarCaso as sbAsignarCaso,
   gestionarCaso as sbGestionarCaso,
-  actualizarCaso as sbActualizarCaso,
   refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
 
@@ -797,8 +796,8 @@ function updateInternosBadges(){
 // =============================================================
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
-const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', noContactar:'No contactar' };
-const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', noContactar:'var(--ac)' };
+const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar' };
+const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)' };
 let ctrlFiltro = { asesor:'', resultado:'' };
 
 // Columnas configurables del Control de Gestión (coordinador).
@@ -1159,12 +1158,14 @@ function openColsConfig(){
 }
 
 // ===== MODAL: detalle / edición de caso =====
-const EDITABLE_RESULTS = Object.keys(RESULT_LABEL);
+// El modal de detalle es SOLO LECTURA: el único medio de gestión/tipificación
+// es el Panel de Cierre (botón "Gestionar en el panel →", disponible para
+// casos pendientes y en seguimiento). Aquí solo se consulta y se reasigna.
 function openCaseDetail(id){
   const g = getGestionesLocal().find(x => x.id === id);
   if (!g) { toast('Caso no encontrado'); return; }
   const editable = canEditCase(g);
-  const ro = editable ? '' : 'disabled';
+  const gestionable = editable && g.origen === 'Interno' && (g.resultado === 'pendiente' || g.resultado === 'seg');
   const hist = (g.historial||[]).slice().sort((a,b)=>a.ts-b.ts);
 
   modalOpen(`
@@ -1182,7 +1183,8 @@ function openCaseDetail(id){
 
       ${g.notaSolicitante?`<div class="al in" style="margin-bottom:12px"><i class="fas fa-quote-left"></i><div><strong>Nota del solicitante:</strong> ${esc(g.notaSolicitante)}${g.grupoChat?`<div style="font-size:10px;color:var(--tx3);margin-top:3px">Origen: ${esc(g.grupoChat)} · Radicó: ${esc(g.radicadoPor||'—')}</div>`:''}</div></div>`:''}
 
-      ${(editable && g.origen==='Interno' && g.resultado==='pendiente')?`<button class="btn btn-ac btn-big" id="mdGestionar" style="margin-bottom:12px"><i class="fas fa-headset"></i> Gestionar en el panel →</button>`:''}
+      ${gestionable?`<button class="btn btn-ac btn-big" id="mdGestionar" style="margin-bottom:12px"><i class="fas fa-headset"></i> Gestionar en el panel →</button>
+      <div style="font-size:10px;color:var(--tx3);margin:-6px 0 12px;text-align:center">La tipificación y la cita se registran únicamente desde el Panel de Cierre.</div>`:''}
 
       ${can('reasignar')?`<div class="sub-l"><i class="fas fa-people-arrows"></i>Reasignar caso</div>
       <div class="rr"><div class="ff"><select id="mdReasignar">
@@ -1192,18 +1194,15 @@ function openCaseDetail(id){
 
       <div class="sub-l"><i class="fas fa-circle-info"></i>Datos del caso</div>
       <div class="rr"><div class="ff"><label>Nombre</label><input value="${esc(g.nombre||'')}" disabled></div><div class="ff"><label>Placa</label><input class="mono" value="${esc(g.placa||'')}" disabled></div></div>
-      <div class="rr"><div class="ff"><label>Teléfono</label><input id="mdTelefono" value="${esc(g.telefono||'')}" ${ro}></div><div class="ff"><label>Km actual</label><input id="mdKmActual" value="${esc(g.kmActual||'')}" ${ro}></div></div>
+      <div class="rr"><div class="ff"><label>Teléfono</label><input value="${esc(g.telefono||'')}" disabled></div><div class="ff"><label>Km actual</label><input value="${esc(g.kmActual||'')}" disabled></div></div>
       <div class="rr"><div class="ff"><label>Ciudad</label><input value="${esc(g.ciudad||'')}" disabled></div><div class="ff"><label>Servicio</label><input value="${esc(g.servicio||'')}" disabled></div></div>
 
       <div class="sub-l" style="margin-top:10px"><i class="fas fa-flag"></i>Estado / Resultado</div>
-      <div class="ff"><select id="mdResultado" ${ro}>${EDITABLE_RESULTS.map(r=>`<option value="${r}" ${g.resultado===r?'selected':''}>${esc(RESULT_LABEL[r])}</option>`).join('')}</select></div>
+      <div class="ff"><input value="${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}" disabled></div>
 
-      <div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
-      <div class="rr"><div class="ff"><label>Fecha cita</label><input type="date" id="mdFechaCita" value="${esc(g.fechaCita||'')}" ${ro}></div><div class="ff"><label>Hora cita</label><input type="time" id="mdHoraCita" value="${esc(g.horaCita||'')}" ${ro}></div></div>
-      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input id="mdAsesorTaller" value="${esc(g.asesorTaller||'')}" ${ro}></div></div>
-
-      ${editable?`<div class="sub-l" style="margin-top:10px"><i class="fas fa-pen"></i>Nueva nota / comentario</div>
-      <div class="ff"><input id="mdNota" placeholder="Ej: Cliente confirmó cita para el viernes…"></div>`:''}
+      ${(g.fechaCita||g.horaCita||g.asesorTaller)?`<div class="sub-l" style="margin-top:10px"><i class="fas fa-calendar-check"></i>Cita en taller</div>
+      <div class="rr"><div class="ff"><label>Fecha cita</label><input value="${esc(g.fechaCita||'—')}" disabled></div><div class="ff"><label>Hora cita</label><input value="${esc(g.horaCita||'—')}" disabled></div></div>
+      <div class="rr full"><div class="ff"><label>Asesor servicio (taller)</label><input value="${esc(g.asesorTaller||'—')}" disabled></div></div>`:''}
 
       <div class="sub-l" style="margin-top:14px"><i class="fas fa-clock-rotate-left"></i>Historial del caso</div>
       <div class="case-hist">
@@ -1215,10 +1214,10 @@ function openCaseDetail(id){
     </div>
     <div class="modal-foot">
       <button class="btn btn-gh" data-modal-close>Cerrar</button>
-      ${editable?`<button class="btn btn-ac" id="mdSave"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>`:''}
+      ${gestionable?`<button class="btn btn-ac" id="mdGestionarFoot"><i class="fas fa-headset"></i> Gestionar en el panel</button>`:''}
     </div>`);
 
-  // Reasignar (solo coordinador) — disponible aunque el modal sea de otro asesor.
+  // Reasignar (solo coordinación) — disponible aunque el caso sea de otro asesor.
   const reBtn = $('#mdReasignarBtn');
   if (reBtn) reBtn.addEventListener('click', () => {
     const nid = $('#mdReasignar').value || '';
@@ -1228,27 +1227,10 @@ function openCaseDetail(id){
       .catch(err => { console.error(err); toast('⚠️ No se pudo reasignar — reintenta'); });
   });
 
-  if (editable) {
-    const gest = $('#mdGestionar');
-    if (gest) gest.addEventListener('click', () => { modalClose(); gestionarCaso(id); });
-    $('#mdSave').addEventListener('click', async () => {
-      const changes = {
-        telefono: $('#mdTelefono').value.trim(),
-        kmActual: $('#mdKmActual').value.trim(),
-        resultado: $('#mdResultado').value,
-        fechaCita: $('#mdFechaCita').value,
-        horaCita: $('#mdHoraCita').value,
-        asesorTaller: $('#mdAsesorTaller').value.trim()
-      };
-      const nota = $('#mdNota').value.trim();
-      try {
-        const fila = await sbActualizarCaso(id, changes, nota, S.user?.alias || '');
-        conAliases([fila]);
-        reemplazarEnCache(fila);
-        modalClose(); renderControl(); renderInternos(); updateInternosBadges(); toast('✅ Caso actualizado');
-      } catch (err) { console.error(err); toast('⚠️ No se pudo actualizar — reintenta'); }
-    });
-  }
+  // Único camino de gestión: el Panel de Cierre.
+  const irAlPanel = () => { modalClose(); gestionarCaso(id); };
+  const gest = $('#mdGestionar');     if (gest) gest.addEventListener('click', irAlPanel);
+  const gestF = $('#mdGestionarFoot'); if (gestF) gestF.addEventListener('click', irAlPanel);
 }
 function fmtHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
 function fmtFechaHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
