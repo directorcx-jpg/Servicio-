@@ -1165,7 +1165,10 @@ function openCaseDetail(id){
   const g = getGestionesLocal().find(x => x.id === id);
   if (!g) { toast('Caso no encontrado'); return; }
   const editable = canEditCase(g);
-  const gestionable = editable && g.origen === 'Interno' && (g.resultado === 'pendiente' || g.resultado === 'seg');
+  // Gestionable en el panel: casos internos pendientes y CUALQUIER gestión
+  // tipificada en seguimiento (el callback se re-tipifica desde el panel,
+  // sin importar el origen).
+  const gestionable = editable && (g.resultado === 'pendiente' || g.resultado === 'seg');
   const hist = (g.historial||[]).slice().sort((a,b)=>a.ts-b.ts);
 
   modalOpen(`
