@@ -2464,6 +2464,9 @@ function precargarPanel(g){
   const setF = (k,v) => { const e = $(`[data-f="${k}"]`); if (e && v != null) e.value = v; };
   setF('nombre', g.nombre); setF('telefono', g.telefono); setF('placa', g.placa);
   setF('ciudad', g.ciudad);
+  // Datos ya capturados en gestiones anteriores: NO se vuelven a digitar al
+  // retomar el caso (el km solo se actualiza si el asesor lo cambia).
+  setF('kmActual', g.kmActual); setF('fechaNac', g.fechaNac);
   setF('origen', 'Base');   // origen del contacto en el panel
   // el tipo de servicio del caso interno alimenta el Motivo del contacto (tipificación)
   const mSel = $('#motivoSel');
