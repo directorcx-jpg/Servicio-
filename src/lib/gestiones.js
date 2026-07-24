@@ -147,23 +147,14 @@ async function resolverAsesorTaller(nombre){
 //  Escritura principal
 // ---------------------------------------------------------------
 
-// Traduce el payload de la UI a la fila de `gestiones` (sin FKs, que se
-// resuelven en guardarGestion). Exportada para reuso en casos internos.
-async function filaDesdePayload(p, usuario){
+// Campos de GESTIÓN comunes a crear y a gestionar-caso: todo lo que el
+// asesor diligencia en el panel (resultado-específicos incluidos). Único
+// lugar donde vive este mapeo — lo usan filaDesdePayload y gestionarCaso.
+async function camposGestionDesdePayload(p){
   const asesor = await resolverAsesorTaller(p.asesorTaller);
-  const esInterno = p.origen === 'Interno';
-  const resultadoDb = esInterno && !p.resultado ? null : (RESULTADO_A_DB[p.resultado] || null);
   // comunicaObs/actualizarObs no tienen columna propia: se pliegan en observacion.
   const obsExtra = [p.comunicaObs, p.actualizarObs].filter(Boolean).join(' · ');
   return {
-    // En casos internos el dueño es el asesor ASIGNADO por la rotación;
-    // en gestiones normales, quien la registra.
-    asesor_cc_id: p.asignadoId || usuario.id,
-    sede: oNull(p.ciudad),
-    origen: ORIGEN_A_DB[p.origen] || 'otros',
-    motivo: oNull(p.motivo || p.servicio),
-    resultado: resultadoDb,
-    estado: esInterno && !resultadoDb ? 'pendiente' : 'gestionada',
     observacion: oNull([p.observacion, obsExtra].filter(Boolean).join(' · ')),
     novedad_reportada: p.novedad === 'Sí',
     novedad_descripcion: oNull(p.descNovedad),
@@ -180,7 +171,6 @@ async function filaDesdePayload(p, usuario){
     cita_asesor_taller_id: asesor.id,
     cita_asesor_taller_nombre: asesor.nombreLibre,
     cita_fecha: oNull(p.fechaCita), cita_hora: oNull(p.horaCita),
-    cita_observacion: null,
     fecha_seguimiento: tsSeguimiento(p.segFecha, p.segHora),
     seguimiento_observacion: oNull(p.segObs),
     se_comunica_sub: oNull(p.comunicaSub),
@@ -188,7 +178,27 @@ async function filaDesdePayload(p, usuario){
     nota_quiter: oNull(p.notaQuiter),
     evolution_json: (p.evoEstado || p.evoCausa || p.evoMotivo || p.evoVoz)
       ? { estado: p.evoEstado || '', causa: p.evoCausa || '', motivo: p.evoMotivo || '', voz: p.evoVoz || '' }
-      : null,
+      : null
+  };
+}
+
+// Traduce el payload de la UI a la fila COMPLETA de `gestiones` (sin FKs,
+// que se resuelven en guardarGestion).
+async function filaDesdePayload(p, usuario){
+  const esInterno = p.origen === 'Interno';
+  const resultadoDb = esInterno && !p.resultado ? null : (RESULTADO_A_DB[p.resultado] || null);
+  const comunes = await camposGestionDesdePayload(p);
+  return {
+    // En casos internos el dueño es el asesor ASIGNADO por la rotación;
+    // en gestiones normales, quien la registra.
+    asesor_cc_id: p.asignadoId || usuario.id,
+    sede: oNull(p.ciudad),
+    origen: ORIGEN_A_DB[p.origen] || 'otros',
+    motivo: oNull(p.motivo || p.servicio),
+    resultado: resultadoDb,
+    estado: esInterno && !resultadoDb ? 'pendiente' : 'gestionada',
+    ...comunes,
+    cita_observacion: null,
     historial: Array.isArray(p.historial) ? p.historial : [],
     // metadata de casos internos (null en gestiones normales)
     cola: oNull(p.cola),
@@ -349,14 +359,31 @@ export async function asignarCaso(gestionId, asignadoA, motivo, autorAlias, asig
   }, { asignado_a: asignadoA, asesor_cc_id: asignadoA, asignado_motivo: motivo || 'manual' });
 }
 
-// Cierra un caso interno: estado → gestionada + resultado + notas.
-export async function gestionarCaso(gestionId, resultadoUI, notas, autorAlias, cambiosExtra){
+// Cierra un caso interno persistiendo TODO lo diligenciado en el panel
+// (mismo mapeo que una gestión nueva): resultado-específicos incluidos
+// (fecha_seguimiento, se_comunica_sub, actualizacion_motivo, asesor de
+// taller, novedad, telemetría…) y la cotización si el asesor la armó.
+export async function gestionarCaso(gestionId, payload, usuario, nota){
   requiereSupabase();
-  const resultado = RESULTADO_A_DB[resultadoUI] || null;
-  return pushHistorial(gestionId, {
-    ts: new Date().toISOString(), tipo: 'Actualizado', autor: autorAlias || '',
-    resultado: resultado || resultadoUI, nota: notas || ''
-  }, { estado: 'gestionada', resultado, ...(cambiosExtra || {}) });
+  const resultado = RESULTADO_A_DB[payload.resultado] || null;
+  const cambios = {
+    estado: 'gestionada',
+    resultado,
+    ...(await camposGestionDesdePayload(payload))
+  };
+  const tieneCotizacion = !!(payload.valor || payload.kmServicio);
+  if (tieneCotizacion) {
+    cambios.cotizacion_id = await crearCotizacion(payload);
+  }
+  const fila = await pushHistorial(gestionId, {
+    ts: new Date().toISOString(), tipo: 'Actualizado', autor: usuario?.alias || '',
+    resultado: resultado || payload.resultado, nota: nota || ''
+  }, cambios);
+  if (cambios.cotizacion_id) {
+    const { error } = await supabase.from('cotizaciones').update({ gestion_id: gestionId }).eq('id', cambios.cotizacion_id);
+    if (error) console.warn('[Gestiones] No se pudo enlazar cotizacion.gestion_id', error);
+  }
+  return fila;
 }
 
 // Edición parcial de un caso desde el modal de detalle. Acepta un subconjunto

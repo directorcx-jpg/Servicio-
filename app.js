@@ -2243,15 +2243,14 @@ async function saveGestion(){
 
   try {
     // Si se está gestionando un caso interno: actualizar el MISMO registro
-    // en Supabase (pendiente → resultado final), no crear uno nuevo.
+    // en Supabase (pendiente → resultado final) con TODO el payload del
+    // panel (seguimiento, sub-motivos, asesor taller, cotización…).
     if (S.casoActivo) {
       const fila = await sbGestionarCaso(
-        S.casoActivo, payload.resultado,
-        `Gestionado: ${RESULT_LABEL[payload.resultado]||payload.resultado}`,
-        S.user?.alias || '',
-        { cita_fecha: payload.fechaCita || null, cita_hora: payload.horaCita || null,
-          observacion: payload.observacion || null, nota_quiter: payload.notaQuiter || null }
+        S.casoActivo, payload, S.user,
+        `Gestionado: ${RESULT_LABEL[payload.resultado]||payload.resultado}`
       );
+      conAliases([fila]);
       reemplazarEnCache(fila);
       toast('✅ Caso gestionado');
       cancelarCasoActivo();
