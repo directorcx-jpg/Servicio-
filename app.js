@@ -1166,9 +1166,9 @@ function openCaseDetail(id){
   if (!g) { toast('Caso no encontrado'); return; }
   const editable = canEditCase(g);
   // Gestionable en el panel: casos internos pendientes y CUALQUIER gestión
-  // tipificada en seguimiento (el callback se re-tipifica desde el panel,
-  // sin importar el origen).
-  const gestionable = editable && (g.resultado === 'pendiente' || g.resultado === 'seg');
+  // en seguimiento o no contesta (el reintento/callback se re-tipifica desde
+  // el panel, sin importar el origen).
+  const gestionable = editable && (g.resultado === 'pendiente' || g.resultado === 'seg' || g.resultado === 'noc');
   const hist = (g.historial||[]).slice().sort((a,b)=>a.ts-b.ts);
 
   modalOpen(`
@@ -2133,8 +2133,10 @@ function validateSemaforo(){
   const req = [];
   if (!f.nombre) req.push('Nombre');
   if (!f.placa)  req.push('Placa');
+  // Km actual SIEMPRE obligatorio — excepto cuando el resultado es
+  // justamente "Sin km" (el cliente no tiene el dato).
+  if (r !== 'sinKm' && !f.kmActual) req.push('Km actual');
   if (r === 'agenda') {
-    if (!f.kmActual)     req.push('Km actual');
     if (!f.asesorTaller) req.push('Asesor taller');
     if (S.hasWG) {
       if (!f.wgFecha)     req.push('Fecha We Go');

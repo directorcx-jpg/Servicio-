@@ -29,15 +29,21 @@
   transcripción manual) queda como desarrollo posterior con su propia spec,
   porque requiere app de Google Chat (Cloud/Workspace) y mover la rotación
   de casos del navegador al servidor.
-- **Cola de seguimientos**: bandeja de seguimientos del día y vencidos sobre
-  `fecha_seguimiento`, con alertas.
-- Vista 360 v1 con datos propios: al buscar una placa o teléfono, ver el
-  cliente con sus vehículos, gestiones, citas y seguimientos (todo ya está
-  en Supabase relacionado por FKs).
-- Pulidos pendientes: restaurar borrador tras recarga, etiquetas de
-  resultado faltantes.
-- Cierre de fase: verificación completa con el skill `verify-after-change`
-  antes de declarar la Fase 1 terminada.
+**Cola de pendientes de la Fase 1** (esta lista ES el backlog de la fase —
+se marca aquí el avance):
+- [x] Alertas de casos a Google Chat (verificada 2026-07-21) + ajustes de la
+  ronda de pruebas: modal solo lectura, persistencia completa al gestionar,
+  gestionar también seguimientos y no-contesta, km obligatorio.
+- [ ] **Cola de seguimientos**: bandeja de seguimientos del día y vencidos
+  sobre `fecha_seguimiento`, con alertas. ← SIGUIENTE
+- [ ] **Vista 360 v1** con datos propios: al buscar una placa o teléfono,
+  ver el cliente con sus vehículos, gestiones, citas y seguimientos (todo
+  ya está en Supabase relacionado por FKs).
+- [ ] Pulido pendiente: restaurar borrador tras recarga. (Etiquetas de
+  resultado faltantes: ✅ hechas.)
+- [ ] Cierre de fase: verificación completa con el skill
+  `verify-after-change` antes de declarar la Fase 1 terminada y pasar a
+  la Fase 2.
 
 ## Fase 2 — Base de conocimiento y flujos EDITABLES
 Hoy TODO el contenido operativo vive incrustado en el código (`data.js`):
