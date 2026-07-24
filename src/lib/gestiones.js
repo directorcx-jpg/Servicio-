@@ -375,6 +375,26 @@ export async function gestionarCaso(gestionId, payload, usuario, nota){
   if (tieneCotizacion) {
     cambios.cotizacion_id = await crearCotizacion(payload);
   }
+
+  // Los datos de cliente/vehículo capturados DURANTE la gestión también se
+  // persisten en sus tablas (p. ej. el km de la primera gestión de un caso
+  // radicado sin km) — así las retomas llegan con el dato precargado.
+  const { data: refs, error: eRefs } = await supabase
+    .from('gestiones').select('cliente_id, vehiculo_id').eq('id', gestionId).single();
+  if (!eRefs && refs) {
+    if (payload.kmActual && refs.vehiculo_id) {
+      const km = parseInt(String(payload.kmActual).replace(/\D/g, ''), 10) || null;
+      if (km != null) {
+        const { error } = await supabase.from('vehiculos').update({ km_actual: km }).eq('id', refs.vehiculo_id);
+        if (error) console.warn('[Gestiones] No se pudo actualizar km del vehículo', error);
+      }
+    }
+    if (payload.telefono && refs.cliente_id) {
+      const { error } = await supabase.from('clientes').update({ telefono: normTelefono(payload.telefono) }).eq('id', refs.cliente_id);
+      if (error) console.warn('[Gestiones] No se pudo actualizar teléfono del cliente', error);
+    }
+  }
+
   const fila = await pushHistorial(gestionId, {
     ts: new Date().toISOString(), tipo: 'Actualizado', autor: usuario?.alias || '',
     resultado: resultado || payload.resultado, nota: nota || ''
