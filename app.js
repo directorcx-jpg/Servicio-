@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.15.3';
+import { DATA } from './data.js?v=1.17.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -13,6 +13,7 @@ import {
   listarCasosInternos as sbListarCasosInternos,
   asignarCaso as sbAsignarCaso,
   gestionarCaso as sbGestionarCaso,
+  listarSeguimientos as sbListarSeguimientos,
   refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
 
@@ -22,6 +23,7 @@ const S = {
   asesoresCC: [],             // caché de asesores call center (Supabase) — SOLO para la rotación automática
   operadores: [],             // caché de usuarios que operan casos (cc+coordinador+analista+admin) — asignación y alias
   asesoresTaller: [],         // caché de asesores de servicio del taller ({id,nombre,sede}) — select de cita
+  seguimientos: [],           // cola de seguimientos (consulta dedicada, completa — no depende del tope de la caché)
   resultado: 'agenda',
   hasNovedad: false,
   hasWG: false,
@@ -163,9 +165,10 @@ function enterApp(){
   pickRes($('#resP .pill[data-r="agenda"]'));
   goTo('home');
 
-  // Traer las gestiones del equipo desde Supabase al entrar (la caché local
-  // pinta primero; esto revalida en fondo).
+  // Traer las gestiones y la cola de seguimientos desde Supabase al entrar
+  // (la caché local pinta primero; esto revalida en fondo).
   refrescarGestiones({ silencioso:true });
+  refrescarSeguimientos();
 
   // Refresco de temporizadores de la bandeja (SLA 5 min) cada 30 s.
   if (!window._slaTimer) window._slaTimer = setInterval(() => {
@@ -1108,6 +1111,120 @@ async function refrescarInternos(opts){
   }
 }
 
+// =============================================================
+//  COLA DE SEGUIMIENTOS (spec 2026-07-24-cola-seguimientos)
+//  Consulta dedicada: la cola es COMPLETA (no depende del tope de la
+//  caché general). Asesores ven la suya; supervisión ve la del equipo.
+// =============================================================
+async function refrescarSeguimientos(opts){
+  opts = opts || {};
+  if (opts.throttle && Date.now() - (window._lastSegRefresh || 0) < 15000) return;
+  window._lastSegRefresh = Date.now();
+  try {
+    const propios = perms().verCasos !== 'todos';
+    const rows = await sbListarSeguimientos(propios ? { asesorId: S.user?.id } : {});
+    conAliases(rows);
+    rows.forEach(g => { g._segTs = g.segFecha ? new Date(`${g.segFecha}T${g.segHora || '00:00'}`).getTime() : 0; });
+    S.seguimientos = rows;
+    // fundirlos en la caché general para que el detalle y el panel los encuentren
+    rows.forEach(reemplazarEnCache);
+    updateSeguimientosBadge();
+    if ($('#v-seguimientos')?.classList.contains('active')) renderSeguimientos();
+  } catch (err) {
+    console.error('[CETA] refrescarSeguimientos', err);
+  }
+}
+
+// Clasifica la cola: vencidos (antes de hoy), hoy, próximos.
+function clasificarSeguimientos(){
+  const ahora = new Date();
+  const iniHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+  const finHoy = iniHoy + 86400000;
+  const vencidos = [], hoy = [], proximos = [];
+  (S.seguimientos || []).forEach(g => {
+    if (!g._segTs) return;
+    if (g._segTs < iniHoy) vencidos.push(g);
+    else if (g._segTs < finHoy) hoy.push(g);
+    else proximos.push(g);
+  });
+  return { vencidos, hoy, proximos };
+}
+
+function updateSeguimientosBadge(){
+  const { vencidos, hoy } = clasificarSeguimientos();
+  const n = vencidos.length + hoy.length;
+  let badge = $('#segBadge');
+  const nav = $('.ni[data-v="seguimientos"]');
+  if (nav && !badge) {
+    badge = document.createElement('span');
+    badge.id = 'segBadge';
+    badge.style.cssText = 'margin-left:auto;background:var(--ac);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px';
+    nav.appendChild(badge);
+  }
+  if (badge) { badge.style.display = n ? 'grid' : 'none'; badge.textContent = n; }
+  const banner = $('#homeSeguimientos');
+  if (banner) {
+    if (n > 0) {
+      const plural = perms().verCasos === 'todos';
+      banner.style.display = 'flex';
+      banner.querySelector('.hs-txt').textContent =
+        `${plural ? 'El equipo tiene' : 'Tienes'} ${n} seguimiento${n === 1 ? '' : 's'} para hoy` +
+        (vencidos.length ? ` (${vencidos.length} vencido${vencidos.length === 1 ? '' : 's'})` : '');
+    } else banner.style.display = 'none';
+  }
+}
+
+// Cuándo toca el seguimiento, en lenguaje humano según su grupo.
+function segCuando(g, tipo){
+  const conHora = g.segHora && g.segHora !== '00:00';
+  if (tipo === 'vencido') {
+    const dias = Math.max(1, Math.ceil((Date.now() - g._segTs) / 86400000));
+    return `Vencido hace ${dias} día${dias === 1 ? '' : 's'}`;
+  }
+  if (tipo === 'hoy') return conHora ? `Hoy · ${g.segHora}` : 'Hoy · durante el día';
+  const d = new Date(g._segTs);
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) + (conHora ? ` · ${g.segHora}` : '');
+}
+
+function renderSeguimientos(){
+  const el = $('#v-seguimientos'); if (!el) return;
+  const { vencidos, hoy, proximos } = clasificarSeguimientos();
+  const esEquipo = perms().verCasos === 'todos';
+  const colorTipo = { vencido: 'var(--ac)', hoy: 'var(--in)', proximo: 'var(--tx3)' };
+  const card = (g, tipo) => `
+    <div class="fb seg-card" data-id="${esc(g.id)}" style="cursor:pointer;border-left:3px solid ${colorTipo[tipo]};display:flex;align-items:center;gap:14px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <strong>${esc(g.nombre || 'Sin nombre')}</strong>
+          <span class="mono" style="font-size:11px;color:var(--tx2)">${esc(g.placa || '—')}</span>
+          <span style="font-size:11px;color:var(--tx2)"><i class="fas fa-phone" style="font-size:9px"></i> ${esc(g.telefono || '—')}</span>
+          ${esEquipo ? `<span class="badge">${esc(g.asesorCeta || g.asignadoAlias || '—')}</span>` : ''}
+        </div>
+        <div style="font-size:11px;margin-top:3px;color:${tipo === 'vencido' ? 'var(--ac)' : 'var(--tx2)'};font-weight:${tipo === 'vencido' ? '700' : '500'}">
+          <i class="fas fa-clock" style="font-size:9px"></i> ${esc(segCuando(g, tipo))}
+        </div>
+        ${g.segObs ? `<div style="font-size:11px;color:var(--tx3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.segObs)}</div>` : ''}
+      </div>
+      ${canEditCase(g) ? `<button class="btn btn-ac seg-gestionar" data-id="${esc(g.id)}" style="flex-shrink:0"><i class="fas fa-headset"></i> Gestionar en el panel →</button>` : ''}
+      <i class="fas fa-chevron-right" style="color:var(--tx3);font-size:10px;flex-shrink:0"></i>
+    </div>`;
+  el.innerHTML = `
+    <h1 class="ft-title">Seguimientos</h1>
+    <div class="badges">
+      <span class="badge" style="background:var(--acs);color:var(--ac)">${vencidos.length} vencidos</span>
+      <span class="badge" style="background:var(--ins);color:var(--in)">${hoy.length} para hoy</span>
+      <span class="badge">${proximos.length} próximos</span>
+      ${esEquipo ? '<span class="badge"><i class="fas fa-users"></i> Cola del equipo</span>' : ''}
+    </div>
+    ${vencidos.length ? `<div class="sub-l" style="color:var(--ac)"><i class="fas fa-triangle-exclamation"></i>Vencidos (${vencidos.length})</div>${vencidos.map(g => card(g, 'vencido')).join('')}` : ''}
+    ${hoy.length ? `<div class="sub-l" style="margin-top:14px"><i class="fas fa-sun"></i>Hoy (${hoy.length})</div>${hoy.map(g => card(g, 'hoy')).join('')}` : ''}
+    ${(!vencidos.length && !hoy.length) ? emptyState('fa-circle-check', 'No tienes seguimientos pendientes', 'Cuando tipifiques una gestión en Seguimiento con fecha, aparecerá aquí en su día.') : ''}
+    ${proximos.length ? `<div class="sub-l" style="margin-top:14px"><i class="fas fa-calendar"></i>Próximos (${proximos.length})</div>${proximos.map(g => card(g, 'proximo')).join('')}` : ''}`;
+  $$('#v-seguimientos .seg-gestionar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); gestionarCaso(b.dataset.id); }));
+  $$('#v-seguimientos .seg-card').forEach(c => c.addEventListener('click', () => openCaseDetail(c.dataset.id)));
+}
+function goToSeguimientos(){ goTo('seguimientos'); }
+
 // Mini-modal de reasignación rápida (botón en la fila de Control).
 function openReasignar(id){
   const g = getGestionesLocal().find(x => x.id === id); if (!g) return;
@@ -1493,8 +1610,9 @@ function goTo(v){
   // dispara en fondo la lectura fresca desde Supabase (con throttle de 15 s).
   if (v === 'control') { renderControl(); refrescarGestiones({ silencioso:true, throttle:true }); }
   if (v === 'internos') { renderInternos(); refrescarInternos({ throttle:true }); }
+  if (v === 'seguimientos') { renderSeguimientos(); refrescarSeguimientos({ throttle:true }); }
   if (v === 'alertas' && can('config')) renderAlertas();
-  if (v === 'home') { renderHome(); renderHomeAlertas(); refrescarGestiones({ silencioso:true, throttle:true }); }
+  if (v === 'home') { renderHome(); renderHomeAlertas(); updateSeguimientosBadge(); refrescarGestiones({ silencioso:true, throttle:true }); refrescarSeguimientos({ throttle:true }); }
 }
 
 // =============================================================
@@ -2257,10 +2375,15 @@ async function saveGestion(){
       );
       conAliases([fila]);
       reemplazarEnCache(fila);
+      // La cola de seguimientos reacciona al instante: si dejó de ser
+      // seguimiento sale de la cola; si se reprogramó, vuelve con fecha nueva.
+      S.seguimientos = (S.seguimientos || []).filter(x => x.id !== S.casoActivo);
+      updateSeguimientosBadge();
+      refrescarSeguimientos();
       toast('✅ Caso gestionado');
       cancelarCasoActivo();
       limpiarBorrador();
-      setTimeout(() => { resetPanel(); renderInternos(); updateInternosBadges(); }, 600);
+      setTimeout(() => { resetPanel(); renderInternos(); updateInternosBadges(); if ($('#v-seguimientos')?.classList.contains('active')) renderSeguimientos(); }, 600);
       return;
     }
 
@@ -2272,6 +2395,7 @@ async function saveGestion(){
     limpiarBorrador();
     toast('✅ Gestión guardada');
     setTimeout(resetPanel, 600);
+    if (payload.resultado === 'seg') refrescarSeguimientos();   // entra a la cola de una vez
     if ($('#v-control')?.classList.contains('active')) renderControl();
     if ($('#v-home')?.classList.contains('active')) renderHome();
   } catch (err) {
@@ -2341,7 +2465,10 @@ async function reasignarCaso(id, nuevoAsesorId){
 function canEditCase(g){
   if (!S.user) return false;
   if (esCoordinacion()) return true;
-  if (S.user.rol === 'analista') return false;
+  // El analista supervisa la cola de seguimientos: puede gestionar y
+  // reasignar cualquier seguimiento (spec cola-seguimientos); el resto de
+  // casos los ve en solo lectura.
+  if (S.user.rol === 'analista') return g.resultado === 'seg';
   return g.createdBy != null && g.createdBy === S.user.id;
 }
 
@@ -2569,7 +2696,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, goToSeguimientos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
 
 // =============================================================
 //  INIT

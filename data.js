@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.16.0",
+    version: "1.17.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -35,7 +35,7 @@ export const DATA = {
   permisos: {
     administrador:  { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true,  usuarios_manage: true },
     coordinador:    { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true },
-    analista:       { homeEquipo: true,  registrar: false, verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: false, editarContenido: false, config: false, internosAsignar: false, exportar: true },
+    analista:       { homeEquipo: true,  registrar: false, verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: false, config: false, internosAsignar: false, exportar: true },
     asesor_cc:      { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: "ver", exportar: false },
     asesor_digital: { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: false, exportar: false }
   },

@@ -315,6 +315,23 @@ export async function listarGestiones(filtros){
   return (data || []).map(uiDesdeFila);
 }
 
+// Cola de seguimientos: gestiones tipificadas en 'seguimiento' con fecha
+// comprometida, ordenadas ascendente (vencidos primero). Consulta DEDICADA
+// e independiente del tope de la caché general: la cola debe ser completa.
+export async function listarSeguimientos(filtros){
+  requiereSupabase();
+  const f = filtros || {};
+  let q = supabase.from('gestiones').select(SELECT_GESTION)
+    .eq('resultado', 'seguimiento')
+    .not('fecha_seguimiento', 'is', null)
+    .order('fecha_seguimiento', { ascending: true })
+    .limit(f.limite || 300);
+  if (f.asesorId) q = q.eq('asesor_cc_id', f.asesorId);
+  const { data, error } = await q;
+  if (error) throw new Error('No se pudieron leer los seguimientos: ' + error.message);
+  return (data || []).map(uiDesdeFila);
+}
+
 // Casos internos (origen interno), filtrables por estado/cola/asignado.
 export async function listarCasosInternos(filtros){
   requiereSupabase();

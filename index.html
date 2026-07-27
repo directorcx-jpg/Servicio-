@@ -215,6 +215,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
   </div>
   <div class="ng"><div class="ng-t">Gestión</div>
     <button class="ni" data-v="internos"><i class="fas fa-inbox"></i>Casos internos</button>
+    <button class="ni" data-v="seguimientos"><i class="fas fa-clock"></i>Seguimientos</button>
     <button class="ni" data-v="control" data-perm="controlGestion"><i class="fas fa-table-columns"></i>Control gestión</button>
     <button class="ni" data-v="alertas" data-perm="config"><i class="fas fa-triangle-exclamation"></i>Alertas operativas</button>
   </div>
@@ -239,6 +240,11 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
       <i class="fas fa-bell" style="color:var(--ac);font-size:20px"></i>
       <div style="flex:1"><strong style="font-size:14px">Tienes <span class="hp-n">0</span> casos pendientes por gestionar</strong><div style="font-size:11px;color:var(--tx2)">Haz click para ir a tu bandeja de Casos Internos</div></div>
       <i class="fas fa-chevron-right" style="color:var(--ac)"></i>
+    </div>
+    <div id="homeSeguimientos" style="display:none;align-items:center;gap:12px;background:var(--ins);border:1px solid var(--in);border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer" onclick="goToSeguimientos()">
+      <i class="fas fa-clock" style="color:var(--in);font-size:20px"></i>
+      <div style="flex:1"><strong style="font-size:14px" class="hs-txt">Tienes 0 seguimientos para hoy</strong><div style="font-size:11px;color:var(--tx2)">Haz click para ir a la cola de Seguimientos</div></div>
+      <i class="fas fa-chevron-right" style="color:var(--in)"></i>
     </div>
     <div style="background:linear-gradient(135deg,var(--bgp),var(--bgs));border:1px solid var(--bd);border-radius:10px;padding:28px;margin-bottom:20px;position:relative;overflow:hidden">
       <div style="position:absolute;top:-50%;right:-10%;width:350px;height:350px;background:radial-gradient(circle,var(--acs),transparent 60%);z-index:0"></div>
@@ -321,6 +327,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
   <div class="view" id="v-leads"></div>
   <div class="view" id="v-whatsapp"></div>
   <div class="view" id="v-internos"></div>
+  <div class="view" id="v-seguimientos"></div>
   <div class="view" id="v-control"></div>
   <div class="view" id="v-productos"></div>
   <div class="view" id="v-contactos"></div>
@@ -509,6 +516,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.16.0"></script>
+<script type="module" src="app.js?v=1.17.0"></script>
 </body>
 </html>
