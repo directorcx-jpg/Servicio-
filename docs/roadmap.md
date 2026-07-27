@@ -34,11 +34,11 @@ se marca aquí el avance):
 - [x] Alertas de casos a Google Chat (verificada 2026-07-21) + ajustes de la
   ronda de pruebas: modal solo lectura, persistencia completa al gestionar,
   gestionar también seguimientos y no-contesta, km obligatorio.
-- [ ] **Cola de seguimientos**: bandeja de seguimientos del día y vencidos
-  sobre `fecha_seguimiento`, con alertas. ← SIGUIENTE
-- [ ] **Vista 360 v1** con datos propios: al buscar una placa o teléfono,
-  ver el cliente con sus vehículos, gestiones, citas y seguimientos (todo
-  ya está en Supabase relacionado por FKs).
+- [x] **Cola de seguimientos** (verificada 2026-07-24): vista con vencidos/
+  hoy/próximos, badge y banner; supervisión gestiona y reasigna cualquiera.
+- [ ] **Vista 360 v1** con datos propios ← SIGUIENTE: al buscar una placa o
+  teléfono, ver el cliente con sus vehículos, gestiones, citas y
+  seguimientos (todo ya está en Supabase relacionado por FKs).
 - [ ] Pulido pendiente: restaurar borrador tras recarga. (Etiquetas de
   resultado faltantes: ✅ hechas.)
 - [ ] Cierre de fase: verificación completa con el skill

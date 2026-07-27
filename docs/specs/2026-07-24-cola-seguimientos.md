@@ -99,3 +99,11 @@ badge baja a 1.
 | Dos asesores miran el mismo caso | Cada asesor ve su cola; puede gestionarlo el dueño o un rol de supervisión | Un asesor que no es dueño lo abre en solo lectura; supervisión (admin/coordinador/analista) puede gestionar y reasignar cualquiera |
 | Usuario sin permiso | Los roles sin acceso no ven la vista en el menú | Mismo esquema de permisos por rol de las demás vistas |
 | Datos viejos en caché | El contador puede tardar unos segundos en actualizarse al entrar | La cola consulta directo a la base al abrir la vista y revalida con el patrón ya probado |
+
+---
+**Verificada 2026-07-24 (verify-after-change): 10/10 PASA.** Criterio de
+éxito ejecutado por Pablo en producción (badge, cola ordenada con vencido
+en rojo, gestionar baja el contador). Datos verificados por MCP: consulta
+dedicada sin error, policy `gestiones_update_equipo` (incluye analista)
+activa, 8 seguimientos en cola, historial encadenado en el último caso
+gestionado. Consola limpia y regresión de vistas vecinas sin novedades.
