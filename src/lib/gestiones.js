@@ -315,6 +315,25 @@ export async function listarGestiones(filtros){
   return (data || []).map(uiDesdeFila);
 }
 
+// Línea de tiempo de la ficha 360: TODAS las gestiones del cliente y/o de
+// sus vehículos (el OR captura los casos internos radicados solo con placa,
+// que no tienen cliente_id), de la más reciente a la más antigua.
+export async function listarGestionesDeCliente(clienteId, vehiculoIds){
+  requiereSupabase();
+  const conds = [];
+  if (clienteId) conds.push(`cliente_id.eq.${clienteId}`);
+  if (Array.isArray(vehiculoIds) && vehiculoIds.length) conds.push(`vehiculo_id.in.(${vehiculoIds.join(',')})`);
+  if (!conds.length) return [];
+  const { data, error } = await supabase
+    .from('gestiones')
+    .select(SELECT_GESTION)
+    .or(conds.join(','))
+    .order('creado_en', { ascending: false })
+    .limit(200);
+  if (error) throw new Error('No se pudo cargar el historial del cliente: ' + error.message);
+  return (data || []).map(uiDesdeFila);
+}
+
 // Cola de seguimientos: gestiones tipificadas en 'seguimiento' con fecha
 // comprometida, ordenadas ascendente (vencidos primero). Consulta DEDICADA
 // e independiente del tope de la caché general: la cola debe ser completa.

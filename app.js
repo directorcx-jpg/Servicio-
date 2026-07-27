@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.17.0';
+import { DATA } from './data.js?v=1.18.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -14,8 +14,14 @@ import {
   asignarCaso as sbAsignarCaso,
   gestionarCaso as sbGestionarCaso,
   listarSeguimientos as sbListarSeguimientos,
+  listarGestionesDeCliente as sbListarGestionesDeCliente,
   refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
+import {
+  sugerirClientes as sbSugerirClientes,
+  obtenerCliente as sbObtenerCliente,
+  obtenerVehiculo as sbObtenerVehiculo
+} from './src/lib/clientes.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -1225,6 +1231,154 @@ function renderSeguimientos(){
 }
 function goToSeguimientos(){ goTo('seguimientos'); }
 
+// =============================================================
+//  VISTA 360 — CLIENTES (spec 2026-07-24-vista-360-v1)
+//  Ficha de SOLO consulta: siempre lee datos frescos de Supabase.
+// =============================================================
+function renderClientes(){
+  const el = $('#v-clientes'); if (!el) return;
+  if (el.dataset.built === '1') return;
+  el.dataset.built = '1';
+  el.innerHTML = `
+    <h1 class="ft-title">Clientes — Vista 360</h1>
+    <div class="badges"><span class="badge"><i class="fas fa-magnifying-glass"></i> Busca por placa o teléfono</span><span class="badge"><i class="fas fa-eye"></i> Historial completo del equipo</span></div>
+    <div class="fb" style="display:flex;gap:8px;align-items:center">
+      <input id="cliBuscar" placeholder="Placa (ABC123) o teléfono (3001234567)…" style="flex:1;border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:9px 12px;border-radius:7px;font-family:var(--f);font-size:13px">
+      <button class="btn btn-ac" id="cliBuscarBtn"><i class="fas fa-magnifying-glass"></i> Buscar</button>
+    </div>
+    <div id="cliResultados"></div>
+    <div id="cliFicha"></div>`;
+  const doBuscar = () => buscarClientes360($('#cliBuscar').value);
+  $('#cliBuscarBtn').addEventListener('click', doBuscar);
+  $('#cliBuscar').addEventListener('keydown', e => { if (e.key === 'Enter') doBuscar(); });
+}
+
+async function buscarClientes360(termino){
+  const out = $('#cliResultados'), ficha = $('#cliFicha');
+  if (!termino || termino.trim().length < 3) { toast('Escribe al menos 3 caracteres'); return; }
+  ficha.innerHTML = '';
+  out.innerHTML = `<div class="al in"><i class="fas fa-spinner fa-spin"></i><div>Buscando…</div></div>`;
+  try {
+    const sugs = await sbSugerirClientes(termino);
+    if (!sugs.length) {
+      out.innerHTML = emptyState('fa-user-slash', `Sin resultados para "${esc(termino.trim())}"`, 'Verifica la placa o el teléfono. Si es un cliente nuevo, regístralo desde el panel al gestionar la llamada.');
+      return;
+    }
+    if (sugs.length === 1) { out.innerHTML = ''; abrirFicha360(sugs[0]); return; }
+    out.innerHTML = sugs.map((s, i) => `
+      <div class="fb cli-sug" data-i="${i}" style="cursor:pointer;display:flex;align-items:center;gap:12px">
+        <i class="fas fa-id-card" style="color:var(--ac)"></i>
+        <div style="flex:1"><strong>${esc(s.nombre)}</strong>
+          <div style="font-size:11px;color:var(--tx2)"><span class="mono">${esc(s.placa || '—')}</span>${s.telefono ? ' · ' + esc(s.telefono) : ''}</div></div>
+        <i class="fas fa-chevron-right" style="color:var(--tx3);font-size:10px"></i>
+      </div>`).join('');
+    $$('#cliResultados .cli-sug').forEach(el2 => el2.addEventListener('click', () => { $('#cliResultados').innerHTML = ''; abrirFicha360(sugs[+el2.dataset.i]); }));
+  } catch (err) {
+    console.error('[CETA] buscarClientes360', err);
+    out.innerHTML = `<div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>Sin conexión — reintenta.</div></div>`;
+  }
+}
+
+async function abrirFicha360(sug){
+  goTo('clientes');
+  const ficha = $('#cliFicha'); if (!ficha) return;
+  $('#cliResultados').innerHTML = '';
+  const inp = $('#cliBuscar'); if (inp && !inp.value) inp.value = sug.placa || sug.telefono || '';
+  ficha.innerHTML = `<div class="al in"><i class="fas fa-spinner fa-spin"></i><div>Cargando ficha…</div></div>`;
+  try {
+    let cliente;
+    if (sug.clienteId) {
+      cliente = await sbObtenerCliente(sug.clienteId);
+    } else if (sug.vehiculoId) {
+      const v = await sbObtenerVehiculo(sug.vehiculoId);
+      cliente = { id: null, nombre: 'Sin cliente asociado', telefono: '', ciudad: '', fecha_nacimiento: null, vehiculos: [v] };
+    } else { ficha.innerHTML = ''; return; }
+    const vehIds = (cliente.vehiculos || []).map(v => v.id);
+    const gs = await sbListarGestionesDeCliente(cliente.id, vehIds);
+    conAliases(gs);
+    gs.forEach(reemplazarEnCache);   // el detalle y el panel las encuentran
+    renderFicha360(cliente, gs);
+  } catch (err) {
+    console.error('[CETA] abrirFicha360', err);
+    ficha.innerHTML = `<div class="al wr"><i class="fas fa-triangle-exclamation"></i><div>No se pudo cargar la ficha — reintenta.</div></div>`;
+  }
+}
+
+function renderFicha360(cliente, gs){
+  const ficha = $('#cliFicha'); if (!ficha) return;
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  const citas = gs.filter(g => g.resultado === 'agenda' && g.fechaCita && g.fechaCita >= hoyISO)
+                  .sort((a, b) => a.fechaCita.localeCompare(b.fechaCita));
+  const segs  = gs.filter(g => g.resultado === 'seg' && g.segFecha);
+  const cots  = gs.filter(g => g.valor || g.kmServicio);
+  const veh = v => `<span class="badge" style="font-size:11px"><i class="fas fa-car" style="font-size:9px"></i> <span class="mono">${esc(v.placa)}</span> · ${esc([v.marca, v.modelo].filter(Boolean).join(' ') || '—')}${v.km_actual != null ? ` · ${Number(v.km_actual).toLocaleString('es-CO')} km` : ''}${v.combustion ? ' · ' + esc(v.combustion) : ''}</span>`;
+
+  ficha.innerHTML = `
+    <div class="fb">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#b71c1c);color:#fff;display:grid;place-items:center;font-weight:800;font-family:var(--fd);font-size:16px">${esc((cliente.nombre || '?').trim().charAt(0).toUpperCase())}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--fd);font-weight:800;font-size:16px">${esc(cliente.nombre || '—')}</div>
+          <div style="font-size:11px;color:var(--tx2)">${cliente.telefono ? `<i class="fas fa-phone" style="font-size:9px"></i> ${esc(cliente.telefono)}` : ''}${cliente.ciudad ? ` · <i class="fas fa-location-dot" style="font-size:9px"></i> ${esc(cliente.ciudad)}` : ''}${cliente.fecha_nacimiento ? ` · <i class="fas fa-cake-candles" style="font-size:9px"></i> ${esc(cliente.fecha_nacimiento)}` : ''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${(cliente.vehiculos || []).map(veh).join('') || '<span style="font-size:11px;color:var(--tx3)">Sin vehículos registrados</span>'}</div>
+    </div>
+
+    ${segs.length ? `<div class="al in" style="margin-bottom:10px"><i class="fas fa-clock"></i><div><strong>Seguimiento activo:</strong> ${esc(segs[0].segFecha)}${segs[0].segHora && segs[0].segHora !== '00:00' ? ' · ' + esc(segs[0].segHora) : ''} — ${esc(segs[0].segObs || 'sin nota')} <span style="color:var(--tx3)">(${esc(segs[0].asesorCeta || '—')})</span></div></div>` : ''}
+    ${citas.length ? `<div class="al" style="background:var(--oks);border-left:3px solid var(--ok);margin-bottom:10px"><i class="fas fa-calendar-check" style="color:var(--ok)"></i><div><strong>Próxima cita:</strong> ${esc(citas[0].fechaCita)}${citas[0].horaCita ? ' · ' + esc(citas[0].horaCita) : ''}${citas[0].asesorTaller ? ' — ' + esc(citas[0].asesorTaller) : ''} <span class="mono" style="color:var(--tx3)">${esc(citas[0].placa || '')}</span></div></div>` : ''}
+
+    <div class="sub-l" style="margin-top:14px"><i class="fas fa-clock-rotate-left"></i>Línea de tiempo (${gs.length} gestiones)</div>
+    ${gs.length ? gs.map(g => {
+      const gestionable = canEditCase(g) && (g.resultado === 'pendiente' || g.resultado === 'seg' || g.resultado === 'noc');
+      return `<div class="fb cli-g" data-id="${esc(g.id)}" style="cursor:pointer;display:flex;align-items:center;gap:12px;border-left:3px solid ${RESULT_COLOR[g.resultado] || 'var(--bd2)'}">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px">
+            <strong>${esc(RESULT_LABEL[g.resultado] || g.resultado || '—')}</strong>
+            <span class="mono" style="font-size:10px;color:var(--tx3)">${esc(g.placa || '')}</span>
+            <span style="color:var(--tx3);font-size:11px">${esc(fmtFechaHora(g._ts))}</span>
+            <span class="badge">${esc(g.asesorCeta || g.asignadoAlias || '—')}</span>
+            ${g.origen ? `<span style="font-size:10px;color:var(--tx3)">${esc(g.origen)}</span>` : ''}
+          </div>
+          ${(g.observacion || g.segObs) ? `<div style="font-size:11px;color:var(--tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.observacion || g.segObs)}</div>` : ''}
+        </div>
+        ${gestionable ? `<button class="btn btn-gh cli-gestionar" data-id="${esc(g.id)}" style="flex-shrink:0;font-size:11px"><i class="fas fa-headset"></i> Gestionar</button>` : ''}
+        <i class="fas fa-chevron-right" style="color:var(--tx3);font-size:10px;flex-shrink:0"></i>
+      </div>`;
+    }).join('') : emptyState('fa-inbox', 'Sin gestiones registradas', 'Este cliente aún no tiene historia con el equipo CETA.')}
+
+    ${cots.length ? `<div class="sub-l" style="margin-top:14px"><i class="fas fa-calculator"></i>Cotizaciones (${cots.length})</div>
+      ${cots.map(g => `<div class="fb" style="display:flex;gap:12px;align-items:center;font-size:12px"><i class="fas fa-file-invoice-dollar" style="color:var(--gd)"></i><div style="flex:1">${esc(g.servicio || g.motivo || '—')} · <span class="mono">${esc(g.kmServicio || '—')}</span> <span class="mono" style="font-size:10px;color:var(--tx3)">${esc(g.placa || '')}</span></div><strong>${g.valor ? '$ ' + Number(g.valor).toLocaleString('es-CO') : '—'}</strong></div>`).join('')}` : ''}`;
+
+  $$('#cliFicha .cli-gestionar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); gestionarCaso(b.dataset.id); }));
+  $$('#cliFicha .cli-g').forEach(c => c.addEventListener('click', () => openCaseDetail(c.dataset.id)));
+}
+
+// Hook del buscador global: si el término parece placa o teléfono, sugiere
+// clientes reales (con debounce) junto a los resultados de contenido.
+let _omniCliTimer = null;
+function omniClientes(q){
+  clearTimeout(_omniCliTimer);
+  const t = q.trim();
+  if (t.length < 3 || !supabaseEnabled || !S.user) return;
+  if (!/\d/.test(t) && !/^[a-zA-Z]{3,6}$/.test(t)) return;   // placa parcial o algo con dígitos
+  _omniCliTimer = setTimeout(async () => {
+    try {
+      const sugs = await sbSugerirClientes(t);
+      if (!sugs.length) return;
+      if (($('#omniInput')?.value || '').trim() !== t) return;   // el término cambió mientras buscaba
+      const res = $('#omniRes');
+      res.insertAdjacentHTML('afterbegin', sugs.map((s, i) => `
+        <div class="omni-item omni-cli" data-i="${i}"><i class="fas fa-id-card" style="font-size:10px;color:var(--ac)"></i>${esc(s.nombre)} · <span class="mono" style="font-size:10px">${esc(s.placa || '')}</span>${s.telefono ? ' · ' + esc(s.telefono) : ''}<span class="k">Cliente</span></div>`).join(''));
+      res.classList.add('show');
+      $$('#omniRes .omni-cli').forEach(el => el.addEventListener('click', () => {
+        res.classList.remove('show'); $('#omniInput').value = '';
+        abrirFicha360(sugs[+el.dataset.i]);
+      }));
+    } catch {}
+  }, 350);
+}
+
 // Mini-modal de reasignación rápida (botón en la fila de Control).
 function openReasignar(id){
   const g = getGestionesLocal().find(x => x.id === id); if (!g) return;
@@ -1611,6 +1765,7 @@ function goTo(v){
   if (v === 'control') { renderControl(); refrescarGestiones({ silencioso:true, throttle:true }); }
   if (v === 'internos') { renderInternos(); refrescarInternos({ throttle:true }); }
   if (v === 'seguimientos') { renderSeguimientos(); refrescarSeguimientos({ throttle:true }); }
+  if (v === 'clientes') renderClientes();
   if (v === 'alertas' && can('config')) renderAlertas();
   if (v === 'home') { renderHome(); renderHomeAlertas(); updateSeguimientosBadge(); refrescarGestiones({ silencioso:true, throttle:true }); refrescarSeguimientos({ throttle:true }); }
 }
@@ -2684,12 +2839,13 @@ function omniSearch(q){
   q = q.trim().toLowerCase();
   if (!q) { res.classList.remove('show'); res.innerHTML=''; return; }
   const hits = buildSearchIndex().filter(i => (i.t + ' ' + (i.extra||'')).toLowerCase().includes(q)).slice(0, 12);
-  if (!hits.length) { res.innerHTML = `<div class="omni-item"><span style="color:var(--tx3)">Sin resultados</span></div>`; res.classList.add('show'); return; }
+  if (!hits.length) { res.innerHTML = `<div class="omni-item"><span style="color:var(--tx3)">Sin resultados</span></div>`; res.classList.add('show'); omniClientes(q); return; }
   res.innerHTML = hits.map(h => `<div class="omni-item" data-go="${h.go}"><i class="fas fa-arrow-right" style="font-size:10px;color:var(--tx3)"></i>${esc(h.t)}<span class="k">${esc(h.k)}</span></div>`).join('');
   res.classList.add('show');
   $$('#omniRes .omni-item[data-go]').forEach(el => el.addEventListener('click', () => {
     goTo(el.dataset.go); res.classList.remove('show'); $('#omniInput').value='';
   }));
+  omniClientes(q);   // sugiere clientes reales si parece placa/teléfono (async)
 }
 
 // =============================================================
