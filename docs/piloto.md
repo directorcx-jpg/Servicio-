@@ -22,9 +22,15 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | # | Fecha | Reportó | Hallazgo | Prioridad | Estado |
 |---|-------|---------|----------|-----------|--------|
 | 1 | 2026-07-24 | Pablo | Descuento del cotizador no cuadra con la base oculta del Excel: la columna MO del libro trae $142.800 fijos ($120.000+IVA) que no se descuentan | Alta | ✅ Corregido |
+| 2 | 2026-07-24 | Pablo | Buscador global no sugiere clientes al buscar por PLACA (por teléfono sí) | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
   la base descontable (MO − $142.800 fijos). Validado al peso contra dos
   casos de la base oculta: SOLUTO 30% → $856.182 y PICANTO 20% → $862.221.
   La porción fija quedó configurable en `data.js` (`moFijaNoDescontable`).
+- **#2 Búsqueda por placa en el buscador global** (v1.18.2): la guarda
+  anti-carrera comparaba el input (mayúsculas) contra el término en
+  minúsculas y descartaba toda sugerencia con letras; los teléfonos (solo
+  dígitos) sí pasaban. Comparación ahora en minúsculas por ambos lados.
+  Verificado con la placa GXT151 (existente en la base).

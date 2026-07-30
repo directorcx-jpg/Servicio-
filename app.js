@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.18.1';
+import { DATA } from './data.js?v=1.18.2';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -1366,7 +1366,9 @@ function omniClientes(q){
     try {
       const sugs = await sbSugerirClientes(t);
       if (!sugs.length) return;
-      if (($('#omniInput')?.value || '').trim() !== t) return;   // el término cambió mientras buscaba
+      // el término cambió mientras buscaba (comparación en minúsculas: q llega
+      // lowercased desde omniSearch y el input conserva las mayúsculas de la placa)
+      if (($('#omniInput')?.value || '').trim().toLowerCase() !== t.toLowerCase()) return;
       const res = $('#omniRes');
       res.insertAdjacentHTML('afterbegin', sugs.map((s, i) => `
         <div class="omni-item omni-cli" data-i="${i}"><i class="fas fa-id-card" style="font-size:10px;color:var(--ac)"></i>${esc(s.nombre)} · <span class="mono" style="font-size:10px">${esc(s.placa || '')}</span>${s.telefono ? ' · ' + esc(s.telefono) : ''}<span class="k">Cliente</span></div>`).join(''));
