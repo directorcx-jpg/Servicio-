@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.19.0';
+import { DATA } from './data.js?v=1.19.1';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -2335,8 +2335,6 @@ function u(){
   verificarConflictoWeGo();
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
-  const pre = [pla, tel].filter(Boolean).join(' // ');
-  const signos = DATA.tipificador.servicioSigno;
   let nota='', est='', cau='', mot='', voz='', cli='';
 
   const q = computeQuote();
@@ -2351,25 +2349,36 @@ function u(){
   const motivo = f.motivo || 'Mantenimiento';
   const kmTxt = f.kmServicio || '';   // ahora es la descripción de la línea (RV. X KM)
 
+  // ===== NOTA QUITER/EVOLUTION — orden pensado para el asesor de taller =====
+  // 1º motivo de ingreso + tipo y costo · 2º novedad · 3º validaciones y
+  // detalle · al final placa y teléfono · cierre CALL CENTER /iniciales.
+  // Sin signos (++, ??, *): máximo detalle legible.
+  const valorNota = q.found ? q.texto.replace('$ ', '') : '';
+  const motivoSel = f.motivo || (r === 'agenda' || r === 'seg' || r === 'sinKm' ? 'Mantenimiento' : '');
+  const motivoLinea = motivoSel
+    ? [motivoSel.toUpperCase(), kmTxt.toUpperCase(), valorNota ? `${valorNota} IVA INCLUIDO` : ''].filter(Boolean).join(' ')
+    : '';
+  const obsGen = f.observacion ? 'OBS: ' + f.observacion.toUpperCase() : '';
+  const iniNota = inicialesDe(S.user);
+  const armarNota = partes => [motivoLinea, ...partes, pla, tel].filter(Boolean).join(' // ')
+    + ' // CALL CENTER' + (iniNota ? ` /${iniNota}` : '');
+
   if (r === 'agenda') {
     const serv = motivo.toUpperCase();
-    const signo = signos[serv] ? ' ' + signos[serv] : '';
     mot = serv === 'MANTENIMIENTO' ? 'CAMBIO DE ACEITE' : serv;
     voz = (S.hasNovedad && f.novedad) ? f.novedad.toUpperCase() : 'MANTENIMIENTO PREVENTIVO';
-    const valor = q.found ? q.texto.replace('$ ','') : 'CONSULTAR';
-    const pts = [pre, f.kmActual?`${f.kmActual} KM`:'', `${f.modelo||''} ${kmTxt} $ ${valor} IVA INCLUIDO`.trim()];
-    if (S.hasNovedad && f.novedad) pts.push('NOVEDAD: ' + f.novedad.toUpperCase());
-    S.checks.forEach(c => pts.push(c));
-    if (S.adicionales.has('telemetria')) pts.push(S.teleAcepta ? 'CONTRATA TELEMETRIA' : 'OFRECE TELEMETRIA');   // #10
+    const pts = [];
+    if (S.hasNovedad && f.novedad) pts.push(f.novedad.toUpperCase());          // 2º: la novedad tal cual
+    S.checks.forEach(c => pts.push(c));                                        // 3º: VALIDAR …
+    if (S.adicionales.has('telemetria')) pts.push(S.teleAcepta ? 'CONTRATA TELEMETRIA' : 'OFRECE TELEMETRIA');
     if (S.adicionales.has('accesorios') && f.accesorios) pts.push('ACCESORIOS: ' + f.accesorios.toUpperCase());
     if (S.hasWG) pts.push('APLICA WE GO' + (f.wgQuien?` (${f.wgQuien.toUpperCase()})`:''));
-    // #12 embellecimiento con costo
     if (q.found && q.valorCombo > 0) pts.push(`EMBELLECIMIENTO ${(f.embellecimiento||'').toUpperCase()} $ ${fmtCOP(q.valorCombo).replace('$ ','')}`);
-    if (f.srvAdicional) pts.push('SERV. ADICIONAL: ' + f.srvAdicional.toUpperCase());   // #13
+    if (f.srvAdicional) pts.push('SERV. ADICIONAL: ' + f.srvAdicional.toUpperCase());
     if (f.asesorTaller) pts.push('RECIBE: ' + f.asesorTaller.toUpperCase());
     if (f.observacion) pts.push('OBS: ' + f.observacion.toUpperCase());
-    const ini = inicialesDe(S.user);
-    nota = pts.filter(Boolean).join(' // ') + ` // CALL CENTER${signo}${ini?` /${ini}`:''}`;
+    if (f.kmActual) pts.push(`${f.kmActual} KM`);
+    nota = armarNota(pts);
 
     const svCli = {Mantenimiento:'el mantenimiento',Revisión:'la revisión',Garantía:'la atención de garantía',Inspección:'la inspección',Especializada:'el diagnóstico'}[motivo] || 'el servicio';
     const lineas = [
@@ -2385,54 +2394,49 @@ function u(){
 
   } else if (r === 'noc') {
     mot = 'SIN RESPUESTA'; voz = (f.tipoNoc||'BUZÓN DE VOZ');
-    nota = [pre, f.tipoNoc||'NO CONTESTA', f.marcaciones||'1 CONTACTO', 'ENVIO PLANTILLA'].filter(Boolean).join(' // ');
+    nota = armarNota([f.tipoNoc||'NO CONTESTA', f.marcaciones||'1 CONTACTO', 'ENVIO PLANTILLA', obsGen]);
     cli = 'Hola 👋 Le saludamos de Armotor. Intentamos comunicarnos sin éxito. Cuando esté disponible, con gusto le atendemos.';
   } else if (r === 'seg') {
     mot = 'CLIENTE OCUPADO'; voz = 'SOLICITA LLAMAR EN OTRO MOMENTO';
-    const segPts = [pre, 'SE REPROGRAMA CONTACTO'];
+    const segPts = ['SE REPROGRAMA CONTACTO'];
     if (f.segFecha || f.segHora) segPts.push('LLAMAR ' + [f.segFecha, f.segHora].filter(Boolean).join(' ').toUpperCase());
     if (S.hasNovedad && f.novedad) { segPts.push('NOVEDAD: ' + f.novedad.toUpperCase()); voz = f.novedad.toUpperCase(); }  // #4
     if (f.segObs) segPts.push('OBS: ' + f.segObs.toUpperCase());   // #3
-    nota = segPts.filter(Boolean).join(' // ');
+    nota = armarNota(segPts);
     cli = 'Quedamos en contacto. Cuando lo prefiera retomamos su solicitud. 😊';
   } else if (r === 'comunica') {
     // #5 Cliente se comunica con sub-motivo
     const sub = (DATA.tipificador.comunicaSubmotivos || {})[f.comunicaSub] || {};
     mot = sub.motivo || 'CLIENTE SE COMUNICA'; voz = sub.voz || 'CLIENTE SE COMUNICA';
-    const cPts = [pre, mot];
+    const cPts = [mot];
     if (f.comunicaObs) cPts.push('OBS: ' + f.comunicaObs.toUpperCase());
-    nota = cPts.filter(Boolean).join(' // ');
+    nota = armarNota(cPts);
     cli = 'Con gusto le ayudamos con su solicitud. Quedamos atentos. 😊';
   } else if (r === 'actualizar') {
     // #2 Actualización de datos (cliente ya no es dueño)
     mot = (f.motivoCambio || 'ACTUALIZACIÓN DE DATOS').toUpperCase(); voz = 'ACTUALIZACIÓN DE DATOS DEL CLIENTE';
-    const aPts = [pre, 'ACTUALIZACION DE DATOS', mot];
+    const aPts = ['ACTUALIZACION DE DATOS', mot];
     if (f.actualizarObs) aPts.push('OBS: ' + f.actualizarObs.toUpperCase());
-    nota = aPts.filter(Boolean).join(' // ');
+    nota = armarNota(aPts);
     cli = 'Hemos actualizado sus datos. Gracias por informarnos. 😊';
   } else if (r === 'sinKm') {
     mot = 'SERVICIO NO APLICA'; voz = 'AÚN NO CUMPLE KMS';
-    nota = [pre, f.kmNoAplica?`SOLO ${f.kmNoAplica} KMS`:'NO CUMPLE KM', f.reprograma?`SE REPROGRAMA PARA ${f.reprograma.toUpperCase()}`:'SE REPROGRAMA', 'SE ENVIA PLANTILLA'].filter(Boolean).join(' // ');
+    nota = armarNota([f.kmNoAplica?`SOLO ${f.kmNoAplica} KMS`:'NO CUMPLE KM', f.reprograma?`SE REPROGRAMA PARA ${f.reprograma.toUpperCase()}`:'SE REPROGRAMA', 'SE ENVIA PLANTILLA', obsGen]);
     cli = 'Le recordaremos cuando su vehículo se acerque al kilometraje de mantenimiento. 🚗';
   } else if (r === 'otroTaller') {
     const rz = f.razonOtro || 'PRECIO';
     mot = rz==='PRECIO'?'PRECIO ALTO':rz==='UBICACION'?'UBICACIÓN':'PREFERENCIA PROVEEDOR';
     voz = rz==='PRECIO'?'OFERTA MÁS ECONÓMICA':rz==='UBICACION'?'MAYOR COMODIDAD':'HISTÓRICO CON OTRO TALLER';
-    nota = [pre, `VISITA OTRO TALLER POR ${rz}`].filter(Boolean).join(' // ');
+    nota = armarNota([`VISITA OTRO TALLER POR ${rz}`, obsGen]);
     cli = 'Con gusto le compartimos nuestras condiciones cuando lo desee. ¡Que tenga un excelente día!';
   } else if (r === 'noContactar') {
     mot = 'CLIENTE NO INTERESADO'; voz = 'NO DESEA RECIBIR INFORMACIÓN';
-    nota = [pre, 'NO VOLVER A CONTACTAR'].filter(Boolean).join(' // ');
+    nota = armarNota(['NO VOLVER A CONTACTAR', obsGen]);
     cli = 'Gracias por su atención. Quedamos atentos si en el futuro requiere nuestros servicios.';
-  }
-
-  // Para resultados distintos de "agenda": añadir iniciales del asesor a la nota.
-  // (seg/comunica/actualizar ya incluyen su propia observación con campo dedicado;
-  //  para noc/sinKm/otroTaller/noContactar se anexa la observación general si existe.)
-  if (r !== 'agenda' && nota) {
-    if (f.observacion && ['noc','sinKm','otroTaller','noContactar'].includes(r)) nota += ' // OBS: ' + f.observacion.toUpperCase();
-    const iniR = inicialesDe(S.user);
-    if (iniR) nota += ` /${iniR}`;
+  } else if (r === 'companero') {
+    mot = 'GESTIONADO POR COMPAÑERO'; voz = 'CONTACTO YA REALIZADO';
+    nota = armarNota(['GESTIONADO POR COMPAÑERO', obsGen]);
+    cli = '';
   }
 
   $('#outNota').textContent = nota || '—';
