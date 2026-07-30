@@ -21,7 +21,10 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 
 | # | Fecha | Reportó | Hallazgo | Prioridad | Estado |
 |---|-------|---------|----------|-----------|--------|
-| — | — | — | (aún sin hallazgos) | — | — |
+| 1 | 2026-07-24 | Pablo | Descuento del cotizador no cuadra con la base oculta del Excel: la columna MO del libro trae $142.800 fijos ($120.000+IVA) que no se descuentan | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
-(se mueven aquí desde la tabla, con el commit que los resolvió)
+- **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
+  la base descontable (MO − $142.800 fijos). Validado al peso contra dos
+  casos de la base oculta: SOLUTO 30% → $856.182 y PICANTO 20% → $862.221.
+  La porción fija quedó configurable en `data.js` (`moFijaNoDescontable`).

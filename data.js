@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.18.0",
+    version: "1.18.1",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -53,6 +53,10 @@ export const DATA = {
     combos: COTIZADOR_SEED.combos,                 // [[nombre, valor],...]
     detalle: COTIZADOR_SEED.detalleServicios,      // {combustion:{km:{total,incluido[],noIncluido[]}}}
     descuentos: ["0%","10%","20%","30%","40%","50%"],
+    // Porción FIJA dentro de la columna "MO+Impto" del libro que NO se
+    // descuenta ($120.000 + IVA). Validada contra la base oculta del Excel
+    // con dos casos reales (SOLUTO 30% y PICANTO 20%) — piloto 2026-07-24.
+    moFijaNoDescontable: 142800,
     reglas: COTIZADOR_SEED.reglas,
     // No incluido por defecto (sujeto a inspección) cuando el km no esté en el detalle
     noIncluidoDefault: [

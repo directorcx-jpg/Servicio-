@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.18.0';
+import { DATA } from './data.js?v=1.18.1';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -2188,8 +2188,13 @@ function computeQuote(){
   const desc = parseInt((f.descuento||'0%'),10) || 0;
   const combo = (DATA.cotizador.combos||[]).find(c => c[0] === f.embellecimiento);
   const valorCombo = combo ? Number(combo[1]) : 0;
-  // VALOR = round(MO × (1-desc%)) + Repuestos + Embellecimiento
-  const moDesc = Math.round(manoObra * (1 - desc/100));
+  // El descuento aplica SOLO sobre la base descontable de la mano de obra:
+  // la columna MO del libro trae una porción fija ($120.000+IVA) que no se
+  // descuenta (regla de la base oculta del Excel, validada con casos reales).
+  const moFija = Math.min(manoObra, Number(DATA.cotizador.moFijaNoDescontable) || 0);
+  const moBase = manoObra - moFija;
+  const moDesc = Math.round(moBase * (1 - desc/100)) + moFija;
+  // VALOR = MO con descuento (base×(1-d%) + fija) + Repuestos + Embellecimiento
   const precio = moDesc + repuestos + valorCombo;
   // detalle por combustión + km
   const km = kmDeDesc(f.kmServicio);
