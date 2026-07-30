@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.18.2",
+    version: "1.19.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -83,7 +83,8 @@ export const DATA = {
       "otroTaller":  { estado: "CONTACTO",    causa: "VISITA OTRO TALLER" },
       "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" },
       "actualizar":  { estado: "CONTACTO",    causa: "ACTUALIZACIÓN DE DATOS" },
-      "comunica":    { estado: "CONTACTO",    causa: "CLIENTE SE COMUNICA" }
+      "comunica":    { estado: "CONTACTO",    causa: "CLIENTE SE COMUNICA" },
+      "companero":   { estado: "CONTACTO",    causa: "GESTIONADO POR COMPAÑERO" }
     },
     // Sub-motivos del resultado "Cliente se comunica" → tipificación Evolution.
     comunicaSubmotivos: {
@@ -122,7 +123,7 @@ export const DATA = {
       B: { nombre: "Cola B · No genera factura" }
     },
     tiposRadicacion: ["Nuevo", "Reagendar"],
-    gruposChat: ["Citas Taller", "G Manizales", "G Pereira", "G Armenia", "G La Dorada", "G Cartago"],
+    gruposChat: ["Citas Taller", "G Manizales", "G Pereira", "G Armenia", "G La Dorada", "G Cartago", "Otros"],
     propiedadDias: 10,     // REGLA 0: ventana de propiedad por placa
     slaMinutos: 5          // temporizador del caso se pone rojo a los 5 min
   },

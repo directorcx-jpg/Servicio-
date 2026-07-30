@@ -20,7 +20,8 @@ const ORIGEN_A_UI = Object.fromEntries(Object.entries(ORIGEN_A_DB).map(([k,v]) =
 
 const RESULTADO_A_DB = {
   agenda:'agendado', seg:'seguimiento', comunica:'se_comunica', noc:'no_contesta',
-  sinKm:'sin_km', otroTaller:'otro_taller', actualizar:'actualizar_datos', noContactar:'no_contactar'
+  sinKm:'sin_km', otroTaller:'otro_taller', actualizar:'actualizar_datos', noContactar:'no_contactar',
+  companero:'gestion_companero'
 };
 const RESULTADO_A_UI = Object.fromEntries(Object.entries(RESULTADO_A_DB).map(([k,v]) => [v,k]));
 
@@ -332,6 +333,26 @@ export async function listarGestionesDeCliente(clienteId, vehiculoIds){
     .limit(200);
   if (error) throw new Error('No se pudo cargar el historial del cliente: ' + error.message);
   return (data || []).map(uiDesdeFila);
+}
+
+// ¿Ya hay We Go agendados en esa ciudad/fecha/hora? Consulta EN VIVO para
+// la advertencia (no bloqueante) del panel al agendar. Devuelve hasta 3
+// coincidencias con placa y hora; excluirId evita el falso positivo al
+// re-gestionar el propio caso.
+export async function buscarWeGoEnFranja(fecha, hora, sede, excluirId){
+  requiereSupabase();
+  if (!fecha || !hora || !sede) return [];
+  let q = supabase.from('gestiones')
+    .select('id, we_go_hora, sede, vehiculos(placa)')
+    .eq('we_go_aplica', true)
+    .eq('we_go_fecha', fecha)
+    .eq('we_go_hora', hora)
+    .eq('sede', sede)
+    .limit(3);
+  if (excluirId) q = q.neq('id', excluirId);
+  const { data, error } = await q;
+  if (error) { console.warn('[Gestiones] buscarWeGoEnFranja', error); return []; }
+  return (data || []).map(r => ({ id: r.id, hora: r.we_go_hora, placa: r.vehiculos ? r.vehiculos.placa : '—' }));
 }
 
 // Cola de seguimientos: gestiones tipificadas en 'seguimiento' con fecha

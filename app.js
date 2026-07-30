@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.18.2';
+import { DATA } from './data.js?v=1.19.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -15,6 +15,7 @@ import {
   gestionarCaso as sbGestionarCaso,
   listarSeguimientos as sbListarSeguimientos,
   listarGestionesDeCliente as sbListarGestionesDeCliente,
+  buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
 import {
@@ -805,8 +806,8 @@ function updateInternosBadges(){
 // =============================================================
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
-const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar' };
-const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)' };
+const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
+const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
 let ctrlFiltro = { asesor:'', resultado:'' };
 
 // Columnas configurables del Control de Gestión (coordinador).
@@ -1045,6 +1046,24 @@ function renderControl(){
         ${aliases.map(al=>{const x=bal[al];const tot=x.A+x.B;return `<tr><td><strong>${esc(al)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.A}</td><td style="text-align:center;font-family:var(--fm)">${x.B}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${tot}</td></tr>`;}).join('')}
         </tbody></table>
         <div style="font-size:10px;color:var(--tx3);margin-top:6px"><i class="fas fa-circle-info"></i> Rotación en bloques de 5 · se reinicia cada día.</div>
+      </div>`;
+    })()}
+    ${(() => {
+      const hoyW = new Date().toISOString().slice(0,10);
+      const wegos = getGestionesLocal()
+        .filter(g => g.weGo === 'Sí' && g.wgFecha && g.wgFecha >= hoyW)
+        .sort((a,b) => ((a.wgFecha||'')+(a.wgHora||'')).localeCompare((b.wgFecha||'')+(b.wgHora||'')));
+      if (!wegos.length) return '';
+      const porFecha = {};
+      wegos.forEach(g => { (porFecha[g.wgFecha] = porFecha[g.wgFecha] || []).push(g); });
+      const diaTxt = f => new Date(f + 'T00:00').toLocaleDateString('es-CO', { weekday:'long', day:'2-digit', month:'short' });
+      return `<div class="fb"><div class="bt do" style="margin-bottom:8px"><span class="n"><i class="fas fa-truck-pickup"></i></span>We Go agendados (${wegos.length} próximos)</div>
+        ${Object.entries(porFecha).map(([fecha, gs]) => `
+          <div style="font-weight:700;font-size:11px;margin:8px 0 4px;color:var(--tx2);text-transform:capitalize">${esc(diaTxt(fecha))}</div>
+          <table class="tbl"><thead><tr><th>Hora</th><th>Ciudad</th><th>Placa</th><th>Cliente</th><th>Recoge</th><th>Asesor</th></tr></thead><tbody>
+          ${gs.map(g => `<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer"><td class="mono">${esc(g.wgHora||'—')}</td><td>${esc(g.ciudad||'—')}</td><td class="mono">${esc(g.placa||'—')}</td><td>${esc(g.nombre||'—')}</td><td>${esc(g.wgQuien||'—')}</td><td>${esc(g.asesorCeta||'—')}</td></tr>`).join('')}
+          </tbody></table>`).join('')}
+        <div style="font-size:10px;color:var(--tx3);margin-top:6px"><i class="fas fa-circle-info"></i> Antes de ofrecer una franja We Go, verifica aquí que no esté ocupada en esa ciudad. El panel también te lo advierte al agendar.</div>
       </div>`;
     })()}
     <div class="fb">
@@ -1780,7 +1799,7 @@ function pickRes(b){
   $$('#resP .pill').forEach(p => p.classList.remove('on'));
   b.classList.add('on'); S.resultado = b.dataset.r;
   // ocultar todos los sub-formularios de resultado
-  ['noc-f','sinKm-f','otroTaller-f','seg-f','comunica-f','actualizar-f'].forEach(id => { const e=$('#'+id); if(e) e.classList.add('hidden'); });
+  ['noc-f','sinKm-f','otroTaller-f','seg-f','comunica-f','actualizar-f','companero-f'].forEach(id => { const e=$('#'+id); if(e) e.classList.add('hidden'); });
 
   const r = S.resultado;
   const mostrar = id => $('#'+id) && $('#'+id).classList.remove('hidden');
@@ -1798,6 +1817,7 @@ function pickRes(b){
     if (r === 'seg')        { mostrar('seg-f'); mostrar('sNovedad'); poblarHoras(); }   // seguimiento: novedad + callback
     if (r === 'comunica')   { mostrar('comunica-f'); poblarComunicaSub(); }
     if (r === 'actualizar') mostrar('actualizar-f');   // solo datos del cliente (sección 1) + motivo
+    if (r === 'companero')  mostrar('companero-f');    // contacto ya realizado por compañero: mínimo + observación
   }
 
   // Cotizador SOLO con motivo Mantenimiento o Cotización, y solo si el resultado lo permite. Punto 1.
@@ -2042,15 +2062,14 @@ function poblarListasPanel(){
 
 // Genera opciones de hora por franjas (07:00–18:00 cada 20 min). Punto 14.
 function opcionesHora(){
+  // Franjas de la operación: 7:10 a. m. → 5:50 p. m., cada 20 minutos.
   const out = ['<option value="">—</option>'];
-  for (let h = 7; h <= 18; h++) {
-    for (let m = 0; m < 60; m += 20) {
-      if (h === 18 && m > 0) break;   // tope 18:00
-      const hh = String(h).padStart(2,'0'), mm = String(m).padStart(2,'0');
-      const ampm = h < 12 ? 'a.m.' : 'p.m.';
-      const h12 = h % 12 === 0 ? 12 : h % 12;
-      out.push(`<option value="${hh}:${mm}">${h12}:${mm} ${ampm}</option>`);
-    }
+  for (let t = 7 * 60 + 10; t <= 17 * 60 + 50; t += 20) {
+    const h = Math.floor(t / 60), m = t % 60;
+    const hh = String(h).padStart(2,'0'), mm = String(m).padStart(2,'0');
+    const ampm = h < 12 ? 'a.m.' : 'p.m.';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    out.push(`<option value="${hh}:${mm}">${h12}:${mm} ${ampm}</option>`);
   }
   return out.join('');
 }
@@ -2285,6 +2304,26 @@ function renderCotDetalle(q){
 // =============================================================
 let _ultCiudadPanel = null;
 let _ultMotivoPanel = null;
+// Advertencia NO bloqueante de doble agendamiento We Go (spec mejoras piloto):
+// al completar ciudad+fecha+hora consulta EN VIVO si la franja ya está tomada.
+let _wgUltChequeo = '';
+function verificarConflictoWeGo(){
+  const box = $('#wgConflicto'); if (!box) return;
+  const f = S.f;
+  const clave = (S.hasWG && f.wgFecha && f.wgHora && f.ciudad) ? `${f.wgFecha}|${f.wgHora}|${f.ciudad}` : '';
+  if (clave === _wgUltChequeo) return;
+  _wgUltChequeo = clave;
+  if (!clave || !supabaseEnabled) { box.innerHTML = ''; return; }
+  sbBuscarWeGoEnFranja(f.wgFecha, f.wgHora, f.ciudad, S.casoActivo || null)
+    .then(hits => {
+      if (_wgUltChequeo !== clave) return;   // la selección cambió mientras consultaba
+      box.innerHTML = hits.length
+        ? `<div class="al wr" style="margin:4px 0 0;padding:6px 8px;font-size:10px"><i class="fas fa-triangle-exclamation"></i><div>Ya hay ${hits.length === 1 ? 'un We Go' : hits.length + ' We Go'} a esa hora en ${esc(f.ciudad)} (${hits.map(h => esc(h.placa)).join(', ')}). Elige otra franja o continúa solo si es intencional.</div></div>`
+        : '';
+    })
+    .catch(() => {});
+}
+
 function u(){
   syncState();
   // Si cambió la ciudad, repoblar asesor de taller + We Go (listas dependientes).
@@ -2293,6 +2332,7 @@ function u(){
   // Si cambió el motivo, re-evaluar si el cotizador debe mostrarse (punto 1).
   const motivoActual = ($('#motivoSel')?.value || '');
   if (motivoActual !== _ultMotivoPanel) { _ultMotivoPanel = motivoActual; aplicarVisibilidadCotizador(); }
+  verificarConflictoWeGo();
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
   const pre = [pla, tel].filter(Boolean).join(' // ');
@@ -2413,9 +2453,11 @@ function validateSemaforo(){
   const req = [];
   if (!f.nombre) req.push('Nombre');
   if (!f.placa)  req.push('Placa');
-  // Km actual SIEMPRE obligatorio — excepto cuando el resultado es
-  // justamente "Sin km" (el cliente no tiene el dato).
-  if (r !== 'sinKm' && !f.kmActual) req.push('Km actual');
+  // Km actual SIEMPRE obligatorio — excepto "Sin km" (el cliente no tiene
+  // el dato) y "Gestión de compañero" (registro mínimo).
+  if (r !== 'sinKm' && r !== 'companero' && !f.kmActual) req.push('Km actual');
+  // Gestión de compañero: la observación que referencia la gestión previa es obligatoria.
+  if (r === 'companero' && !f.observacion) req.push('Observación (quién gestionó)');
   if (r === 'agenda') {
     if (!f.asesorTaller) req.push('Asesor taller');
     if (S.hasWG) {
