@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.19.1';
+import { DATA } from './data.js?v=1.20.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -808,12 +808,22 @@ function updateInternosBadges(){
 // =============================================================
 const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
 const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
-let ctrlFiltro = { asesor:'', resultado:'' };
+// Rango por defecto del tablero: últimos 7 días (fecha de radicación).
+function ctrlRangoDefecto(){
+  const hoy = new Date(); const d = new Date(); d.setDate(hoy.getDate() - 6);
+  const iso = x => x.toISOString().slice(0, 10);
+  return { desde: iso(d), hasta: iso(hoy) };
+}
+let ctrlFiltro = { asesor:'', resultado:'', ...ctrlRangoDefecto() };
+// Resultado de la consulta por rango a Supabase (spec filtro-fecha-radicacion):
+// clave = 'desde|hasta' consultada; rows = gestiones del rango; error para el aviso.
+let ctrlRango = { clave:'', rows:null, cargandoClave:'', error:'' };
+const CTRL_TOPE = 2000;
 
 // Columnas configurables del Control de Gestión (coordinador).
 // 'def' = visible por defecto. El render() las pinta en este orden.
 const CTRL_COLUMNS = [
-  { key:'hora',        label:'Hora',          def:true,  render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(fmtHora(g._ts))}</span>` },
+  { key:'hora',        label:'Radicado',      def:true,  render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(fmtFechaHora(g._ts))}</span>` },
   { key:'origen',      label:'Origen',        def:true,  render: g => esc(g.origen||'Inbound') },
   { key:'asesor',      label:'Asesor',        def:true,  render: g => esc(g.asignadoAlias||g.asesorCeta||'—') },
   { key:'placa',       label:'Placa',         def:true,  render: g => `<span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>` },
@@ -999,8 +1009,45 @@ function renderHomeAlertas(){
 function renderControl(){
   const el = $('#v-control');
   if (!perms().controlGestion) { el.innerHTML = emptyState('fa-lock','Control de Gestión','Tu rol no tiene acceso a esta vista.'); return; }
-  let rows = gestionesVisibles();
-  const asesores = [...new Set(getGestionesLocal().map(g => g.asesorCeta).filter(Boolean))];
+  // Rango por fecha de radicación: si está invertido, se corrige solo.
+  if (ctrlFiltro.desde && ctrlFiltro.hasta && ctrlFiltro.desde > ctrlFiltro.hasta)
+    [ctrlFiltro.desde, ctrlFiltro.hasta] = [ctrlFiltro.hasta, ctrlFiltro.desde];
+  const claveRango = ctrlFiltro.desde + '|' + ctrlFiltro.hasta;
+  let rows, rangoCargando = false;
+  if (supabaseEnabled) {
+    // La verdad del rango vive en Supabase, no en la caché local (con tope).
+    if (ctrlRango.clave === claveRango && ctrlRango.rows) {
+      rows = ctrlRango.rows;
+    } else {
+      rangoCargando = true;
+      rows = ctrlRango.rows || gestionesVisibles();   // muestra lo último mientras carga
+      if (ctrlRango.cargandoClave !== claveRango) {
+        ctrlRango.cargandoClave = claveRango;
+        sbListarGestiones({ desde: ctrlFiltro.desde + 'T00:00:00-05:00', hasta: ctrlFiltro.hasta + 'T23:59:59-05:00', limite: CTRL_TOPE })
+          .then(rs => {
+            if (ctrlRango.cargandoClave !== claveRango) return;   // cambió el rango mientras cargaba
+            conAliases(rs);
+            ctrlRango = { clave: claveRango, rows: rs, cargandoClave: '', error: '' };
+            if ($('#v-control')?.classList.contains('active')) renderControl();
+          })
+          .catch(err => {
+            console.error('[CETA] rango control', err);
+            // Marca el rango como "consultado" con lo que había para no reintentar
+            // en bucle; el botón Actualizar o cambiar el rango vuelven a consultar.
+            ctrlRango = { clave: claveRango, rows: ctrlRango.rows || [], cargandoClave: '',
+                          error: 'No se pudo consultar el rango — se muestra lo último cargado. Usa Actualizar para reintentar.' };
+            if ($('#v-control')?.classList.contains('active')) renderControl();
+          });
+      }
+    }
+    const p = perms();
+    if (p.controlGestion === 'propios') rows = rows.filter(g => g.asesorCeta === S.user.alias);
+  } else {
+    // Sin Supabase (local): filtrar la caché por fecha de radicación.
+    const d0 = new Date(ctrlFiltro.desde + 'T00:00:00').getTime(), d1 = new Date(ctrlFiltro.hasta + 'T23:59:59').getTime();
+    rows = gestionesVisibles().filter(g => g._ts >= d0 && g._ts <= d1);
+  }
+  const asesores = [...new Set(rows.map(g => g.asesorCeta).filter(Boolean))].sort();
   const fil = rows.filter(g =>
     (!ctrlFiltro.asesor || g.asesorCeta === ctrlFiltro.asesor) &&
     (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado));
@@ -1019,6 +1066,10 @@ function renderControl(){
     ${viewHead('Control de Gestión',
       `<span class="badge"><i class="fas fa-layer-group"></i> ${total} gestiones</span>${can('modoTV')?'<span class="badge"><i class="fas fa-tv"></i> Modo TV disponible</span>':''}`)}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <div class="ff" style="min-width:130px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Radicado desde</label>
+        <input type="date" id="ctrlDesde" value="${esc(ctrlFiltro.desde)}" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"></div>
+      <div class="ff" style="min-width:130px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Hasta</label>
+        <input type="date" id="ctrlHasta" value="${esc(ctrlFiltro.hasta)}" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"></div>
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Asesor</label>
         <select id="ctrlAsesor" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${asesores.map(a=>`<option ${ctrlFiltro.asesor===a?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Resultado</label>
@@ -1030,6 +1081,9 @@ function renderControl(){
         ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV"><i class="fas fa-tv"></i> Modo TV</button>`:''}
       </div>
     </div>
+    ${rangoCargando ? `<div class="al in" style="margin-bottom:10px"><i class="fas fa-spinner fa-spin"></i><div>Consultando lo radicado del ${esc(ctrlFiltro.desde)} al ${esc(ctrlFiltro.hasta)}…</div></div>` : ''}
+    ${ctrlRango.error && !rangoCargando ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>${esc(ctrlRango.error)}</div></div>` : ''}
+    ${!rangoCargando && supabaseEnabled && (ctrlRango.rows||[]).length >= CTRL_TOPE ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>El rango supera ${CTRL_TOPE.toLocaleString('es-CO')} gestiones — se muestran las más recientes. Acorta el rango para ver todo.</div></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
         `<div class="fb" style="text-align:center;padding:14px"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div></div>`).join('')}
@@ -1078,10 +1132,16 @@ function renderControl(){
     ${graficasHTML(fil)}`;
   const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
   const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
-  const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'' }; renderControl(); });
+  const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'', ...ctrlRangoDefecto() }; renderControl(); });
+  const fd = $('#ctrlDesde'); if (fd) fd.addEventListener('change', e => { ctrlFiltro.desde = e.target.value || ctrlRangoDefecto().desde; renderControl(); });
+  const fh = $('#ctrlHasta'); if (fh) fh.addEventListener('change', e => { ctrlFiltro.hasta = e.target.value || ctrlRangoDefecto().hasta; renderControl(); });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
-  const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', () => refrescarGestiones());
+  const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', () => {
+    // Invalida el rango consultado para volver a pedirlo a Supabase.
+    ctrlRango = { clave:'', rows: ctrlRango.rows, cargandoClave:'', error:'' };
+    refrescarGestiones(); renderControl();
+  });
   $$('#v-control .ctrl-reasignar').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openReasignar(b.dataset.id); }));
   $$('#v-control .ctrl-row').forEach(tr => tr.addEventListener('click', () => openCaseDetail(tr.dataset.id)));
 }
