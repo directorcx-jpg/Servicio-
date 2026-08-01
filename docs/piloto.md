@@ -33,6 +33,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 10 | 2026-08-01 | Pablo | El filtro de fechas consultaba al instante al cambiar cada campo; debe ejecutarse con un botón "Aplicar" | Baja | ✅ Corregido |
 | 11 | 2026-08-01 | Pablo | Las notificaciones de Google Chat de un caso nuevo caían en el hilo viejo de la misma placa (hilo por placa) | Alta | ✅ Corregido |
 | 12 | 2026-08-01 | Pablo | El usuario de prueba "Servicio al Cliente" participaba en la rotación de casos internos en producción | Alta | ✅ Corregido |
+| 13 | 2026-08-01 | Pablo | Radicar un caso de un cliente existente obliga a re-digitar todos sus datos (tiempo perdido y riesgo de duplicar por teléfono mal escrito) | Media | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -93,3 +94,8 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   recibe casos de la rotación ni puede iniciar sesión. Nunca alcanzó a
   tener casos asignados. Si se necesita esa cuenta activa sin rotación,
   la opción es cambiarle el rol a `asesor_digital`.
+- **#13 Autocompletado por placa al radicar** (v1.21.0, spec
+  2026-08-01-autocompletar-radicacion-por-placa): al salir del campo placa
+  en "Radicar caso interno", la plataforma busca la ficha y llena solo los
+  campos vacíos (nombre, teléfono, ciudad) con aviso "Datos traídos de la
+  ficha"; si la placa no existe o falla la búsqueda, todo sigue manual.

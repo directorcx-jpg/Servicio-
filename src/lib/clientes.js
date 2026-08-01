@@ -58,6 +58,24 @@ export async function sugerirClientes(termino){
   }));
 }
 
+// Ficha mínima por placa EXACTA para autocompletar la radicación de casos
+// internos (spec autocompletar-radicacion-por-placa). Devuelve null si la
+// placa no existe o no tiene cliente vinculado los campos vienen vacíos.
+export async function fichaPorPlaca(placa){
+  requiereSupabase();
+  const p = String(placa || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (p.length < 5) return null;
+  const { data, error } = await supabase
+    .from('vehiculos')
+    .select('id, placa, clientes(id, nombre, telefono, ciudad)')
+    .eq('placa', p)
+    .maybeSingle();
+  if (error) throw new Error('No se pudo buscar la placa: ' + error.message);
+  if (!data) return null;
+  const c = data.clientes || {};
+  return { placa: data.placa, nombre: c.nombre || '', telefono: c.telefono || '', ciudad: c.ciudad || '' };
+}
+
 // Cliente + TODOS sus vehículos (bloque 1 de la ficha).
 export async function obtenerCliente(clienteId){
   requiereSupabase();

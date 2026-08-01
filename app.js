@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.20.1';
+import { DATA } from './data.js?v=1.21.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -21,7 +21,8 @@ import {
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
-  obtenerVehiculo as sbObtenerVehiculo
+  obtenerVehiculo as sbObtenerVehiculo,
+  fichaPorPlaca as sbFichaPorPlaca
 } from './src/lib/clientes.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
@@ -566,6 +567,7 @@ function renderInternos(){
       <div class="rr"><div class="ff"><label>Ciudad</label><select id="inCiudad"><option>Manizales</option><option>Pereira</option><option>Armenia</option><option>La Dorada</option><option>Cartago</option></select></div><div class="ff"><label>Tipo de servicio</label><select id="inServicio">${ti.tiposServicio.map(s=>`<option data-cola="${s.cola}">${esc(s.nombre)}</option>`).join('')}</select></div></div>
       <div class="rr full"><div class="ff"><label>Grupo de chat origen</label><select id="inGrupo">${ti.gruposChat.map(g=>`<option>${esc(g)}</option>`).join('')}</select></div></div>
       <div class="rr full"><div class="ff"><label>Nota del solicitante (contexto)</label><input id="inNota" placeholder="Lo que escribió el asesor de piso…"></div></div>
+      <div id="inAutoAviso"></div>
       <div id="inDupAviso"></div>
       <button class="btn btn-ac btn-big" id="inRadicar" style="margin-top:10px"><i class="fas fa-shuffle"></i> Radicar y asignar</button>
     </div>
@@ -587,6 +589,7 @@ function renderInternos(){
 
   // Listeners del FORMULARIO (se enlazan una sola vez; no se vuelven a tocar).
   $('#inPlaca').addEventListener('input', renderDupAviso);
+  $('#inPlaca').addEventListener('change', autocompletarRadicacion);
   $('#inRadicar').addEventListener('click', radicarCaso);
   const csvF = $('#csvFile'); if (csvF) csvF.addEventListener('change', procesarCSV);
   const csvP = $('#csvPlantilla'); if (csvP) csvP.addEventListener('click', descargarPlantillaCSV);
@@ -710,6 +713,30 @@ function renderDupAviso(){
     Esta placa ya tiene un caso abierto con <strong>${esc(dup.asignadoAlias||dup.asesorCeta||'—')}</strong> desde ${esc(fmtFechaHora(dup._ts))} (${esc(RESULT_LABEL[dup.resultado]||dup.resultado)}).</div></div>`;
 }
 
+// Autocompletado por placa (spec autocompletar-radicacion-por-placa): al
+// salir del campo placa se busca la ficha y se llenan SOLO los campos
+// vacíos; si falla la búsqueda no pasa nada (se digita a mano como siempre).
+async function autocompletarRadicacion(){
+  const box = $('#inAutoAviso'); if (box) box.innerHTML = '';
+  if (!supabaseEnabled) return;
+  const placa = ($('#inPlaca')?.value || '').toUpperCase().trim();
+  if (placa.length < 5) return;
+  let ficha = null;
+  try { ficha = await sbFichaPorPlaca(placa); } catch (e) { console.warn('[CETA] fichaPorPlaca', e); return; }
+  if (!ficha) return;
+  if (($('#inPlaca')?.value || '').toUpperCase().trim() !== placa) return;   // el asesor cambió la placa mientras cargaba
+  const llenados = [];
+  const nom = $('#inNombre');   if (nom && !nom.value.trim() && ficha.nombre)   { nom.value = ficha.nombre;   llenados.push('nombre'); }
+  const tel = $('#inTelefono'); if (tel && !tel.value.trim() && ficha.telefono) { tel.value = ficha.telefono; llenados.push('teléfono'); }
+  const ciu = $('#inCiudad');
+  if (ciu && ciu.selectedIndex <= 0 && ficha.ciudad && [...ciu.options].some(o => o.value === ficha.ciudad || o.text === ficha.ciudad)) {
+    ciu.value = ficha.ciudad; llenados.push('ciudad');
+  }
+  if (llenados.length && box) {
+    box.innerHTML = `<div class="al in" style="margin-top:8px;font-size:11px"><i class="fas fa-wand-magic-sparkles"></i><div>Datos traídos de la ficha de <strong>${esc(ficha.placa)}</strong> (${llenados.join(', ')}) — verifica y corrige si algo cambió.</div></div>`;
+  }
+}
+
 function radicarCaso(){
   const placa = ($('#inPlaca').value||'').toUpperCase().trim();
   const nombre = ($('#inNombre').value||'').trim();
@@ -771,6 +798,7 @@ function limpiarFormInternos(){
   ['inPlaca','inNombre','inTelefono','inNota'].forEach(id => { const e = $('#'+id); if (e) e.value = ''; });
   ['inTipo','inCiudad','inServicio','inGrupo'].forEach(id => { const e = $('#'+id); if (e) e.selectedIndex = 0; });
   const av = $('#inDupAviso'); if (av) av.innerHTML = '';
+  const aa = $('#inAutoAviso'); if (aa) aa.innerHTML = '';
 }
 
 // Abrir un caso pendiente → precargar el Panel de Cierre con sus datos.
