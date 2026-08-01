@@ -30,6 +30,9 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 7 | 2026-07-29 | Pablo | Nota Quiter/Evolution desordenada para el asesor de taller: debe iniciar con motivo + tipo de mantenimiento + costo, y sin signos (++, ??, *) | Alta | ✅ Corregido |
 | 8 | 2026-07-29 | Pablo | El histórico de seguimientos (Google Sheet) no está en la plataforma: al buscar por placa/teléfono no se ve si otro asesor ya gestionó el caso (regla de 20 días) | Alta | ✅ Importado |
 | 9 | 2026-07-31 | Pablo | Control de Gestión sin filtro por fecha de radicación: no se puede auditar lo radicado por rango con cifras completas | Media | ✅ Corregido |
+| 10 | 2026-08-01 | Pablo | El filtro de fechas consultaba al instante al cambiar cada campo; debe ejecutarse con un botón "Aplicar" | Baja | ✅ Corregido |
+| 11 | 2026-08-01 | Pablo | Las notificaciones de Google Chat de un caso nuevo caían en el hilo viejo de la misma placa (hilo por placa) | Alta | ✅ Corregido |
+| 12 | 2026-08-01 | Pablo | El usuario de prueba "Servicio al Cliente" participaba en la rotación de casos internos en producción | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -78,3 +81,15 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   radicado en el rango; columna "Radicado" (fecha y hora) visible; por
   defecto últimos 7 días; tope de seguridad 2.000 con aviso; rango
   invertido se corrige solo.
+- **#10 Botón "Aplicar" en el filtro de fechas** (v1.20.1): cambiar las
+  fechas ya no consulta al instante; el rango se ejecuta al pulsar Aplicar.
+- **#11 Hilo de Google Chat por caso** (migración
+  `chat_thread_por_gestion`, solo base de datos): el hilo de las
+  notificaciones era por placa, así que un caso nuevo de una placa
+  respondía en el hilo del caso viejo. Ahora cada gestión abre su propio
+  hilo y sus actualizaciones sí quedan encadenadas en él.
+- **#12 Usuario de prueba fuera de la rotación** (solo datos): "Servicio
+  al Cliente" (servicioalcliente@armotor.com) quedó `activo = false` — no
+  recibe casos de la rotación ni puede iniciar sesión. Nunca alcanzó a
+  tener casos asignados. Si se necesita esa cuenta activa sin rotación,
+  la opción es cambiarle el rol a `asesor_digital`.

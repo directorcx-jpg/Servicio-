@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.20.0';
+import { DATA } from './data.js?v=1.20.1';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -1070,6 +1070,7 @@ function renderControl(){
         <input type="date" id="ctrlDesde" value="${esc(ctrlFiltro.desde)}" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"></div>
       <div class="ff" style="min-width:130px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Hasta</label>
         <input type="date" id="ctrlHasta" value="${esc(ctrlFiltro.hasta)}" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"></div>
+      <button class="btn btn-ac" id="ctrlAplicar" title="Consultar el rango elegido"><i class="fas fa-magnifying-glass"></i> Aplicar</button>
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Asesor</label>
         <select id="ctrlAsesor" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${asesores.map(a=>`<option ${ctrlFiltro.asesor===a?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Resultado</label>
@@ -1133,8 +1134,13 @@ function renderControl(){
   const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
   const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
   const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'', ...ctrlRangoDefecto() }; renderControl(); });
-  const fd = $('#ctrlDesde'); if (fd) fd.addEventListener('change', e => { ctrlFiltro.desde = e.target.value || ctrlRangoDefecto().desde; renderControl(); });
-  const fh = $('#ctrlHasta'); if (fh) fh.addEventListener('change', e => { ctrlFiltro.hasta = e.target.value || ctrlRangoDefecto().hasta; renderControl(); });
+  // Las fechas NO consultan solas: se aplican con el botón (piloto #10).
+  const ap = $('#ctrlAplicar'); if (ap) ap.addEventListener('click', () => {
+    const def = ctrlRangoDefecto();
+    ctrlFiltro.desde = $('#ctrlDesde')?.value || def.desde;
+    ctrlFiltro.hasta = $('#ctrlHasta')?.value || def.hasta;
+    renderControl();
+  });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
   const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', () => {
