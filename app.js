@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.21.0';
+import { DATA } from './data.js?v=1.22.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -24,6 +24,14 @@ import {
   obtenerVehiculo as sbObtenerVehiculo,
   fichaPorPlaca as sbFichaPorPlaca
 } from './src/lib/clientes.js';
+import {
+  listarContenido as sbListarContenido,
+  crearContenido as sbCrearContenido,
+  editarContenido as sbEditarContenido,
+  activarContenido as sbActivarContenido,
+  eliminarContenido as sbEliminarContenido,
+  contenidoADATA
+} from './src/lib/contenido.js';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -148,7 +156,181 @@ async function onLoginExitoso(authUser){
     alias, rol: perfil.rol, sede_asignada: perfil.sede_asignada
   };
   await cargarAsesoresCC();
+  cargarContenido();   // en fondo: el contenido editable pisa el seed de DATA
   enterApp();
+}
+
+// =============================================================
+//  CONTENIDO OPERATIVO EDITABLE (Fase 2 · Entrega 1)
+//  spec 2026-08-01-contenido-operativo-editable
+// =============================================================
+const LS_CONTENIDO = 'ceta_contenido_v1';
+
+// Aplica las filas de Supabase sobre DATA (campanias, escalamiento,
+// extensiones, vip, picoPlaca, conocimiento). DATA queda de respaldo si
+// nunca ha cargado nada.
+function aplicarContenido(filas){
+  if (!Array.isArray(filas) || !filas.length) return;
+  S.contenido = filas;
+  Object.assign(DATA, contenidoADATA(filas));
+}
+
+async function cargarContenido(){
+  // 1) caché local primero (lectura instantánea, incluso sin conexión)
+  try { aplicarContenido(JSON.parse(localStorage.getItem(LS_CONTENIDO) || 'null')); } catch {}
+  // 2) Supabase = fuente de verdad
+  if (!supabaseEnabled) return;
+  try {
+    const filas = await sbListarContenido();
+    aplicarContenido(filas);
+    try { localStorage.setItem(LS_CONTENIDO, JSON.stringify(filas)); } catch {}
+    // refrescar las vistas de consulta si están abiertas
+    ['campanias','vip','contactos','productos'].forEach(v => {
+      if ($('#v-' + v)?.classList.contains('active')) goTo(v);
+    });
+    if ($('#v-contenido')?.classList.contains('active')) renderContenidoEditor();
+  } catch (e) { console.warn('[CETA] cargarContenido', e); }
+}
+
+// Definición de campos por tipo (formulario del editor).
+const CONT_TIPOS = {
+  campania:     { label: 'Campañas',            tituloDe: 'titulo', campos: [
+    { k:'titulo', l:'Título' }, { k:'vigente', l:'Vigente', t:'bool' }, { k:'permanente', l:'Permanente (sin fechas)', t:'bool' },
+    { k:'desde', l:'Vigente desde', t:'date' }, { k:'hasta', l:'Vigente hasta', t:'date' },
+    { k:'resumen', l:'Resumen', t:'area' }, { k:'link', l:'Link' }, { k:'guion', l:'Guion asociado' } ] },
+  escalamiento: { label: 'Escalamiento',        tituloDe: 'cargo', campos: [
+    { k:'grupo', l:'Grupo', t:'sel', op:['Gerentes y Directores','Jefes de Taller y Líderes Posventa','Servicios de apoyo'] },
+    { k:'cargo', l:'Cargo' }, { k:'nombre', l:'Nombre' }, { k:'tel', l:'Teléfono' }, { k:'email', l:'Email' } ] },
+  extension:    { label: 'Extensiones',         tituloDe: 'nombre', campos: [
+    { k:'nombre', l:'Nombre' }, { k:'ext', l:'Extensión' }, { k:'rol', l:'Rol' } ] },
+  vip:          { label: 'Clientes VIP',        tituloDe: 'nombre', campos: [
+    { k:'nombre', l:'Nombre' }, { k:'placa', l:'Placa' }, { k:'tel', l:'Teléfono' }, { k:'nota', l:'Nota' } ] },
+  pico_placa:   { label: 'Pico y placa',        tituloDe: 'ciudad', campos: [
+    { k:'ciudad', l:'Ciudad' }, { k:'horario', l:'Horario' }, { k:'dias', l:'Días y dígitos', t:'json' }, { k:'noAplica', l:'No aplica' } ] },
+  conocimiento: { label: 'Base de Conocimiento', tituloDe: 'titulo', campos: [
+    { k:'titulo', l:'Título' }, { k:'cat', l:'Categoría', t:'sel', op:['critico','productos','operativo'] },
+    { k:'resumen', l:'Resumen', t:'area' }, { k:'contenido', l:'Contenido completo', t:'area' },
+    { k:'tags', l:'Tags (separadas por coma)', t:'tags' } ] }
+};
+let contTipoActivo = 'campania';
+
+function renderContenidoEditor(){
+  const el = $('#v-contenido'); if (!el) return;
+  if (!can('editarContenido')) { el.innerHTML = emptyState('fa-lock', 'Editar contenido', 'Tu rol no tiene acceso a esta sección.'); return; }
+  const filas = (S.contenido || []).filter(f => f.tipo === contTipoActivo)
+    .sort((a, b) => (a.orden ?? 9e9) - (b.orden ?? 9e9));
+  el.innerHTML = `
+    ${viewHead('Editar contenido', `<span class="badge"><i class="fas fa-pen-to-square"></i> Coordinación</span>`)}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      ${Object.entries(CONT_TIPOS).map(([k, t]) => `<button class="pill cont-tab ${k===contTipoActivo?'on':''}" data-tipo="${k}">${esc(t.label)}</button>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn btn-ac" id="contNueva"><i class="fas fa-plus"></i> Nueva entrada</button>
+    </div>
+    <div class="fb">
+      ${filas.length ? `<table class="tbl"><thead><tr><th>Título</th><th>Estado</th><th>Últ. cambio</th><th style="width:150px"></th></tr></thead><tbody>
+        ${filas.map(f => `<tr>
+          <td><strong>${esc(f.titulo)}</strong></td>
+          <td>${f.activo ? '<span class="tag" style="background:rgba(34,197,94,.12);color:var(--ok)">Activa</span>' : '<span class="tag" style="background:var(--bgs);color:var(--tx3)">Inactiva</span>'}</td>
+          <td style="font-size:11px;color:var(--tx3)">${esc(f.actualizadoAlias || '—')}${f.actualizado_en ? ' · ' + esc(fmtFechaHora(new Date(f.actualizado_en).getTime())) : ''}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-gh cont-editar" data-id="${esc(f.id)}" title="Editar" style="padding:3px 8px"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-gh cont-toggle" data-id="${esc(f.id)}" title="${f.activo ? 'Desactivar' : 'Reactivar'}" style="padding:3px 8px"><i class="fas fa-power-off" style="${f.activo ? '' : 'color:var(--tx3)'}"></i></button>
+            <button class="btn btn-gh cont-hist" data-id="${esc(f.id)}" title="Historial" style="padding:3px 8px"><i class="fas fa-clock-rotate-left"></i></button>
+            ${S.user?.rol === 'administrador' ? `<button class="btn btn-gh cont-borrar" data-id="${esc(f.id)}" title="Eliminar definitivo" style="padding:3px 8px;color:var(--wr)"><i class="fas fa-trash"></i></button>` : ''}
+          </td></tr>`).join('')}
+      </tbody></table>` : emptyState('fa-inbox', 'Sin entradas', 'Crea la primera con "Nueva entrada".')}
+    </div>
+    <div style="font-size:10px;color:var(--tx3);margin-top:8px"><i class="fas fa-circle-info"></i> Desactivar oculta la entrada a los asesores sin borrarla. El borrado definitivo es solo del administrador. Los asesores ven los cambios al recargar o cambiar de vista.</div>`;
+  $$('#v-contenido .cont-tab').forEach(b => b.addEventListener('click', () => { contTipoActivo = b.dataset.tipo; renderContenidoEditor(); }));
+  $('#contNueva')?.addEventListener('click', () => openContenidoForm(null));
+  $$('#v-contenido .cont-editar').forEach(b => b.addEventListener('click', () => openContenidoForm(b.dataset.id)));
+  $$('#v-contenido .cont-toggle').forEach(b => b.addEventListener('click', async () => {
+    const f = (S.contenido || []).find(x => x.id === b.dataset.id); if (!f) return;
+    try {
+      await sbActivarContenido(f, !f.activo, S.user);
+      toast(f.activo ? '⏸️ Entrada desactivada' : '✅ Entrada reactivada');
+      cargarContenido().then(renderContenidoEditor);
+    } catch (e) { console.error(e); toast('⚠️ No se pudo cambiar el estado — reintenta'); }
+  }));
+  $$('#v-contenido .cont-hist').forEach(b => b.addEventListener('click', () => openContenidoHistorial(b.dataset.id)));
+  $$('#v-contenido .cont-borrar').forEach(b => b.addEventListener('click', () => {
+    const f = (S.contenido || []).find(x => x.id === b.dataset.id); if (!f) return;
+    modalOpen(`
+      <div class="modal-head"><h3><i class="fas fa-trash" style="color:var(--wr)"></i> Eliminar definitivo</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+      <div class="modal-body"><div class="al wr" style="font-size:12px"><i class="fas fa-triangle-exclamation"></i><div>Se eliminará <strong>${esc(f.titulo)}</strong> y su historial. Esta acción no se puede deshacer. Si solo quieres ocultarla, usa Desactivar.</div></div></div>
+      <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="contBorrarSi" style="background:var(--wr)"><i class="fas fa-trash"></i> Eliminar</button></div>`);
+    $('#contBorrarSi').addEventListener('click', async () => {
+      try { await sbEliminarContenido(f.id); modalClose(); toast('🗑️ Entrada eliminada'); cargarContenido().then(renderContenidoEditor); }
+      catch (e) { console.error(e); toast('⚠️ No se pudo eliminar'); }
+    });
+  }));
+}
+
+function valorCampoContenido(c, v){
+  if (c.t === 'tags') return Array.isArray(v) ? v.join(', ') : (v || '');
+  if (c.t === 'json') return v ? JSON.stringify(v) : '';
+  return v ?? '';
+}
+
+function openContenidoForm(id){
+  const def = CONT_TIPOS[contTipoActivo];
+  const f = id ? (S.contenido || []).find(x => x.id === id) : null;
+  const d = f?.datos || {};
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-pen"></i> ${f ? 'Editar' : 'Nueva'} · ${esc(def.label)}</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      ${def.campos.map(c => `<div class="ff" style="margin-bottom:10px"><label>${esc(c.l)}</label>${
+        c.t === 'area' ? `<textarea data-ck="${c.k}" rows="5">${esc(valorCampoContenido(c, d[c.k]))}</textarea>` :
+        c.t === 'bool' ? `<select data-ck="${c.k}"><option value="true" ${d[c.k] ? 'selected' : ''}>Sí</option><option value="false" ${d[c.k] ? '' : 'selected'}>No</option></select>` :
+        c.t === 'sel'  ? `<select data-ck="${c.k}">${c.op.map(o => `<option ${d[c.k] === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` :
+        `<input data-ck="${c.k}" type="${c.t === 'date' ? 'date' : 'text'}" value="${esc(valorCampoContenido(c, d[c.k]))}">`
+      }</div>`).join('')}
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="contGuardar"><i class="fas fa-floppy-disk"></i> Guardar</button></div>`);
+  $('#contGuardar').addEventListener('click', async () => {
+    const nuevos = { ...d };
+    def.campos.forEach(c => {
+      const el2 = $(`[data-ck="${c.k}"]`); if (!el2) return;
+      let v = el2.value;
+      if (c.t === 'bool') v = v === 'true';
+      else if (c.t === 'tags') v = v.split(',').map(s => s.trim()).filter(Boolean);
+      else if (c.t === 'json') { try { v = v ? JSON.parse(v) : null; } catch { toast('⚠️ El campo "' + c.l + '" no es un JSON válido'); throw new Error('json inválido'); } }
+      else v = v.trim();
+      if (v === '' || v == null) delete nuevos[c.k]; else nuevos[c.k] = v;
+    });
+    const titulo = String(nuevos[def.tituloDe] || '').trim();
+    if (!titulo) { toast('El campo "' + def.campos.find(c => c.k === def.tituloDe).l + '" es obligatorio'); return; }
+    // aviso de duplicado por título+tipo (spec: se confirma para continuar)
+    const dup = (S.contenido || []).find(x => x.tipo === contTipoActivo && x.titulo.toLowerCase() === titulo.toLowerCase() && x.id !== id);
+    if (dup && !confirm('Ya existe una entrada "' + dup.titulo + '" en ' + def.label + '. ¿Guardar de todas formas?')) return;
+    if (contTipoActivo === 'conocimiento') {
+      nuevos.badge = { critico: 'red', productos: 'gold', operativo: 'green' }[nuevos.cat] || 'green';
+      if (!nuevos.id) nuevos.id = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+    }
+    if (contTipoActivo === 'campania' && !nuevos.id) nuevos.id = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+    try {
+      if (f) await sbEditarContenido(f, nuevos, titulo, S.user);
+      else await sbCrearContenido(contTipoActivo, titulo, nuevos, S.user);
+      modalClose(); toast('✅ Guardado');
+      cargarContenido().then(renderContenidoEditor);
+    } catch (e) { console.error(e); toast('⚠️ No se pudo guardar — reintenta (lo escrito se conserva)'); }
+  });
+}
+
+function openContenidoHistorial(id){
+  const f = (S.contenido || []).find(x => x.id === id); if (!f) return;
+  const h = [...(f.historial || [])].reverse();
+  const fmtV = v => v == null ? '—' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-clock-rotate-left"></i> Historial · ${esc(f.titulo)}</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      ${h.length ? h.map(x => `<div style="border-left:2px solid var(--bd);padding:4px 10px;margin-bottom:8px;font-size:12px">
+        <div style="color:var(--tx3);font-size:10px">${esc(fmtFechaHora(new Date(x.ts).getTime()))} · ${esc(x.autor || '—')}</div>
+        <div><strong>${esc(x.campo)}</strong>: ${esc(fmtV(x.de))} → ${esc(fmtV(x.a))}</div>
+      </div>`).join('') : '<div style="color:var(--tx3);font-size:12px">Sin cambios registrados.</div>'}
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cerrar</button></div>`);
 }
 
 // Cierra sesión: Supabase limpia el estado y recarga; initAuth mostrará el login.
@@ -1878,6 +2060,7 @@ function goTo(v){
   // Stale-while-revalidate: cada vista pinta al instante con la caché local y
   // dispara en fondo la lectura fresca desde Supabase (con throttle de 15 s).
   if (v === 'control') { renderControl(); refrescarGestiones({ silencioso:true, throttle:true }); }
+  if (v === 'contenido') renderContenidoEditor();
   if (v === 'internos') { renderInternos(); refrescarInternos({ throttle:true }); }
   if (v === 'seguimientos') { renderSeguimientos(); refrescarSeguimientos({ throttle:true }); }
   if (v === 'clientes') renderClientes();
@@ -1898,7 +2081,7 @@ function pickRes(b){
   const r = S.resultado;
   const mostrar = id => $('#'+id) && $('#'+id).classList.remove('hidden');
   const ocultar = id => $('#'+id) && $('#'+id).classList.add('hidden');
-  const todasSec = ['sCotiz','sNovedad','sWego','sAdic'];
+  const todasSec = ['sCotiz','sNovedad','sWego','sAdic','sObs'];
 
   if (r === 'agenda') {
     todasSec.forEach(mostrar);
@@ -1911,7 +2094,7 @@ function pickRes(b){
     if (r === 'seg')        { mostrar('seg-f'); mostrar('sNovedad'); poblarHoras(); }   // seguimiento: novedad + callback
     if (r === 'comunica')   { mostrar('comunica-f'); poblarComunicaSub(); }
     if (r === 'actualizar') mostrar('actualizar-f');   // solo datos del cliente (sección 1) + motivo
-    if (r === 'companero')  mostrar('companero-f');    // contacto ya realizado por compañero: mínimo + observación
+    if (r === 'companero')  { mostrar('companero-f'); mostrar('sObs'); }   // mínimo + observación (obligatoria)
   }
 
   // Cotizador SOLO con motivo Mantenimiento o Cotización, y solo si el resultado lo permite. Punto 1.

@@ -45,7 +45,15 @@ se marca aquí el avance):
   `verify-after-change` antes de declarar la Fase 1 terminada y pasar a
   la Fase 2.
 
-## Fase 2 — Base de conocimiento y flujos EDITABLES
+## Fase 2 — Base de conocimiento y flujos EDITABLES ← EN CURSO
+**Entrega 1 implementada (2026-08-01, v1.22.0, spec
+`2026-08-01-contenido-operativo-editable`):** campañas, escalamiento,
+extensiones, VIP, pico y placa y artículos de la Base de Conocimiento ya
+viven en Supabase (tabla `contenido`, 55 entradas migradas) con sección
+"Editar contenido" para coordinador/admin (crear, editar, desactivar,
+historial; borrado solo admin) y lectura con caché local + `data.js` de
+respaldo. Pendientes: Entrega 2 (plantillas WhatsApp) y Entrega 3
+(guiones/flujos Inbound, Outbound y calificador).
 Hoy TODO el contenido operativo vive incrustado en el código (`data.js`):
 el flujo Inbound de 10 pasos, los guiones Outbound, las plantillas de
 WhatsApp, el calificador de leads, la base de conocimiento (crítico /
