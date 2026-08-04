@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.22.0';
+import { DATA } from './data.js?v=1.23.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -184,10 +184,9 @@ async function cargarContenido(){
     const filas = await sbListarContenido();
     aplicarContenido(filas);
     try { localStorage.setItem(LS_CONTENIDO, JSON.stringify(filas)); } catch {}
-    // refrescar las vistas de consulta si están abiertas
-    ['campanias','vip','contactos','productos'].forEach(v => {
-      if ($('#v-' + v)?.classList.contains('active')) goTo(v);
-    });
+    // re-pintar las vistas de consulta con el contenido fresco (renderContent
+    // es quien pinta Campañas/VIP/Contactos/Productos; goTo no las re-renderiza)
+    if (S.user) renderContent();
     if ($('#v-contenido')?.classList.contains('active')) renderContenidoEditor();
   } catch (e) { console.warn('[CETA] cargarContenido', e); }
 }
@@ -207,6 +206,10 @@ const CONT_TIPOS = {
     { k:'nombre', l:'Nombre' }, { k:'placa', l:'Placa' }, { k:'tel', l:'Teléfono' }, { k:'nota', l:'Nota' } ] },
   pico_placa:   { label: 'Pico y placa',        tituloDe: 'ciudad', campos: [
     { k:'ciudad', l:'Ciudad' }, { k:'horario', l:'Horario' }, { k:'dias', l:'Días y dígitos', t:'json' }, { k:'noAplica', l:'No aplica' } ] },
+  directorio:   { label: 'Directorio Armotor',   tituloDe: 'nombre', campos: [
+    { k:'nombre', l:'Nombre' },
+    { k:'ciudad', l:'Sede', t:'sel', op:['Regional','Manizales','Pereira','Armenia','Cartago','La Dorada'] },
+    { k:'area', l:'Cargo / Área' }, { k:'cel', l:'Celular' }, { k:'ext', l:'Extensión' } ] },
   conocimiento: { label: 'Base de Conocimiento', tituloDe: 'titulo', campos: [
     { k:'titulo', l:'Título' }, { k:'cat', l:'Categoría', t:'sel', op:['critico','productos','operativo'] },
     { k:'resumen', l:'Resumen', t:'area' }, { k:'contenido', l:'Contenido completo', t:'area' },
@@ -655,6 +658,20 @@ function renderContactos(){
     ${(DATA.escalamiento||[]).map(g=>`<div class="fb"><div class="bt val" style="margin-bottom:8px"><span class="n"><i class="fas fa-users"></i></span>${esc(g.grupo)}</div>
       <table class="tbl"><tbody>${g.items.filter(it=>match(it.nombre,it.cargo,it.tel)).map(it=>`<tr><td>${esc(it.cargo)}</td><td><strong>${esc(it.nombre)}</strong></td><td style="font-family:var(--fm);font-size:11px">${esc(it.tel)}${it.email?`<br><span style="color:var(--in)">${esc(it.email)}</span>`:''}</td></tr>`).join('')}</tbody></table>
     </div>`).join('')}
+
+    ${(() => {
+      // Directorio Armotor por sede (contenido editable, tipo 'directorio')
+      const dir = (DATA.directorio || []).filter(d => match(d.nombre, d.area, d.ciudad, d.cel, d.ext));
+      if (!dir.length) return '';
+      const ordenSede = ['Regional','Manizales','Pereira','Armenia','Cartago','La Dorada'];
+      const porSede = {};
+      dir.forEach(d => { (porSede[d.ciudad || 'Otros'] = porSede[d.ciudad || 'Otros'] || []).push(d); });
+      const sedesOrd = Object.keys(porSede).sort((a, b) => (ordenSede.indexOf(a) + 99 * (ordenSede.indexOf(a) < 0)) - (ordenSede.indexOf(b) + 99 * (ordenSede.indexOf(b) < 0)));
+      return `<div class="sub-l" style="margin-top:16px"><i class="fas fa-address-book"></i>Directorio Armotor por sede</div>
+        ${sedesOrd.map(sede => `<div class="fb"><div class="bt do" style="margin-bottom:8px"><span class="n"><i class="fas fa-location-dot"></i></span>${esc(sede)} <span style="font-weight:400;color:var(--tx3);font-size:10px">· ${porSede[sede].length} contactos</span></div>
+          <table class="tbl"><tbody>${porSede[sede].map(d => `<tr><td><strong>${esc(d.nombre)}</strong></td><td>${esc(d.area || '—')}</td><td style="font-family:var(--fm);font-size:11px">${d.ext ? 'Ext ' + esc(d.ext) : ''}${d.cel ? (d.ext ? ' · ' : '') + esc(d.cel) : ''}</td></tr>`).join('')}</tbody></table>
+        </div>`).join('')}`;
+    })()}
 
     <div class="sub-l" style="margin-top:16px"><i class="fas fa-phone-volume"></i>Extensiones equipo CETA</div>
     <div class="fb"><table class="tbl"><thead><tr><th>Nombre</th><th>Ext</th><th>Rol</th></tr></thead><tbody>

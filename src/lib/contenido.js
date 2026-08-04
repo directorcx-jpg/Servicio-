@@ -97,5 +97,7 @@ export function contenidoADATA(filas){
   const pp = {};
   de('pico_placa').forEach(f => { const { ciudad, ...resto } = f.datos; pp[ciudad || f.titulo] = resto; });
   out.picoPlaca = pp;
+  // directorio telefónico Armotor (plano, con ciudad; la UI agrupa por sede)
+  out.directorio = de('directorio').map(f => f.datos);
   return out;
 }

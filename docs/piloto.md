@@ -35,6 +35,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 12 | 2026-08-01 | Pablo | El usuario de prueba "Servicio al Cliente" participaba en la rotación de casos internos en producción | Alta | ✅ Corregido |
 | 13 | 2026-08-01 | Pablo | Radicar un caso de un cliente existente obliga a re-digitar todos sus datos (tiempo perdido y riesgo de duplicar por teléfono mal escrito) | Media | ✅ Corregido |
 | 14 | 2026-08-03 | Pablo | "Gestión de compañero" exige observación pero el campo no aparece en pantalla (vivía dentro de la sección de cita, oculta para ese resultado) — no se podía guardar | Alta | ✅ Corregido |
+| 15 | 2026-08-04 | Pablo | Directorio telefónico Armotor y lista VIP desactualizados/mal transcritos en la plataforma | Media | ✅ Actualizado |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -105,3 +106,15 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   ese resultado) a su propio bloque, visible en Agendado y en Gestión de
   compañero. Verificado: sin observación el semáforo pide el campo (ahora
   visible); con ella marca "Listo para guardar".
+- **#15 Directorio Armotor y VIP actualizados** (v1.23.0, migración
+  `contenido_tipo_directorio`): 74 contactos del Excel "Directorio
+  Telefónico Armotor" cargados como tipo `directorio` del contenido
+  editable, organizados por sede (Regional, Manizales, Pereira, Armenia,
+  Cartago, La Dorada) y visibles en "Contactos y Sedes" → sección
+  "Directorio Armotor por sede" (buscable). Lista VIP reemplazada por los
+  18 clientes validados de los Sheets (nombres y placas corregidos, placas
+  correlacionadas por cliente, teléfonos secundarios y notas de
+  verificación); pendientes marcados en la nota de cada entrada (tel de
+  Claudia Yepes, placas por confirmar de Jorge Mejía y Susana Trujillo,
+  posible duplicado Rafael Mejía = CLIENTE GTQ194). Ambos tipos editables
+  desde "Editar contenido".
