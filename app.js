@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.24.0';
+import { DATA } from './data.js?v=1.24.1';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -2008,15 +2008,31 @@ function tvHTML(rows){
     }</tbody></table></div>`);
   }
   if (paneles.includes('servicio')) {
-    const por = {};
+    // Barras apiladas por asesor: cada segmento es un tipo de servicio con
+    // su color; el largo de la barra es proporcional al total del asesor.
+    const por = {}, totTipo = {};
     rows.filter(g => g.resultado === 'agenda').forEach(g => {
       const a = g.asesorCeta || '—', s = g.servicio || g.motivo || 'Sin tipo';
-      por[a] = por[a] || {};
-      por[a][s] = (por[a][s] || 0) + 1;
+      por[a] = por[a] || { t: 0, ss: {} };
+      por[a].t++;
+      por[a].ss[s] = (por[a].ss[s] || 0) + 1;
+      totTipo[s] = (totTipo[s] || 0) + 1;
     });
-    bloques.push(`<div class="card"><h2>🔧 Servicio agendado por asesor</h2>${
-      Object.entries(por).map(([a, ss]) =>
-        `<div class="fila srv"><span class="lbl">${esc(a)}</span><span class="srvs">${Object.entries(ss).sort((x, y) => y[1] - x[1]).map(([s, n]) => `${esc(s)} <strong>×${n}</strong>`).join(' · ')}</span></div>`).join('') || '<div class="vacio">Sin agendas en el rango</div>'
+    const COLORES = { 'Mantenimiento':'#ef4444', 'Inspección':'#3b82f6', 'Garantía':'#22c55e', 'Especializada':'#f97316', 'Servicio rápido':'#a855f7', 'Accesorios':'#0d9488', 'Correctivo':'#f59e0b', 'Cotización':'#38bdf8' };
+    const EXTRA = ['#ec4899', '#84cc16', '#64748b', '#eab308'];
+    let extraI = 0;
+    const tipos = Object.keys(totTipo).sort((a, b) => totTipo[b] - totTipo[a]);
+    const colorDe = {};
+    tipos.forEach(s => { colorDe[s] = COLORES[s] || EXTRA[extraI++ % EXTRA.length]; });
+    const maxT = Math.max(1, ...Object.values(por).map(x => x.t));
+    bloques.push(`<div class="card"><h2>🔧 Tipo de servicio por asesor</h2>
+      <div class="leyenda">${tipos.map(s => `<span><i style="background:${colorDe[s]}"></i>${esc(s)}</span>`).join('')}</div>
+      ${Object.entries(por).sort((a, b) => b[1].t - a[1].t).map(([a, x]) => `
+        <div class="fila"><span class="lbl">${esc(a)}</span>
+          <div class="pista"><div class="stack" style="width:${Math.max(3, Math.round(x.t / maxT * 100))}%">${
+            tipos.filter(s => x.ss[s]).map(s => `<div title="${esc(s)}: ${x.ss[s]}" style="flex:${x.ss[s]};background:${colorDe[s]}"></div>`).join('')
+          }</div></div>
+          <span class="num"><strong>${x.t}</strong></span></div>`).join('') || '<div class="vacio">Sin agendas en el rango</div>'
     }</div>`);
   }
   if (paneles.includes('pendientes')) {
@@ -2048,6 +2064,10 @@ function tvHTML(rows){
     .fila .lbl{flex:0 0 max(90px,9vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .fila.srv{align-items:flex-start}.srvs{flex:1;color:var(--tx3);font-size:clamp(10px,1.1vw,14px)}
     .bar{flex:1;background:#2a2a36;border-radius:4px;height:clamp(10px,1.2vw,16px);overflow:hidden}.bar div{height:100%}
+    .leyenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:clamp(9px,1vw,12px);color:var(--tx3);margin-bottom:8px}
+    .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+    .pista{flex:1;background:#2a2a36;border-radius:4px;overflow:hidden}
+    .stack{display:flex;height:clamp(12px,1.4vw,18px);border-radius:4px;overflow:hidden}
     .num{font-family:monospace;min-width:26px;text-align:right}.num.big{font-size:clamp(20px,3vw,42px);font-weight:800;display:block}
     .minis{display:flex;gap:24px;margin-bottom:10px}.minis span{display:block;font-size:clamp(9px,1vw,13px);color:var(--tx3)}
     table{width:100%;border-collapse:collapse;font-size:clamp(11px,1.2vw,15px)}
