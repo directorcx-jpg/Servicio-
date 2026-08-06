@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.23.0';
+import { DATA } from './data.js?v=1.24.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -1306,7 +1306,7 @@ function renderControl(){
       <div style="margin-left:auto;display:flex;gap:6px">
         ${supabaseEnabled?`<button class="btn btn-gh" id="ctrlSync" title="Traer las gestiones del equipo"><i class="fas fa-rotate"></i> Actualizar</button>`:''}
         ${can('config')?`<button class="btn btn-gh" id="ctrlCols" title="Configurar columnas"><i class="fas fa-gear"></i> Columnas</button>`:''}
-        ${can('modoTV')?`<button class="btn btn-ac" id="ctrlTV"><i class="fas fa-tv"></i> Modo TV</button>`:''}
+        ${can('modoTV')?`<button class="btn btn-gh" id="ctrlTVCfg" title="Elegir qué paneles se proyectan"><i class="fas fa-sliders"></i> Paneles TV</button><button class="btn btn-ac" id="ctrlTV" title="Abrir la ventana del televisor"><i class="fas fa-tv"></i> Modo TV</button>`:''}
       </div>
     </div>
     ${rangoCargando ? `<div class="al in" style="margin-bottom:10px"><i class="fas fa-spinner fa-spin"></i><div>Consultando lo radicado del ${esc(ctrlFiltro.desde)} al ${esc(ctrlFiltro.hasta)}…</div></div>` : ''}
@@ -1369,6 +1369,7 @@ function renderControl(){
     renderControl();
   });
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
+  const tvc = $('#ctrlTVCfg'); if (tvc) tvc.addEventListener('click', openTVConfig);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
   const syn = $('#ctrlSync'); if (syn) syn.addEventListener('click', () => {
     // Invalida el rango consultado para volver a pedirlo a Supabase.
@@ -1893,45 +1894,184 @@ function graficasHTML(rows){
 
 // ===== MODO TV (fullscreen, auto-refresh 60s) =====
 let tvTimer = null;
+// =============================================================
+//  MODO TV DINÁMICO (spec 2026-08-06-modo-tv-dinamico)
+//  Ventana espejo: hereda los filtros del Control, consulta Supabase cada
+//  30 s y pinta solo los paneles elegidos (selección recordada).
+// =============================================================
+const LS_TV_PANELES = 'ceta_tv_paneles';
+const TV_PANELES = {
+  ciudad:     'Agendas por ciudad',
+  asesor:     'Gestión por asesor',
+  servicio:   'Servicio agendado por asesor',
+  pendientes: 'Pendientes y No contesta'
+};
+let tvWin = null, tvUltimaOk = 0;
+
+function getTVPaneles(){
+  try { const s = JSON.parse(localStorage.getItem(LS_TV_PANELES) || 'null'); if (Array.isArray(s) && s.length) return s; } catch {}
+  return Object.keys(TV_PANELES);   // primera vez: los 4
+}
+
+function openTVConfig(){
+  const sel = new Set(getTVPaneles());
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-sliders"></i> Paneles del Modo TV</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Elige qué se proyecta en el televisor. La selección queda guardada en este navegador.</div>
+      ${Object.entries(TV_PANELES).map(([k, l]) => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;cursor:pointer"><input type="checkbox" data-tvp="${k}" ${sel.has(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" data-modal-close>Cancelar</button><button class="btn btn-ac" id="tvCfgSave"><i class="fas fa-floppy-disk"></i> Guardar</button></div>`);
+  $('#tvCfgSave').addEventListener('click', () => {
+    const marcados = $$('[data-tvp]').filter(c => c.checked).map(c => c.dataset.tvp);
+    localStorage.setItem(LS_TV_PANELES, JSON.stringify(marcados.length ? marcados : Object.keys(TV_PANELES)));
+    modalClose(); toast('✅ Paneles del TV guardados');
+    if (tvWin && !tvWin.closed) actualizarTV();
+  });
+}
+
 function openModoTV(){
-  const ov = $('#tvOverlay');
-  ov.classList.add('show');
-  renderTV();
-  if (ov.requestFullscreen) ov.requestFullscreen().catch(()=>{});
-  tvTimer = setInterval(renderTV, 60000);
+  const w = window.open('', 'ceta_tv', 'width=1280,height=720');
+  if (!w) { toast('⚠️ El navegador bloqueó la ventana — permite las ventanas emergentes para este sitio y vuelve a intentar'); return; }
+  tvWin = w;
+  w.document.title = 'ARMOTOR CETA · Modo TV';
+  if (!window._tvUnload) {
+    window._tvUnload = true;
+    window.addEventListener('pagehide', () => {
+      try {
+        if (tvWin && !tvWin.closed) tvWin.document.body.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#16161f;color:#e8e8f0;font-family:sans-serif;font-size:clamp(18px,3vw,32px);text-align:center;padding:20px">⚠️ Fuente cerrada — reabre el Modo TV desde Control de Gestión</div>';
+      } catch {}
+    });
+  }
+  if (tvTimer) clearInterval(tvTimer);
+  actualizarTV();
+  tvTimer = setInterval(actualizarTV, 30000);
 }
 function closeModoTV(){
-  $('#tvOverlay').classList.remove('show');
   if (tvTimer) { clearInterval(tvTimer); tvTimer = null; }
-  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  if (tvWin && !tvWin.closed) tvWin.close();
+  tvWin = null;
 }
-function renderTV(){
-  const rows = gestionesVisibles();
+
+// Consulta el rango del Control en Supabase y re-pinta la ventana TV.
+async function actualizarTV(){
+  if (!tvWin || tvWin.closed) { if (tvTimer) { clearInterval(tvTimer); tvTimer = null; } tvWin = null; return; }
+  let rows = null;
+  if (supabaseEnabled) {
+    try {
+      rows = await sbListarGestiones({ desde: ctrlFiltro.desde + 'T00:00:00-05:00', hasta: ctrlFiltro.hasta + 'T23:59:59-05:00', limite: CTRL_TOPE });
+      conAliases(rows);
+      tvUltimaOk = Date.now();
+    } catch (e) { console.warn('[CETA] actualizarTV', e); }
+  }
+  if (!rows) rows = ctrlRango.rows || gestionesVisibles();
+  const fil = rows.filter(g =>
+    (!ctrlFiltro.asesor || g.asesorCeta === ctrlFiltro.asesor) &&
+    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado));
+  try { pintarTV(fil); } catch (e) { console.error('[CETA] pintarTV', e); }
+}
+
+// Arma el HTML completo de la ventana TV (autocontenido, responsive).
+function tvHTML(rows){
+  const paneles = getTVPaneles();
   const total = rows.length;
-  const agend = rows.filter(g=>g.resultado==='agenda').length;
-  const pend = total - agend;
-  const porAsesor = {};
-  rows.forEach(g => { porAsesor[g.asesorCeta||'—'] = (porAsesor[g.asesorCeta||'—']||0)+1; });
-  const maxA = Math.max(1, ...Object.values(porAsesor));
-  $('#tvBody').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-      <div style="font-family:var(--fd);font-weight:800;font-size:28px"><span style="color:var(--ac)">ARMOTOR</span> CETA · Control de Gestión</div>
-      <div style="font-family:var(--fm);font-size:24px">${new Date().toLocaleTimeString('es-CO')}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px">
-      ${[['Gestiones del día',total,''],['Agendados',agend,'var(--ok)'],['Pendientes',pend,'var(--wr)']].map(([l,n,c])=>
-        `<div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:24px;text-align:center"><div style="font-family:var(--fd);font-weight:800;font-size:54px;${c?`color:${c}`:''}">${n}</div><div style="font-size:14px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${l}</div></div>`).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px">
-      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:12px">Últimas gestiones</div>
-        ${rows.slice(0,10).map(g=>`<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:15px"><span style="font-family:var(--fm);color:var(--tx3);width:60px">${fmtHora(g._ts)}</span><span style="width:120px">${esc(g.asesorCeta||'—')}</span><span style="font-family:var(--fm);width:90px">${esc(g.placa||'—')}</span><span style="color:${RESULT_COLOR[g.resultado]||'var(--tx2)'};font-weight:600">${esc(RESULT_LABEL[g.resultado]||g.resultado||'—')}</span></div>`).join('') || '<div style="color:var(--tx3)">Sin gestiones aún.</div>'}
-      </div>
-      <div style="background:var(--bgp);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:12px">Por asesor</div>
-        ${Object.entries(porAsesor).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:15px"><div style="width:120px">${esc(a)}</div><div style="flex:1;background:var(--bgs);border-radius:5px;height:20px;overflow:hidden"><div style="width:${Math.round(n/maxA*100)}%;height:100%;background:var(--ac)"></div></div><div style="width:34px;text-align:right;font-family:var(--fm);font-weight:700">${n}</div></div>`).join('') || '<div style="color:var(--tx3)">—</div>'}
-      </div>
-    </div>`;
+  const agend = rows.filter(g => g.resultado === 'agenda').length;
+  const segc  = rows.filter(g => g.resultado === 'seg').length;
+  const nocc  = rows.filter(g => g.resultado === 'noc').length;
+  const pend  = rows.filter(g => g.resultado === 'pendiente').length;
+  const barra = (n, max, color) => `<div class="bar"><div style="width:${Math.round(n / Math.max(1, max) * 100)}%;background:${color}"></div></div>`;
+  const bloques = [];
+
+  if (paneles.includes('ciudad')) {
+    const por = {};
+    rows.filter(g => g.resultado === 'agenda').forEach(g => { por[g.ciudad || '—'] = (por[g.ciudad || '—'] || 0) + 1; });
+    const max = Math.max(1, ...Object.values(por), 1);
+    bloques.push(`<div class="card"><h2>📍 Agendas por ciudad</h2>${
+      Object.entries(por).sort((a, b) => b[1] - a[1]).map(([c, n]) =>
+        `<div class="fila"><span class="lbl">${esc(c)}</span>${barra(n, max, 'var(--ok)')}<span class="num">${n}</span></div>`).join('') || '<div class="vacio">Sin agendas en el rango</div>'
+    }</div>`);
+  }
+  if (paneles.includes('asesor')) {
+    const por = {};
+    rows.forEach(g => {
+      const a = g.asesorCeta || '—';
+      por[a] = por[a] || { t: 0, ag: 0, sg: 0, nc: 0 };
+      por[a].t++;
+      if (g.resultado === 'agenda') por[a].ag++;
+      else if (g.resultado === 'seg') por[a].sg++;
+      else if (g.resultado === 'noc') por[a].nc++;
+    });
+    bloques.push(`<div class="card"><h2>🎧 Gestión por asesor</h2><table><thead><tr><th></th><th>Total</th><th class="ok">Agend.</th><th class="in">Seg.</th><th class="wr">No cont.</th></tr></thead><tbody>${
+      Object.entries(por).sort((a, b) => b[1].t - a[1].t).map(([a, x]) =>
+        `<tr><td class="lbl">${esc(a)}</td><td><strong>${x.t}</strong></td><td class="ok">${x.ag}</td><td class="in">${x.sg}</td><td class="wr">${x.nc}</td></tr>`).join('') || ''
+    }</tbody></table></div>`);
+  }
+  if (paneles.includes('servicio')) {
+    const por = {};
+    rows.filter(g => g.resultado === 'agenda').forEach(g => {
+      const a = g.asesorCeta || '—', s = g.servicio || g.motivo || 'Sin tipo';
+      por[a] = por[a] || {};
+      por[a][s] = (por[a][s] || 0) + 1;
+    });
+    bloques.push(`<div class="card"><h2>🔧 Servicio agendado por asesor</h2>${
+      Object.entries(por).map(([a, ss]) =>
+        `<div class="fila srv"><span class="lbl">${esc(a)}</span><span class="srvs">${Object.entries(ss).sort((x, y) => y[1] - x[1]).map(([s, n]) => `${esc(s)} <strong>×${n}</strong>`).join(' · ')}</span></div>`).join('') || '<div class="vacio">Sin agendas en el rango</div>'
+    }</div>`);
+  }
+  if (paneles.includes('pendientes')) {
+    const lista = rows.filter(g => g.resultado === 'pendiente' || g.resultado === 'noc').slice(0, 8);
+    bloques.push(`<div class="card"><h2>⏳ Pendientes y No contesta</h2>
+      <div class="minis"><div><span class="num big" style="color:#a855f7">${pend}</span><span>Pendientes</span></div><div><span class="num big wr">${nocc}</span><span>No contesta</span></div></div>
+      ${lista.map(g => `<div class="fila"><span class="lbl mono">${esc(g.placa || '—')}</span><span class="srvs">${esc(g.asesorCeta || g.asignadoAlias || '—')} · ${esc(RESULT_LABEL[g.resultado] || '')}</span></div>`).join('')}</div>`);
+  }
+
+  const filtros = [ctrlFiltro.desde + ' → ' + ctrlFiltro.hasta,
+    ctrlFiltro.asesor ? 'Asesor: ' + ctrlFiltro.asesor : '',
+    ctrlFiltro.resultado ? (RESULT_LABEL[ctrlFiltro.resultado] || '') : ''].filter(Boolean).join(' · ');
+  const haceMin = tvUltimaOk ? Math.round((Date.now() - tvUltimaOk) / 60000) : null;
+  return `<style>
+    :root{--bg:#16161f;--bgp:#1e1e2a;--bd:#32323f;--tx:#e8e8f0;--tx3:#8b8b9a;--ac:#E53935;--ok:#22c55e;--in:#38bdf8;--wr:#f59e0b}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',sans-serif;padding:clamp(10px,1.5vw,24px)}
+    .head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:clamp(8px,1.2vw,18px)}
+    .head h1{font-size:clamp(16px,2.2vw,30px);font-weight:800}.head h1 span{color:var(--ac)}
+    .head .reloj{font-family:monospace;font-size:clamp(14px,2vw,26px)}
+    .filtros{font-size:clamp(10px,1.1vw,14px);color:var(--tx3);margin-bottom:clamp(8px,1vw,16px)}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:clamp(6px,.8vw,14px);margin-bottom:clamp(10px,1.2vw,20px)}
+    .kpi{background:var(--bgp);border:1px solid var(--bd);border-radius:10px;padding:clamp(8px,1.2vw,18px);text-align:center}
+    .kpi .n{font-size:clamp(22px,3.5vw,52px);font-weight:800}.kpi .l{font-size:clamp(9px,1vw,13px);color:var(--tx3);text-transform:uppercase}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:clamp(8px,1vw,16px)}
+    .card{background:var(--bgp);border:1px solid var(--bd);border-radius:10px;padding:clamp(8px,1.2vw,18px)}
+    .card h2{font-size:clamp(12px,1.4vw,18px);margin-bottom:clamp(6px,.8vw,12px)}
+    .fila{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:clamp(11px,1.2vw,15px)}
+    .fila .lbl{flex:0 0 max(90px,9vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fila.srv{align-items:flex-start}.srvs{flex:1;color:var(--tx3);font-size:clamp(10px,1.1vw,14px)}
+    .bar{flex:1;background:#2a2a36;border-radius:4px;height:clamp(10px,1.2vw,16px);overflow:hidden}.bar div{height:100%}
+    .num{font-family:monospace;min-width:26px;text-align:right}.num.big{font-size:clamp(20px,3vw,42px);font-weight:800;display:block}
+    .minis{display:flex;gap:24px;margin-bottom:10px}.minis span{display:block;font-size:clamp(9px,1vw,13px);color:var(--tx3)}
+    table{width:100%;border-collapse:collapse;font-size:clamp(11px,1.2vw,15px)}
+    th{font-size:clamp(9px,1vw,12px);color:var(--tx3);text-transform:uppercase;text-align:right;padding:3px 6px}
+    td{padding:3px 6px;text-align:right;border-top:1px solid var(--bd)}td.lbl{text-align:left}
+    .ok{color:var(--ok)}.in{color:var(--in)}.wr{color:var(--wr)}.mono{font-family:monospace}
+    .vacio{color:var(--tx3);font-size:clamp(11px,1.2vw,14px)}
+    .pie{margin-top:clamp(8px,1vw,14px);font-size:clamp(9px,1vw,12px);color:var(--tx3)}
+  </style>
+  <div class="head"><h1><span>ARMOTOR</span> CETA · Control de Gestión</h1><div class="reloj">${new Date().toLocaleTimeString('es-CO')}</div></div>
+  <div class="filtros">📅 ${esc(filtros)} · actualiza cada 30 s</div>
+  <div class="kpis">
+    <div class="kpi"><div class="n">${total}</div><div class="l">Total</div></div>
+    <div class="kpi"><div class="n" style="color:var(--ok)">${agend}</div><div class="l">Agendados</div></div>
+    <div class="kpi"><div class="n" style="color:var(--in)">${segc}</div><div class="l">Seguimiento</div></div>
+    <div class="kpi"><div class="n" style="color:var(--wr)">${nocc}</div><div class="l">No contesta</div></div>
+  </div>
+  <div class="grid">${bloques.join('') || '<div class="card"><div class="vacio">Elige los paneles con el botón "Paneles TV" en Control de Gestión.</div></div>'}</div>
+  <div class="pie">${haceMin != null && haceMin >= 2 ? `⚠️ Última actualización hace ${haceMin} min (sin conexión — reintentando)` : 'En línea con la base de datos'}</div>`;
+}
+
+function pintarTV(rows){
+  if (!tvWin || tvWin.closed) return;
+  tvWin.document.body.innerHTML = tvHTML(rows);
 }
 
 // =============================================================
@@ -3199,7 +3339,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, cancelarCasoActivo, goToInternos, goToSeguimientos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, openModoTV, openTVConfig, cancelarCasoActivo, goToInternos, goToSeguimientos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
 
 // =============================================================
 //  INIT

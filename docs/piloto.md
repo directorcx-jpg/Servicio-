@@ -36,6 +36,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 13 | 2026-08-01 | Pablo | Radicar un caso de un cliente existente obliga a re-digitar todos sus datos (tiempo perdido y riesgo de duplicar por teléfono mal escrito) | Media | ✅ Corregido |
 | 14 | 2026-08-03 | Pablo | "Gestión de compañero" exige observación pero el campo no aparece en pantalla (vivía dentro de la sección de cita, oculta para ese resultado) — no se podía guardar | Alta | ✅ Corregido |
 | 15 | 2026-08-04 | Pablo | Directorio telefónico Armotor y lista VIP desactualizados/mal transcritos en la plataforma | Media | ✅ Actualizado |
+| 16 | 2026-08-06 | Pablo | Modo TV congelado (refrescaba desde la caché local, no de la base), con pantalla completa forzada (no deja proyectar 3 herramientas) y sin filtros ni paneles configurables | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -118,3 +119,11 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   Claudia Yepes, placas por confirmar de Jorge Mejía y Susana Trujillo,
   posible duplicado Rafael Mejía = CLIENTE GTQ194). Ambos tipos editables
   desde "Editar contenido".
+- **#16 Modo TV dinámico** (v1.24.0, spec 2026-08-06-modo-tv-dinamico):
+  el botón Modo TV ahora abre una ventana propia dimensionable (para
+  proyectar junto a Evolution y Chatwoot), consulta Supabase cada 30 s con
+  el rango y filtros del Control de Gestión, y muestra los paneles
+  elegidos con el botón "Paneles TV" (selección recordada): agendas por
+  ciudad, gestión por asesor, servicio agendado por asesor, y pendientes/
+  no contesta, más los contadores grandes. Si el navegador bloquea la
+  ventana emergente o se cierra la pestaña del CRM, avisa qué hacer.
