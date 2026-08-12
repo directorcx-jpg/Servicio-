@@ -11,9 +11,12 @@ permissions:
   pages: write
   id-token: write
 
+# cancel-in-progress: true — solo importa el último deploy de un sitio
+# estático; además evita que un run colgado (caída de GitHub del 06/08)
+# bloquee la cola del grupo indefinidamente.
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
