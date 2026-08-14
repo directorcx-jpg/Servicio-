@@ -3,7 +3,8 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.24.1';
+import { DATA } from './data.js?v=1.25.0';
+import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.25.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -2663,20 +2664,25 @@ function computeQuote(){
   const desc = parseInt((f.descuento||'0%'),10) || 0;
   const combo = (DATA.cotizador.combos||[]).find(c => c[0] === f.embellecimiento);
   const valorCombo = combo ? Number(combo[1]) : 0;
-  // El descuento aplica SOLO sobre la base descontable de la mano de obra:
-  // la columna MO del libro trae una porción fija ($120.000+IVA) que no se
-  // descuenta (regla de la base oculta del Excel, validada con casos reales).
-  const moFija = Math.min(manoObra, Number(DATA.cotizador.moFijaNoDescontable) || 0);
-  const moBase = manoObra - moFija;
-  const moDesc = Math.round(moBase * (1 - desc/100)) + moFija;
-  // VALOR = MO con descuento (base×(1-d%) + fija) + Repuestos + Embellecimiento
-  const precio = moDesc + repuestos + valorCombo;
+  // Regla del Excel vigente (piloto #17, validada contra las fórmulas del
+  // libro): el descuento aplica sobre la MO POR HORAS del kit + la
+  // alineación del modelo, a tarifa plena con IVA. Si el kit no está en la
+  // tabla de horas, cae a la MO de la tabla de precios + alineación.
+  const tarifa = (COTIZADOR_HORAS.tarifaHora || 219000) * (COTIZADOR_HORAS.iva || 1.19);
+  const hKit = COTIZADOR_HORAS.horasKit?.[f.modelo]?.[f.kmServicio];
+  const hAlin = COTIZADOR_HORAS.alineacionHoras?.[f.modelo] ?? 0;
+  const baseDto = (hKit != null ? Math.round(hKit * tarifa) : manoObra) + Math.round(hAlin * tarifa);
+  const dtoValor = desc ? Math.round(baseDto * desc / 100) : 0;
+  const moDesc = baseDto - dtoValor;   // MO visible con descuento (celda F9 del Excel)
+  // VALOR (celda F10 del Excel) = Total del kit − descuento + Embellecimiento
+  const precio = manoObra + repuestos - dtoValor + valorCombo;
   // detalle por combustión + km
   const km = kmDeDesc(f.kmServicio);
   const det = detallePorKm(f.combustion, km);
   const incluye = det ? det.incluido : [];
   const noIncluye = det ? det.noIncluido : DATA.cotizador.noIncluidoDefault;
-  let desglose = `MO ${fmtCOP(moDesc)}${desc?` (-${desc}%)`:''} + Rep ${fmtCOP(repuestos)}`;
+  // Desglose como lo muestra el Excel: MO por horas (con dto) + el resto del kit
+  let desglose = `MO ${fmtCOP(moDesc)}${desc?` (-${desc}%)`:''} + Rep ${fmtCOP(manoObra + repuestos - baseDto)}`;
   if (valorCombo) desglose += ` + Emb ${fmtCOP(valorCombo)}`;
   return { found:true, disponible:true, precio, texto:fmtCOP(precio), incluye, noIncluye, desglose,
            manoObra, repuestos, valorCombo, descuento:desc, kit:item[3]||'' };

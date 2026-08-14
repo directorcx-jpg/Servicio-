@@ -37,6 +37,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 14 | 2026-08-03 | Pablo | "Gestión de compañero" exige observación pero el campo no aparece en pantalla (vivía dentro de la sección de cita, oculta para ese resultado) — no se podía guardar | Alta | ✅ Corregido |
 | 15 | 2026-08-04 | Pablo | Directorio telefónico Armotor y lista VIP desactualizados/mal transcritos en la plataforma | Media | ✅ Actualizado |
 | 16 | 2026-08-06 | Pablo | Modo TV congelado (refrescaba desde la caché local, no de la base), con pantalla completa forzada (no deja proyectar 3 herramientas) y sin filtros ni paneles configurables | Alta | ✅ Corregido |
+| 17 | 2026-08-12 | Pablo | El descuento del cotizador no cuadra con el Excel: el libro cambió su fórmula (descuenta la MO por horas del kit + alineación, sin porción fija) y faltaban los % de 5 en 5 | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -127,3 +128,13 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   ciudad, gestión por asesor, servicio agendado por asesor, y pendientes/
   no contesta, más los contadores grandes. Si el navegador bloquea la
   ventana emergente o se cierra la pestaña del CRM, avisa qué hacer.
+- **#17 Descuento del cotizador alineado al Excel vigente** (v1.25.0):
+  se leyeron las fórmulas del libro "5-Cotizador Manual Mayo Posventa
+  Ceta" (Drive): el descuento aplica sobre la MO POR HORAS del kit + la
+  alineación del modelo (0,6 h), a $219.000/h × IVA — la regla anterior de
+  la porción fija de $142.800 (hallazgo #1) quedó obsoleta porque el libro
+  cambió. Las horas por kit (419 kits, 41 modelos) se extrajeron del mismo
+  libro a `cotizador-horas-seed.js`; si un kit no está en la tabla, cae a
+  la MO de precios + alineación. Validado al peso con el caso SONET (QY)
+  agrupado al 10%: $673.435 igual que el Excel. Descuentos ahora de 5 en 5
+  hasta 50%.

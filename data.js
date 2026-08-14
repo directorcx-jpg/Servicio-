@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.24.1",
+    version: "1.25.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -52,11 +52,11 @@ export const DATA = {
     precios: COTIZADOR_SEED.precios,
     combos: COTIZADOR_SEED.combos,                 // [[nombre, valor],...]
     detalle: COTIZADOR_SEED.detalleServicios,      // {combustion:{km:{total,incluido[],noIncluido[]}}}
-    descuentos: ["0%","10%","20%","30%","40%","50%"],
-    // Porción FIJA dentro de la columna "MO+Impto" del libro que NO se
-    // descuenta ($120.000 + IVA). Validada contra la base oculta del Excel
-    // con dos casos reales (SOLUTO 30% y PICANTO 20%) — piloto 2026-07-24.
-    moFijaNoDescontable: 142800,
+    descuentos: ["0%","5%","10%","15%","20%","25%","30%","35%","40%","45%","50%"],
+    // El descuento aplica sobre la MO por horas del kit + alineación del
+    // modelo (fórmula vigente del Excel, piloto #17); las horas viven en
+    // cotizador-horas-seed.js. (La regla anterior de la porción fija de
+    // $142.800 quedó obsoleta: el libro cambió su fórmula.)
     reglas: COTIZADOR_SEED.reglas,
     // No incluido por defecto (sujeto a inspección) cuando el km no esté en el detalle
     noIncluidoDefault: [
