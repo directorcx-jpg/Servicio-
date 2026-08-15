@@ -38,6 +38,9 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 15 | 2026-08-04 | Pablo | Directorio telefónico Armotor y lista VIP desactualizados/mal transcritos en la plataforma | Media | ✅ Actualizado |
 | 16 | 2026-08-06 | Pablo | Modo TV congelado (refrescaba desde la caché local, no de la base), con pantalla completa forzada (no deja proyectar 3 herramientas) y sin filtros ni paneles configurables | Alta | ✅ Corregido |
 | 17 | 2026-08-12 | Pablo | El descuento del cotizador no cuadra con el Excel: el libro cambió su fórmula (descuenta la MO por horas del kit + alineación, sin porción fija) y faltaban los % de 5 en 5 | Alta | ✅ Corregido |
+| 18 | 2026-08-14 | Pablo | We Go de QLZ834 invisible en el front: quedó agendado al 19/07 (mes anterior elegido por error) y las vistas solo muestran fechas futuras; el panel permitía guardar fechas pasadas | Media | ✅ Corregido |
+| 19 | 2026-08-14 | Pablo | La notificación de chat al agendar no incluía la fecha/hora de la cita ni los datos del We Go (llegaba solo el estado, dentro del hilo del caso, fácil de no ver) | Media | ✅ Corregido |
+| 20 | 2026-08-14 | Pablo | We Go sin visibilidad propia: el aviso quedaba enterrado en el hilo del caso, no había recordatorio la víspera, y el Control no mostraba dirección ni teléfono de la recogida | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -138,3 +141,27 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   la MO de precios + alineación. Validado al peso con el caso SONET (QY)
   agrupado al 10%: $673.435 igual que el Excel. Descuentos ahora de 5 en 5
   hasta 50%.
+- **#18 We Go con fecha en el pasado** (v1.25.1): la gestión de QLZ834
+  (Mille, 14/08) quedó con cita y We Go al 19/07 (mes anterior elegido por
+  error en el calendario) — invisible porque las vistas We Go solo listan
+  fechas de hoy en adelante. Se corrigió el dato a 19/08 (con rastro en el
+  historial del caso) y el semáforo ahora bloquea guardar citas o We Go
+  con fecha anterior a hoy: "Fecha de cita (está en el pasado)".
+- **#19 Notificación de agenda con cita y We Go** (migración
+  `chat_agendado_con_cita_y_wego`, solo base de datos): validado que la
+  notificación de QLZ834 SÍ llegó (respuesta 200 de Google) pero como
+  respuesta dentro del hilo del caso y sin datos de agenda. El mensaje de
+  "Actualización solicitud agenda" ahora incluye 📅 fecha/hora de la cita
+  y asesor de taller, y 🚗 fecha/hora del We Go con quién recoge y la
+  dirección. Verificado en vivo con el mismo caso.
+- **#20 We Go con visibilidad propia** (v1.26.0, spec
+  2026-08-14-wego-notificaciones-y-recordatorio; migraciones
+  `wego_notificacion_hilo_propio`, `wego_notificacion_fix_trayectos`,
+  `wego_recordatorio_diario`): (a) al agendar un We Go —o cambiarle
+  fecha/hora— el grupo de la sede recibe "🚗 We Go agendado" como mensaje
+  nuevo con hilo propio (aplica a cualquier gestión, no solo casos
+  internos; verificado en vivo con QLZ834); (b) recordatorio automático
+  diario 4:00 pm (pg_cron, job `recordatorio_wego_diario`) con los We Go
+  del día siguiente por sede: hora, placa, cliente, teléfono, dirección y
+  quién recoge; (c) la tabla "We Go agendados" del Control ganó columnas
+  Teléfono y Dirección (el Modo TV no las muestra, por datos personales).

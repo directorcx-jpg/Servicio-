@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.25.0';
+import { DATA } from './data.js?v=1.26.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.25.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -1343,8 +1343,8 @@ function renderControl(){
       return `<div class="fb"><div class="bt do" style="margin-bottom:8px"><span class="n"><i class="fas fa-truck-pickup"></i></span>We Go agendados (${wegos.length} próximos)</div>
         ${Object.entries(porFecha).map(([fecha, gs]) => `
           <div style="font-weight:700;font-size:11px;margin:8px 0 4px;color:var(--tx2);text-transform:capitalize">${esc(diaTxt(fecha))}</div>
-          <table class="tbl"><thead><tr><th>Hora</th><th>Ciudad</th><th>Placa</th><th>Cliente</th><th>Recoge</th><th>Asesor</th></tr></thead><tbody>
-          ${gs.map(g => `<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer"><td class="mono">${esc(g.wgHora||'—')}</td><td>${esc(g.ciudad||'—')}</td><td class="mono">${esc(g.placa||'—')}</td><td>${esc(g.nombre||'—')}</td><td>${esc(g.wgQuien||'—')}</td><td>${esc(g.asesorCeta||'—')}</td></tr>`).join('')}
+          <table class="tbl"><thead><tr><th>Hora</th><th>Ciudad</th><th>Placa</th><th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Recoge</th><th>Asesor</th></tr></thead><tbody>
+          ${gs.map(g => `<tr class="ctrl-row" data-id="${esc(g.id)}" style="cursor:pointer"><td class="mono">${esc(g.wgHora||'—')}</td><td>${esc(g.ciudad||'—')}</td><td class="mono">${esc(g.placa||'—')}</td><td>${esc(g.nombre||'—')}</td><td class="mono" style="font-size:11px">${esc(g.telefono||'—')}</td><td style="font-size:11px;max-width:260px">${esc(g.wgDireccion||'—')}</td><td>${esc(g.wgQuien||'—')}</td><td>${esc(g.asesorCeta||'—')}</td></tr>`).join('')}
           </tbody></table>`).join('')}
         <div style="font-size:10px;color:var(--tx3);margin-top:6px"><i class="fas fa-circle-info"></i> Antes de ofrecer una franja We Go, verifica aquí que no esté ocupada en esa ciudad. El panel también te lo advierte al agendar.</div>
       </div>`;
@@ -2929,6 +2929,11 @@ function validateSemaforo(){
       if (!f.wgDireccion) req.push('Dirección We Go');
     }
   }
+  // Fechas en el pasado (piloto #18): el calendario deja elegir el mes
+  // anterior por error y la cita queda invisible en We Go agendados.
+  const hoyV = hoyStr();
+  if (f.fechaCita && f.fechaCita < hoyV) req.push('Fecha de cita (está en el pasado)');
+  if (S.hasWG && f.wgFecha && f.wgFecha < hoyV) req.push('Fecha We Go (está en el pasado)');
   if (r === 'noContactar' || r === 'otroTaller') {
     // razón ya tiene default; sin requeridos extra
   }
