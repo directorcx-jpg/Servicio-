@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.28.0';
+import { DATA } from './data.js?v=1.28.1';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -19,7 +19,7 @@ import {
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   listarCitasEntre as sbListarCitasEntre,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.28.0';
+} from './src/lib/gestiones.js?v=1.28.1';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,

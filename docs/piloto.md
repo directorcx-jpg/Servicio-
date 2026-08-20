@@ -44,6 +44,8 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 21 | 2026-08-17 | Pablo | Faltaba ver a cuántos días del mes se está agendando (TV); direcciones de Cartago y La Dorada desactualizadas; el libro del cotizador cambió precios (432 kits) y el seed del CRM quedó viejo | Alta | ✅ Corregido |
 | 22 | 2026-08-20 | Pablo | Gestionar un registro importado (NXM893) sobrescribía la fila de julio: la gestión de hoy quedaba invisible en Control (radicación vieja) | Alta | ✅ Corregido |
 | 23 | 2026-08-21 | Pablo | Placas mal digitadas crean vehículos fantasma: el cliente queda con dos placas y doble registro (casos NZY904→NXO081 y MXM930→NXM930) | Alta | ✅ Corregido |
+| 24 | 2026-08-21 | Pablo | Seguimientos programados que quedan vivos aunque el cliente terminó agendado en una gestión posterior (caso LUT225): la cola acumula llamadas ya innecesarias | Media | ✅ Corregido |
+| 25 | 2026-08-21 | Pablo | Registros desorganizados: guardar con datos parciales (solo placa) desvinculaba el cliente del vehículo y borraba datos conocidos (LUT225 quedó "Sin cliente asociado") | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -199,7 +201,27 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   real; el cliente de prueba "validar" (3100000000) queda señalado sin
   tocar. Además los imports de las
   librerías (`src/lib/*.js`) quedaron versionados en app.js para evitar
-  módulos cacheados viejos tras un deploy. (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
+  módulos cacheados viejos tras un deploy.
+- **#24 Seguimientos se cierran solos al agendar** (migración
+  `cerrar_seguimientos_al_agendar`, solo base de datos): trigger que, al
+  guardar una gestión AGENDADA, cierra los seguimientos activos del mismo
+  vehículo (fecha_seguimiento → null, con nota "Cerrado automáticamente"
+  en el historial) — la cola no acumula llamadas a clientes ya agendados.
+  El aviso de placa nueva (#23) NO cubría este flujo. Limpieza inicial:
+  3 casos cerrados (LUT225, NQL041 y QSS367, este último con cita ya
+  cumplida del 06/08). Verificación final: 0 seguimientos activos con
+  agenda posterior.
+- **#25 Guardados parciales ya no borran datos** (v1.28.1): el guardado
+  de cliente y vehículo ahora escribe SOLO los campos que traen valor —
+  radicar con solo placa ya no desvincula el cliente del vehículo ni
+  borra nombre/marca/modelo/km conocidos (así LUT225 quedó "Sin cliente
+  asociado"). Reparación de datos: 3 vehículos re-vinculados a su cliente
+  y 3 gestiones completadas desde su vehículo (LUT225 → Alvarado Aroca).
+  Inventario restante para organizar: 13 vehículos y 13 gestiones sin
+  cliente (radicados solo con placa, sin fuente — se completan al
+  contactar y ya no se pierden), 1.055 nombres provisionales del import
+  (se completan solos al gestionar) y 13 nombres basura tipo
+  "VALIDAR"/"Sin nombre". (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
   La Dorada (Cra. 2 # 21-09, Obrero) actualizados en Contactos y Sedes;
   (c) cotizador re-sincronizado con el libro actual: 432 de 449 kits
   habían cambiado de precio, el libro consolidó revisiones (53 grupos de

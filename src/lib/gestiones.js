@@ -64,18 +64,36 @@ export async function upsertCliente(datos){
   requiereSupabase();
   const telefono = normTelefono(datos.telefono);
   if (!telefono) throw new Error('El cliente no tiene teléfono (clave del upsert)');
-  const fila = {
-    telefono,
-    nombre: datos.nombre || 'Sin nombre',
-    ciudad: oNull(datos.ciudad),
-    fecha_nacimiento: oNull(datos.fechaNac)
-  };
+  // Solo se escriben los campos que traen valor: un guardado con datos
+  // parciales no debe borrar lo ya conocido del cliente (piloto #25).
+  const campos = {};
+  if (datos.nombre)   campos.nombre = datos.nombre;
+  if (datos.ciudad)   campos.ciudad = datos.ciudad;
+  if (datos.fechaNac) campos.fecha_nacimiento = datos.fechaNac;
+
+  const { data: existe, error: e1 } = await supabase
+    .from('clientes').select('id').eq('telefono', telefono).maybeSingle();
+  if (e1) throw new Error('No se pudo consultar el cliente: ' + e1.message);
+  if (existe) {
+    if (Object.keys(campos).length) {
+      const { error } = await supabase.from('clientes').update(campos).eq('id', existe.id);
+      if (error) throw new Error('No se pudo actualizar el cliente: ' + error.message);
+    }
+    return existe.id;
+  }
   const { data, error } = await supabase
     .from('clientes')
-    .upsert(fila, { onConflict: 'telefono' })
+    .insert({ telefono, nombre: campos.nombre || 'Sin nombre', ciudad: campos.ciudad ?? null, fecha_nacimiento: campos.fecha_nacimiento ?? null })
     .select('id')
     .single();
-  if (error) throw new Error('No se pudo guardar el cliente: ' + error.message);
+  if (error) {
+    // carrera: otro guardado creó el cliente entre el select y el insert
+    if (String(error.code) === '23505') {
+      const { data: d2 } = await supabase.from('clientes').select('id').eq('telefono', telefono).maybeSingle();
+      if (d2) return d2.id;
+    }
+    throw new Error('No se pudo guardar el cliente: ' + error.message);
+  }
   return data.id;
 }
 
@@ -84,20 +102,39 @@ export async function upsertVehiculo(datos, clienteId){
   requiereSupabase();
   const placa = normPlaca(datos.placa);
   if (!placa) throw new Error('El vehículo no tiene placa (clave del upsert)');
-  const fila = {
-    placa,
-    cliente_id: clienteId || null,
-    marca: oNull(datos.marca),
-    modelo: oNull(datos.modelo),
-    combustion: oNull(datos.combustion),
-    km_actual: datos.kmActual ? parseInt(String(datos.kmActual).replace(/\D/g,''), 10) || null : null
-  };
+  // Solo se escriben los campos que traen valor: un caso radicado solo con
+  // placa no debe desvincular el cliente ni borrar marca/modelo/km del
+  // vehículo ya conocido (piloto #25 — caso LUT225).
+  const campos = {};
+  if (clienteId)        campos.cliente_id = clienteId;
+  if (datos.marca)      campos.marca = datos.marca;
+  if (datos.modelo)     campos.modelo = datos.modelo;
+  if (datos.combustion) campos.combustion = datos.combustion;
+  const km = datos.kmActual ? parseInt(String(datos.kmActual).replace(/\D/g,''), 10) : null;
+  if (km) campos.km_actual = km;
+
+  const { data: existe, error: e1 } = await supabase
+    .from('vehiculos').select('id').eq('placa', placa).maybeSingle();
+  if (e1) throw new Error('No se pudo consultar el vehículo: ' + e1.message);
+  if (existe) {
+    if (Object.keys(campos).length) {
+      const { error } = await supabase.from('vehiculos').update(campos).eq('id', existe.id);
+      if (error) throw new Error('No se pudo actualizar el vehículo: ' + error.message);
+    }
+    return existe.id;
+  }
   const { data, error } = await supabase
     .from('vehiculos')
-    .upsert(fila, { onConflict: 'placa' })
+    .insert({ placa, cliente_id: campos.cliente_id ?? null, marca: campos.marca ?? null, modelo: campos.modelo ?? null, combustion: campos.combustion ?? null, km_actual: campos.km_actual ?? null })
     .select('id')
     .single();
-  if (error) throw new Error('No se pudo guardar el vehículo: ' + error.message);
+  if (error) {
+    if (String(error.code) === '23505') {
+      const { data: d2 } = await supabase.from('vehiculos').select('id').eq('placa', placa).maybeSingle();
+      if (d2) return d2.id;
+    }
+    throw new Error('No se pudo guardar el vehículo: ' + error.message);
+  }
   return data.id;
 }
 
