@@ -42,6 +42,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 19 | 2026-08-14 | Pablo | La notificación de chat al agendar no incluía la fecha/hora de la cita ni los datos del We Go (llegaba solo el estado, dentro del hilo del caso, fácil de no ver) | Media | ✅ Corregido |
 | 20 | 2026-08-14 | Pablo | We Go sin visibilidad propia: el aviso quedaba enterrado en el hilo del caso, no había recordatorio la víspera, y el Control no mostraba dirección ni teléfono de la recogida | Alta | ✅ Corregido |
 | 21 | 2026-08-17 | Pablo | Faltaba ver a cuántos días del mes se está agendando (TV); direcciones de Cartago y La Dorada desactualizadas; el libro del cotizador cambió precios (432 kits) y el seed del CRM quedó viejo | Alta | ✅ Corregido |
+| 22 | 2026-08-20 | Pablo | Gestionar un registro importado (NXM893) sobrescribía la fila de julio: la gestión de hoy quedaba invisible en Control (radicación vieja) | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -172,7 +173,17 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   agendas por celda (por fecha de CITA, consultada aparte del rango de
   radicación), con el día de hoy resaltado, fila Total y resumen "X de N
   días con agenda"; las selecciones de paneles guardadas descartan sola la
-  clave del panel retirado; (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
+  clave del panel retirado;
+- **#22 Gestionar importados crea gestión nueva** (v1.27.1): Karen
+  gestionó el registro importado de NXM893 (reasignado por el coordinador
+  desde la ficha) y el panel actualizó la fila de julio: la gestión del
+  20/08 quedó con radicación 10/07, invisible en Control. Datos
+  corregidos: la fila se convirtió en la gestión real del 20/08 (cita
+  26/08 · Karen) y el registro importado de julio se re-creó como solo
+  consulta, ambos con rastro en el historial. Código: al guardar desde el
+  panel sobre un caso `tipo_radicacion='Importado'`, se crea una gestión
+  NUEVA radicada hoy y el importado no se toca. Verificado: única placa
+  afectada (barrido por `actualizado_en` sobre los 1.263 importados). (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
   La Dorada (Cra. 2 # 21-09, Obrero) actualizados en Contactos y Sedes;
   (c) cotizador re-sincronizado con el libro actual: 432 de 449 kits
   habían cambiado de precio, el libro consolidó revisiones (53 grupos de

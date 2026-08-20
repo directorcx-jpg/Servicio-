@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.27.0';
+import { DATA } from './data.js?v=1.27.1';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -3090,6 +3090,14 @@ async function saveGestion(){
   if (btn) { btn.disabled = true; }
 
   try {
+    // Los registros IMPORTADOS del histórico son solo consulta: gestionar
+    // uno crea una gestión NUEVA (radicada hoy) en vez de sobrescribir el
+    // registro de julio — que quedaría invisible en Control (piloto #22).
+    const casoBase = S.casoActivo ? getGestionesLocal().find(x => x.id === S.casoActivo) : null;
+    if (casoBase && casoBase.tipoRadicacion === 'Importado') {
+      S.casoActivo = null;
+      const bAct = $('#casoActivoBanner'); if (bAct) bAct.style.display = 'none';
+    }
     // Si se está gestionando un caso interno: actualizar el MISMO registro
     // en Supabase (pendiente → resultado final) con TODO el payload del
     // panel (seguimiento, sub-motivos, asesor taller, cotización…).
