@@ -43,6 +43,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 20 | 2026-08-14 | Pablo | We Go sin visibilidad propia: el aviso quedaba enterrado en el hilo del caso, no había recordatorio la víspera, y el Control no mostraba dirección ni teléfono de la recogida | Alta | ✅ Corregido |
 | 21 | 2026-08-17 | Pablo | Faltaba ver a cuántos días del mes se está agendando (TV); direcciones de Cartago y La Dorada desactualizadas; el libro del cotizador cambió precios (432 kits) y el seed del CRM quedó viejo | Alta | ✅ Corregido |
 | 22 | 2026-08-20 | Pablo | Gestionar un registro importado (NXM893) sobrescribía la fila de julio: la gestión de hoy quedaba invisible en Control (radicación vieja) | Alta | ✅ Corregido |
+| 23 | 2026-08-21 | Pablo | Placas mal digitadas crean vehículos fantasma: el cliente queda con dos placas y doble registro (casos NZY904→NXO081 y MXM930→NXM930) | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -183,7 +184,22 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   consulta, ambos con rastro en el historial. Código: al guardar desde el
   panel sobre un caso `tipo_radicacion='Importado'`, se crea una gestión
   NUEVA radicada hoy y el importado no se toca. Verificado: única placa
-  afectada (barrido por `actualizado_en` sobre los 1.263 importados). (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
+  afectada (barrido por `actualizado_en` sobre los 1.263 importados).
+- **#23 Aviso de placa nueva + fusiones** (v1.28.0): al guardar una
+  gestión cuya placa crearía un vehículo NUEVO para un cliente que ya
+  tiene otras, el panel pregunta antes: "¿es otro vehículo o corrección de
+  placa?" — si es corrección (cliente con un solo vehículo), la placa del
+  vehículo existente se renombra y no se crea el duplicado. Datos: se
+  fusionaron NZY904→NXO081 (Jonathan Andrés) y MXM930→NXM930 (Deisy
+  Velásquez), moviendo las gestiones a la placa real y eliminando el
+  vehículo fantasma, con rastro en el historial. Barrido de 29 clientes
+  con 2+ placas: Pablo confirmó que TJR740/TJR739 y PAT811/PAT820 son
+  clientes con dos vehículos reales (se conservan); ABC123→LYK926 (María
+  Yaneth) y AAA001→OZZ539 (Daniela Ramírez) se unificaron hacia la placa
+  real; el cliente de prueba "validar" (3100000000) queda señalado sin
+  tocar. Además los imports de las
+  librerías (`src/lib/*.js`) quedaron versionados en app.js para evitar
+  módulos cacheados viejos tras un deploy. (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
   La Dorada (Cra. 2 # 21-09, Obrero) actualizados en Contactos y Sedes;
   (c) cotizador re-sincronizado con el libro actual: 432 de 449 kits
   habían cambiado de precio, el libro consolidó revisiones (53 grupos de

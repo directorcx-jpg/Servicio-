@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.27.1';
+import { DATA } from './data.js?v=1.28.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -19,13 +19,15 @@ import {
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   listarCitasEntre as sbListarCitasEntre,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js';
+} from './src/lib/gestiones.js?v=1.28.0';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
   obtenerVehiculo as sbObtenerVehiculo,
-  fichaPorPlaca as sbFichaPorPlaca
-} from './src/lib/clientes.js';
+  fichaPorPlaca as sbFichaPorPlaca,
+  vehiculosDeTelefono as sbVehiculosDeTelefono,
+  renombrarPlacaVehiculo as sbRenombrarPlacaVehiculo
+} from './src/lib/clientes.js?v=1.28.0';
 import {
   listarContenido as sbListarContenido,
   crearContenido as sbCrearContenido,
@@ -33,7 +35,7 @@ import {
   activarContenido as sbActivarContenido,
   eliminarContenido as sbEliminarContenido,
   contenidoADATA
-} from './src/lib/contenido.js';
+} from './src/lib/contenido.js?v=1.28.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -3083,6 +3085,40 @@ function buildPayload(){
   };
 }
 
+// Aviso al guardar con una placa que crearía un vehículo NUEVO para un
+// cliente que ya tiene otras (piloto #23): ¿segundo vehículo real o
+// corrección de placa? Con un solo vehículo previo se ofrece corregirlo.
+function openConfirmPlacaNueva(fv, placaNueva){
+  const previas = fv.vehiculos.map(v => v.placa).join(' · ');
+  const unica = fv.vehiculos.length === 1 ? fv.vehiculos[0] : null;
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-car-side" style="color:var(--gd)"></i> Placa nueva para este cliente</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="al in" style="font-size:12px"><i class="fas fa-circle-info"></i><div>
+        <strong>${esc(fv.nombre || 'Este cliente')}</strong> ya tiene registrada la placa <strong>${esc(previas)}</strong> y estás guardando con <strong>${esc(placaNueva)}</strong>.<br>
+        Si la placa anterior quedó mal digitada, elige <em>corrección</em> para no crear un vehículo duplicado.</div></div>
+    </div>
+    <div class="modal-foot" style="flex-wrap:wrap">
+      <button class="btn btn-gh" data-modal-close>Cancelar</button>
+      ${unica ? `<button class="btn btn-gh" id="placaCorregir"><i class="fas fa-pen"></i> Es corrección de ${esc(unica.placa)}</button>` : ''}
+      <button class="btn btn-ac" id="placaOtroVeh"><i class="fas fa-plus"></i> Sí, es otro vehículo</button>
+    </div>`);
+  $('#placaOtroVeh').addEventListener('click', () => {
+    modalClose(); S.placaConfirmada = true; saveGestion();
+  });
+  const pc = $('#placaCorregir');
+  if (pc) pc.addEventListener('click', async () => {
+    try {
+      await sbRenombrarPlacaVehiculo(unica.id, placaNueva);
+      modalClose(); toast(`✏️ Placa corregida: ${unica.placa} → ${placaNueva}`);
+      S.placaConfirmada = true; saveGestion();
+    } catch (e) {
+      console.error(e);
+      toast('⚠️ No se pudo corregir (¿la placa ya existe en otro vehículo?) — guarda como otro vehículo o valida con el coordinador');
+    }
+  });
+}
+
 async function saveGestion(){
   if (!can('registrar')) { toast('Tu rol no permite registrar'); return; }
   const payload = buildPayload();
@@ -3120,8 +3156,24 @@ async function saveGestion(){
       return;
     }
 
+    // Placa NUEVA para un cliente que ya tiene otras (piloto #23): antes
+    // de crear un segundo vehículo, confirmar si es real o si es una
+    // corrección de placa — evita vehículos fantasma (NZY904, MXM930).
+    const telChk = String(payload.telefono || '').replace(/\D/g, '');
+    const placaChk = String(payload.placa || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (supabaseEnabled && telChk && placaChk && !S.placaConfirmada) {
+      let fv = null;
+      try { fv = await sbVehiculosDeTelefono(telChk); } catch (e) { console.warn('[CETA] chequeo placa nueva', e); }
+      if (fv && fv.vehiculos.length && !fv.vehiculos.some(v => v.placa === placaChk)) {
+        if (btn) btn.disabled = false;
+        openConfirmPlacaNueva(fv, placaChk);
+        return;
+      }
+    }
+
     // Gestión normal (Inbound/Base/etc.): escritura directa en Supabase.
     const fila = await sbGuardarGestion(payload, S.user);
+    S.placaConfirmada = false;
     fila.asesorCeta = S.user?.alias || '';
     fila.createdByAlias = S.user?.alias || '';
     insertarEnCache(fila);
@@ -3375,6 +3427,7 @@ function cancelarCasoActivo(){
 }
 
 function resetPanel(){
+  S.placaConfirmada = false;
   $$('[data-f]').forEach(i => { if (i.tagName==='SELECT') i.selectedIndex=0; else i.value=''; });
   // repoblar la cascada del cotizador (modelo/km dependientes)
   poblarCotizador();

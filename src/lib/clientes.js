@@ -76,6 +76,28 @@ export async function fichaPorPlaca(placa){
   return { placa: data.placa, nombre: c.nombre || '', telefono: c.telefono || '', ciudad: c.ciudad || '' };
 }
 
+// Vehículos actuales de un teléfono EXACTO (aviso de placa nueva al
+// guardar, spec piloto #23). Null si el cliente no existe.
+export async function vehiculosDeTelefono(telefono){
+  requiereSupabase();
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('id, nombre, vehiculos(id, placa)')
+    .eq('telefono', telefono)
+    .maybeSingle();
+  if (error) throw new Error('No se pudo consultar el cliente: ' + error.message);
+  if (!data) return null;
+  return { clienteId: data.id, nombre: data.nombre || '', vehiculos: (data.vehiculos || []).map(v => ({ id: v.id, placa: v.placa })) };
+}
+
+// Corrige la placa de un vehículo existente (opción "es corrección" del
+// aviso). Falla si la placa nueva ya existe en otro vehículo (unique).
+export async function renombrarPlacaVehiculo(vehiculoId, nuevaPlaca){
+  requiereSupabase();
+  const { error } = await supabase.from('vehiculos').update({ placa: nuevaPlaca }).eq('id', vehiculoId);
+  if (error) throw new Error('No se pudo corregir la placa: ' + error.message);
+}
+
 // Cliente + TODOS sus vehículos (bloque 1 de la ficha).
 export async function obtenerCliente(clienteId){
   requiereSupabase();
