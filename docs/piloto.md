@@ -41,6 +41,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 18 | 2026-08-14 | Pablo | We Go de QLZ834 invisible en el front: quedó agendado al 19/07 (mes anterior elegido por error) y las vistas solo muestran fechas futuras; el panel permitía guardar fechas pasadas | Media | ✅ Corregido |
 | 19 | 2026-08-14 | Pablo | La notificación de chat al agendar no incluía la fecha/hora de la cita ni los datos del We Go (llegaba solo el estado, dentro del hilo del caso, fácil de no ver) | Media | ✅ Corregido |
 | 20 | 2026-08-14 | Pablo | We Go sin visibilidad propia: el aviso quedaba enterrado en el hilo del caso, no había recordatorio la víspera, y el Control no mostraba dirección ni teléfono de la recogida | Alta | ✅ Corregido |
+| 21 | 2026-08-17 | Pablo | Faltaba ver a cuántos días del mes se está agendando (TV); direcciones de Cartago y La Dorada desactualizadas; el libro del cotizador cambió precios (432 kits) y el seed del CRM quedó viejo | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -165,3 +166,20 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   del día siguiente por sede: hora, placa, cliente, teléfono, dirección y
   quién recoge; (c) la tabla "We Go agendados" del Control ganó columnas
   Teléfono y Dirección (el Modo TV no las muestra, por datos personales).
+- **#21 Paquete del 17/08** (v1.27.0): (a) el panel "Agendas por ciudad"
+  del Modo TV se REEMPLAZA por la matriz "📆 Agendas por día y ciudad
+  (mes en curso)": ciudades en filas, días 1–31 en columnas y el número de
+  agendas por celda (por fecha de CITA, consultada aparte del rango de
+  radicación), con el día de hoy resaltado, fila Total y resumen "X de N
+  días con agenda"; las selecciones de paneles guardadas descartan sola la
+  clave del panel retirado; (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
+  La Dorada (Cra. 2 # 21-09, Obrero) actualizados en Contactos y Sedes;
+  (c) cotizador re-sincronizado con el libro actual: 432 de 449 kits
+  habían cambiado de precio, el libro consolidó revisiones (53 grupos de
+  precios), modelo nuevo Sportage NQ5 1.6, 43 horas de MO actualizadas y
+  combo "Lavado Moto" agregado — seeds regenerados desde el propio libro y
+  fórmula de descuento validada en los 439 kits (0 desajustes; ejemplo
+  SONET agrupado 10% = $683.959 con los repuestos nuevos). Nota: 60 kits
+  del libro no tienen horas en "Listados de Kits 2" (el propio Excel no
+  calcula MO por horas ahí); el CRM usa el respaldo MO de precios +
+  alineación.

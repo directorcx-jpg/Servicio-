@@ -3,8 +3,8 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.26.0';
-import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.25.0';
+import { DATA } from './data.js?v=1.27.0';
+import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
@@ -17,6 +17,7 @@ import {
   listarSeguimientos as sbListarSeguimientos,
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
+  listarCitasEntre as sbListarCitasEntre,
   refrescarAsesoresTallerCache
 } from './src/lib/gestiones.js';
 import {
@@ -1902,16 +1903,24 @@ let tvTimer = null;
 // =============================================================
 const LS_TV_PANELES = 'ceta_tv_paneles';
 const TV_PANELES = {
-  ciudad:     'Agendas por ciudad',
+  dia:        'Agendas por día y ciudad (mes en curso)',
   asesor:     'Gestión por asesor',
   servicio:   'Servicio agendado por asesor',
   pendientes: 'Pendientes y No contesta'
 };
-let tvWin = null, tvUltimaOk = 0;
+let tvWin = null, tvUltimaOk = 0, tvCitasMes = null;
 
 function getTVPaneles(){
-  try { const s = JSON.parse(localStorage.getItem(LS_TV_PANELES) || 'null'); if (Array.isArray(s) && s.length) return s; } catch {}
-  return Object.keys(TV_PANELES);   // primera vez: los 4
+  // Se descartan claves de paneles retirados (ej. el viejo 'ciudad');
+  // si la selección guardada queda vacía, vuelven todos.
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_TV_PANELES) || 'null');
+    if (Array.isArray(s)) {
+      const validos = s.filter(k => TV_PANELES[k]);
+      if (validos.length) return validos;
+    }
+  } catch {}
+  return Object.keys(TV_PANELES);
 }
 
 function openTVConfig(){
@@ -1965,6 +1974,17 @@ async function actualizarTV(){
       conAliases(rows);
       tvUltimaOk = Date.now();
     } catch (e) { console.warn('[CETA] actualizarTV', e); }
+    // Panel "Agendas por día": citas del MES EN CURSO por fecha de cita
+    // (independiente del rango de radicación del tablero).
+    if (getTVPaneles().includes('dia')) {
+      try {
+        const hoyD = new Date();
+        const ini = new Date(hoyD.getFullYear(), hoyD.getMonth(), 1);
+        const fin = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
+        const iso = x => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+        tvCitasMes = await sbListarCitasEntre(iso(ini), iso(fin));
+      } catch (e) { console.warn('[CETA] citas del mes', e); }
+    }
   }
   if (!rows) rows = ctrlRango.rows || gestionesVisibles();
   const fil = rows.filter(g =>
@@ -1981,17 +2001,39 @@ function tvHTML(rows){
   const segc  = rows.filter(g => g.resultado === 'seg').length;
   const nocc  = rows.filter(g => g.resultado === 'noc').length;
   const pend  = rows.filter(g => g.resultado === 'pendiente').length;
-  const barra = (n, max, color) => `<div class="bar"><div style="width:${Math.round(n / Math.max(1, max) * 100)}%;background:${color}"></div></div>`;
   const bloques = [];
 
-  if (paneles.includes('ciudad')) {
-    const por = {};
-    rows.filter(g => g.resultado === 'agenda').forEach(g => { por[g.ciudad || '—'] = (por[g.ciudad || '—'] || 0) + 1; });
-    const max = Math.max(1, ...Object.values(por), 1);
-    bloques.push(`<div class="card"><h2>📍 Agendas por ciudad</h2>${
-      Object.entries(por).sort((a, b) => b[1] - a[1]).map(([c, n]) =>
-        `<div class="fila"><span class="lbl">${esc(c)}</span>${barra(n, max, 'var(--ok)')}<span class="num">${n}</span></div>`).join('') || '<div class="vacio">Sin agendas en el rango</div>'
-    }</div>`);
+  if (paneles.includes('dia')) {
+    // Matriz ciudad × día del mes en curso (por fecha de CITA, no de
+    // radicación): cuántas agendas hay cada día en cada ciudad + Total.
+    const citas = tvCitasMes || rows.filter(g => g.resultado === 'agenda' && g.fechaCita).map(g => ({ f: g.fechaCita, ciudad: g.ciudad || '—' }));
+    const hoyD = new Date();
+    const mesActual = `${hoyD.getFullYear()}-${String(hoyD.getMonth()+1).padStart(2,'0')}`;
+    const diasMes = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0).getDate();
+    const diaHoy = hoyD.getDate();
+    const matriz = {};   // ciudad -> {dia: n}
+    let totalMes = 0;
+    citas.forEach(c => {
+      if (!c.f.startsWith(mesActual)) return;
+      const dia = parseInt(c.f.slice(8), 10);
+      (matriz[c.ciudad] = matriz[c.ciudad] || {})[dia] = (matriz[c.ciudad][dia] || 0) + 1;
+      totalMes++;
+    });
+    const ordenC = ['Pereira','Manizales','Armenia','Cartago','La Dorada'];
+    const ciudades = Object.keys(matriz).sort((a, b) =>
+      (ordenC.indexOf(a) + 99 * (ordenC.indexOf(a) < 0)) - (ordenC.indexOf(b) + 99 * (ordenC.indexOf(b) < 0)));
+    const dias = Array.from({ length: diasMes }, (_, i) => i + 1);
+    const totDia = d => ciudades.reduce((s, c) => s + (matriz[c][d] || 0), 0);
+    const celda = (n, esHoy) => `<td class="${esHoy ? 'hoy' : ''}${n ? '' : ' cero'}">${n || 0}</td>`;
+    const diasConAgenda = dias.filter(d => totDia(d) > 0).length;
+    const mesNombre = hoyD.toLocaleDateString('es-CO', { month: 'long' });
+    bloques.push(`<div class="card full"><h2>📆 Agendas por día y ciudad · ${esc(mesNombre)} <span class="sub">· ${diasConAgenda} de ${diasMes} días con agenda · ${totalMes} citas</span></h2>
+      <div class="scrollx"><table class="dias"><thead><tr><th class="ciu"></th>${dias.map(d => `<th class="${d === diaHoy ? 'hoy' : ''}">${d}</th>`).join('')}</tr></thead><tbody>
+        ${ciudades.map(c => `<tr><td class="ciu">${esc(c)}</td>${dias.map(d => celda(matriz[c][d] || 0, d === diaHoy)).join('')}</tr>`).join('')}
+        <tr class="tot"><td class="ciu">Total Citas</td>${dias.map(d => celda(totDia(d), d === diaHoy)).join('')}</tr>
+      </tbody></table></div>
+      ${ciudades.length ? '' : '<div class="vacio">Sin citas agendadas este mes</div>'}
+    </div>`);
   }
   if (paneles.includes('asesor')) {
     const por = {};
@@ -2065,6 +2107,16 @@ function tvHTML(rows){
     .fila .lbl{flex:0 0 max(90px,9vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .fila.srv{align-items:flex-start}.srvs{flex:1;color:var(--tx3);font-size:clamp(10px,1.1vw,14px)}
     .bar{flex:1;background:#2a2a36;border-radius:4px;height:clamp(10px,1.2vw,16px);overflow:hidden}.bar div{height:100%}
+    .card.full{grid-column:1/-1}
+    .card h2 .sub{font-weight:400;color:var(--tx3);font-size:clamp(10px,1.1vw,14px)}
+    .scrollx{overflow-x:auto}
+    table.dias{width:100%;border-collapse:collapse;font-size:clamp(9px,1vw,13px);text-align:center}
+    table.dias th{color:var(--tx3);font-weight:600;padding:2px 3px;min-width:20px}
+    table.dias td{padding:3px;border-top:1px solid var(--bd);font-family:monospace}
+    table.dias .ciu{text-align:left;font-family:inherit;white-space:nowrap;padding-right:8px;font-weight:600}
+    table.dias td.cero{color:#4a4a58}
+    table.dias .hoy{background:rgba(56,189,248,.16)}
+    table.dias tr.tot td{border-top:2px solid var(--tx3);font-weight:700}
     .leyenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:clamp(9px,1vw,12px);color:var(--tx3);margin-bottom:8px}
     .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
     .pista{flex:1;background:#2a2a36;border-radius:4px;overflow:hidden}

@@ -1,8 +1,7 @@
 // Horas de mano de obra por kit KIA + alineacion por modelo.
-// Fuente: hoja 'Listados de Kits 2' del Excel '5-Cotizador Manual Mayo
-// Posventa Ceta' (Drive, 2026-08-12). El descuento del cotizador aplica
-// sobre (horas del kit + horas de alineacion) x tarifa x IVA — la misma
-// formula de las hojas Cotizador de los asesores (E9/F9).
+// Fuente: hoja 'Listados de Kits 2' del libro '5-Cotizador Manual Mayo
+// Posventa Ceta' (Drive, regenerado 2026-08-17). El descuento aplica
+// sobre (horas del kit + alineacion) x tarifa x IVA (formula E9/F9).
 export const COTIZADOR_HORAS = {
  "tarifaHora": 219000,
  "iva": 1.19,
@@ -105,39 +104,39 @@ export const COTIZADOR_HORAS = {
    "RV. PAR TAXI": 1.3
   },
   "EV5 (OV)": {
-   "Rv. 15.000 km": 1.7,
-   "Rv. 30.000 km": 2.1,
-   "Rv. 45.000 km": 1.7
+   "RV. 15.000 KM": 1.7,
+   "RV. 30.000 KM": 2.1,
+   "RV. 45.000 KM": 1.7
   },
   "EV6(CV)": {
-   "Rv. 15.000 km": 1.7
+   "RV. 15.000 KM": 1.7
   },
   "EV9(MV)": {
-   "Rv. 15.000 km": 1.4,
-   "Rv. 30.000 km": 1.8
+   "RV. 15.000 KM": 1.4,
+   "RV. 30.000 KM": 1.8
   },
   "PICANTO (JA 1,0)": {
    "RV. 10.000 KM - 30.000 KM": 1.2,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.3,
    "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.1,
    "RV. 50.000 KM - 100.000 KM": 1.3,
-   "RV. 70.000 KM - 90.000 KM": 1.2
+   "RV. 70.000 KM": 1.2
   },
   "PICANTO (JA 1,25)": {
    "RV. 10.000 KM - 30.000 KM": 1.2,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.3,
    "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.1,
    "RV. 50.000 KM - 100.000 KM": 1.3,
-   "RV. 70.000 KM - 90.000 KM": 1.2
+   "RV. 70.000 KM": 1.2
   },
   "OPTIMA (JFHEV)": {
-   "Rv. 70.000 Km OPTIMA": 1.5
+   "RV. 70.000 KM": 1.5
   },
   "K31.6": {
    "RV. 10.000 KM - 30.000 KM": 1.4,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.5,
    "RV. 50.000 KM - 100.000 KM": 1.5,
-   "RV. 70.000 KM - 90.000 KM": 1.5
+   "RV. 70.000 KM": 1.5
   },
   "K4 (2.0OMPI)": {
    "RV. 10.000 KM": 1.5,
@@ -145,39 +144,40 @@ export const COTIZADOR_HORAS = {
    "RV. 30.000 KM": 1.5
   },
   "CARNIVAL (KA4)": {
-   "Rv. 10.000 km": 1.5,
-   "Rv. 20.000 km": 1.5,
-   "Rv. 25.000 km": 1.5,
-   "Rv. 30.000 km": 1.5
+   "RV. 10.000 KM": 1.5,
+   "RV. 20.000 KM": 1.5,
+   "RV. 25.000 KM": 1.5,
+   "RV. 30.000 KM": 1.5
   },
   "SORENTO (MQ4DI2,2TCI)": {
-   "Rv. 10.000 km": 1.5,
-   "Rv. 15.000 Km": 1.5,
-   "Rv. 20.000 Km": 1.5
+   "RV. 10.000 KM": 1.5,
+   "RV. 15.000 KM": 1.5,
+   "RV. 20.000 KM": 1.5
   },
   "SORENTO (MQ4 3,5)": {
-   "Rv. 10.000 km": 1.7,
-   "Rv. 15.000 km": 1.7,
-   "Rv. 20.000 km": 1.7,
-   "Rv. 25.000 km": 1.7,
-   "Rv. 30.000 km": 1.5,
-   "Rv. 35.000 km": 1.5,
-   "Rv. 40.000 km": 1.5,
-   "Rv. 5.000 km": 1.5,
-   "Rv. 50.000 km": 1.5
+   "RV. 10.000 KM": 1.7,
+   "RV. 15.000 KM": 1.7,
+   "RV. 20.000 KM": 1.7,
+   "RV. 25.000 KM": 1.7,
+   "RV. 30.000 KM": 1.5,
+   "RV. 35.000 KM": 1.5,
+   "RV. 40.000 KM": 1.5,
+   "RV. 5.000 KM": 1.5,
+   "RV. 50.000 KM": 1.5
   },
   "SPORTAGE NQ5 (NQ5GAS1,6)": {
-   "Rv. 10.000 km": 1.5
+   "Rv. 10.000 km - 30.000 km": 1.5,
+   "Rv. 10.000 km": 1.0
   },
   "SPORTAGE NQ5 (NQ5GAS2.0)": {
-   "RV. 10.000 KM - 30.000 KM": 1.4,
+   "Rv. 10.000 km - 30.000 km": 1.4,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.5,
-   "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.1,
+   "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.0,
    "RV. 50.000 KM - 100.000 KM": 1.5,
-   "RV. 70.000 KM - 90.000 KM": 1.5
+   "Rv. 70.000 km - 90.000 km": 1.5
   },
   "SPORTAGE HIBRIDA (NQ5HEV1.6)": {
-   "RV. 10.000 KM - 30.000 KM": 1.5,
+   "Rv. 10.000 Km - 30.000 Km": 1.5,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.5
   },
   "SOUL (PS 1,6)": {
@@ -273,8 +273,8 @@ export const COTIZADOR_HORAS = {
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.3,
    "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.0,
    "RV. 50.000 KM - 100.000 KM": 1.5,
-   "RV. 50.000 KM - 100.000 KM  INDIA": 1.5,
-   "RV. 70.000 KM - 90.000 KM": 1.3
+   "RV. 50.000 KM": 1.5,
+   "RV. 70.000 KM": 1.3
   },
   "CARENS (RP 2,0)": {
    "RV. 10.000 KM": 1.1,
@@ -376,17 +376,17 @@ export const COTIZADOR_HORAS = {
   "SELTOS (SP2.0)": {
    "RV. 10.000 KM - 30.000 KM - 70.000 KM - 90.000 KM": 1.5,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.5,
-   "Rv. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.3,
+   "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.3,
    "RV. 50.000 KM - 100.000 KM": 1.5
   },
   "SELTOS (SP2i1.5)": {
    "RV. 10.000 KM - 30.000 KM - 70.000 KM - 90.000 KM": 1.5,
    "RV. 20.000 KM - 40.000 KM - 60.000 KM - 80.000 KM": 1.5,
    "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.0,
-   "Rv. 50.000 km -100.000 km": 1.5
+   "RV. 50.000 KM - 100.000 KM": 1.5
   },
   "EV3 (SV1)": {
-   "Rv. 15.000 Km": 1.5
+   "RV. 15.000 KM": 1.5
   },
   "PICANTO (TA 1,0)": {
    "RV. 35.000 KM": 1.1,
@@ -431,6 +431,9 @@ export const COTIZADOR_HORAS = {
    "RV. 85.000 KM": 1.1,
    "RV. 90.000 KM": 1.4,
    "RV. 95.000 KM": 1.1
+  },
+  "TASMAN (TKDI2.2)": {
+   "Rv. 10,30,50, 110, 130,150": 2.0
   },
   "RIO (UB 1,25)": {
    "RV. 10.000 KM": 1.1,
@@ -522,9 +525,11 @@ export const COTIZADOR_HORAS = {
   },
   "STONIC (YB 1,0)": {
    "RV. 10.000 KM - 30.000 KM - 70.000 KM - 90.000 KM": 1.5,
-   "RV. 40.000, 80.000 KM": 1.5,
+   "RV. 40.000 KM": 1.5,
    "RV. 5,15,25,35,45,55,65,75,85,95,105,115,125": 1.3,
-   "RV. 50.000 KM - 100.000 KM": 1.5
+   "RV. 50.000 KM - 100.000 KM": 1.5,
+   "RV. 5.000 KM": 1.3,
+   "RV. 50.000 KM": 1.5
   },
   "CERATO (YD 1,6)": {
    "RV. 10.000 KM": 1.5,
@@ -549,8 +554,8 @@ export const COTIZADOR_HORAS = {
    "RV. 95.000 KM": 1.7
   },
   "CARNIVAL (YP)": {
-   "Rv. 45.000 Km": 1.5,
-   "SERVICIO DE MANTENIMIENTO 50.000 km": 1.5
+   "RV. 45.000 KM": 1.5,
+   "RV. 50.000 KM": 1.5
   }
  }
 };

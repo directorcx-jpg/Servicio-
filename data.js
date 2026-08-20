@@ -5,13 +5,13 @@
 //  Fase 3: contenido real de los 5 docs de /docs.
 //  Módulo 3: cotizador KIA real (seed de precios + detalle de servicios).
 // =============================================================
-import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.14.0';
+import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.27.0';
 
 export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.26.0",
+    version: "1.27.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -609,16 +609,16 @@ export const DATA = {
     },
     {
       nombre: "Cartago", marcas: ["KIA","Usados"],
-      direccion: "Cra. 5 # 15-35 (una cuadra de la catedral)",
-      maps: "",
+      direccion: "Cl. 10 # 6-21, Cartago, Valle del Cauca",
+      maps: "https://maps.app.goo.gl/XQGodHvp7eQsaN917",
       horarioTaller: "L-V 7:30am–12:00pm, 2:00pm–5:30pm | Sáb 9:00am–12:00pm",
       horarioVitrina: "",
       contactos: [ { nombre: "Kimberly Ramírez", area: "", ext: "419", cel: "" } ]
     },
     {
       nombre: "La Dorada", marcas: ["KIA","Usados"],
-      direccion: "Cra. 2 No. 21-09 Esquina",
-      maps: "",
+      direccion: "Cra. 2 # 21-09, Obrero, La Dorada, Caldas",
+      maps: "https://maps.app.goo.gl/qpVmBtP1KBKh1b966",
       horarioTaller: "L-V 8:00am–12:00pm, 2:00pm–6:00pm",
       horarioVitrina: "",
       contactos: [ { nombre: "Jonathan Sánchez", area: "", ext: "846", cel: "" } ]

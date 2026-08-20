@@ -358,6 +358,21 @@ export async function buscarWeGoEnFranja(fecha, hora, sede, excluirId){
 // Cola de seguimientos: gestiones tipificadas en 'seguimiento' con fecha
 // comprometida, ordenadas ascendente (vencidos primero). Consulta DEDICADA
 // e independiente del tope de la caché general: la cola debe ser completa.
+// Fechas de cita agendadas en un rango (para el panel "Agendas por día"
+// del Modo TV). Devuelve solo la lista de fechas (una por gestión).
+export async function listarCitasEntre(desde, hasta){
+  requiereSupabase();
+  const { data, error } = await supabase
+    .from('gestiones')
+    .select('cita_fecha, sede')
+    .eq('resultado', 'agendado')
+    .gte('cita_fecha', desde)
+    .lte('cita_fecha', hasta)
+    .limit(3000);
+  if (error) throw new Error('No se pudieron leer las citas del rango: ' + error.message);
+  return (data || []).filter(r => r.cita_fecha).map(r => ({ f: r.cita_fecha, ciudad: r.sede || '—' }));
+}
+
 export async function listarSeguimientos(filtros){
   requiereSupabase();
   const f = filtros || {};
