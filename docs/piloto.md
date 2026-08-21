@@ -47,6 +47,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 24 | 2026-08-21 | Pablo | Seguimientos programados que quedan vivos aunque el cliente terminó agendado en una gestión posterior (caso LUT225): la cola acumula llamadas ya innecesarias | Media | ✅ Corregido |
 | 25 | 2026-08-21 | Pablo | Registros desorganizados: guardar con datos parciales (solo placa) desvinculaba el cliente del vehículo y borraba datos conocidos (LUT225 quedó "Sin cliente asociado") | Alta | ✅ Corregido |
 | 26 | 2026-08-21 | Pablo | Leads Meta (hojas KIA y Honda) quedaban en Drive sin gestionar: transcripción manual y contactos fuera de la meta de 2 horas | Alta | ✅ En producción |
+| 27 | 2026-08-21 | Pablo | Cada actualización de precios del libro exigía re-sincronizar el CRM a mano (seed viejo, horas estáticas, Apps Script lento → caché desactualizada) | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo

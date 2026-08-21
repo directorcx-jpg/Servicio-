@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.28.2",
+    version: "1.29.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.

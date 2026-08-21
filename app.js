@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.28.2';
+import { DATA } from './data.js?v=1.29.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -36,6 +36,7 @@ import {
   eliminarContenido as sbEliminarContenido,
   contenidoADATA
 } from './src/lib/contenido.js?v=1.28.0';
+import { cargarCotizadorSupabase as sbCargarCotizador, solicitarSyncCotizador as sbSolicitarSyncCotizador, ultimaSyncCotizador as sbUltimaSyncCotizador } from './src/lib/cotizador.js?v=1.29.0';
 
 // ---------- Estado global (fuente única de verdad) ----------
 const S = {
@@ -228,6 +229,17 @@ function renderContenidoEditor(){
     .sort((a, b) => (a.orden ?? 9e9) - (b.orden ?? 9e9));
   el.innerHTML = `
     ${viewHead('Editar contenido', `<span class="badge"><i class="fas fa-pen-to-square"></i> Coordinación</span>`)}
+    ${(() => {
+      const ls = S.cotizadorSync;
+      const cuando = ls && ls.ejecutado_en ? fmtFechaHora(new Date(ls.ejecutado_en).getTime()) : 'nunca';
+      const resumen = ls ? (ls.error ? `<span style="color:var(--wr)">falló: ${esc(ls.error)}</span>`
+        : `${ls.kits || 0} kits · ${ls.precios_cambiados || 0} precios y ${ls.horas_cambiadas || 0} horas cambiaron`) : 'sin datos';
+      return `<div class="fb" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px"><div class="bt val" style="margin-bottom:4px"><span class="n"><i class="fas fa-calculator"></i></span>Cotizador KIA · sincronizado desde el libro de Drive</div>
+          <div style="font-size:12px;color:var(--tx2)">Última sincronización: <strong>${esc(cuando)}</strong> · ${resumen}<br><span style="font-size:10px;color:var(--tx3)">Automática todos los días a las 9:00 pm. Si actualizaste precios u horas en el libro, sincroniza ahora.</span></div></div>
+        <button class="btn btn-ac" id="cotSyncBtn"><i class="fas fa-rotate"></i> Sincronizar ahora</button>
+      </div>`;
+    })()}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
       ${Object.entries(CONT_TIPOS).map(([k, t]) => `<button class="pill cont-tab ${k===contTipoActivo?'on':''}" data-tipo="${k}">${esc(t.label)}</button>`).join('')}
     </div>
@@ -250,6 +262,20 @@ function renderContenidoEditor(){
     </div>
     <div style="font-size:10px;color:var(--tx3);margin-top:8px"><i class="fas fa-circle-info"></i> Desactivar oculta la entrada a los asesores sin borrarla. El borrado definitivo es solo del administrador. Los asesores ven los cambios al recargar o cambiar de vista.</div>`;
   $$('#v-contenido .cont-tab').forEach(b => b.addEventListener('click', () => { contTipoActivo = b.dataset.tipo; renderContenidoEditor(); }));
+  $('#cotSyncBtn')?.addEventListener('click', async () => {
+    const b = $('#cotSyncBtn'); if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando…'; }
+    try {
+      await sbSolicitarSyncCotizador();
+      // la función tarda ~10-20 s leyendo el libro; consultamos el resultado
+      await new Promise(r => setTimeout(r, 18000));
+      const ls = await sbUltimaSyncCotizador();
+      S.cotizadorSync = ls;
+      if (ls && !ls.error) toast(`✅ Cotizador sincronizado: ${ls.precios_cambiados || 0} precios y ${ls.horas_cambiadas || 0} horas cambiaron`);
+      else toast('⚠️ La sincronización falló: ' + (ls?.error || 'sin respuesta') + ' — revisa que el libro siga compartido');
+      cargarCotizadorEnVivo();
+    } catch (e) { console.error(e); toast('⚠️ No se pudo solicitar la sincronización: ' + e.message); }
+    renderContenidoEditor();
+  });
   $('#contNueva')?.addEventListener('click', () => openContenidoForm(null));
   $$('#v-contenido .cont-editar').forEach(b => b.addEventListener('click', () => openContenidoForm(b.dataset.id)));
   $$('#v-contenido .cont-toggle').forEach(b => b.addEventListener('click', async () => {
@@ -2742,26 +2768,40 @@ function computeQuote(){
            manoObra, repuestos, valorCombo, descuento:desc, kit:item[3]||'' };
 }
 
-// ===== Cotizador: carga en 3 capas (cache → API en vivo → seed) =====
-const LS_COTIZADOR = 'ceta_cotizador_cache';
+// ===== Cotizador: carga en 3 capas (cache → Supabase → seed) =====
+// Supabase se sincroniza solo desde el libro de Drive (piloto #27): precios,
+// horas de MO, alineación y combos. El Apps Script ya no participa.
+const LS_COTIZADOR = 'ceta_cotizador_cache_v2';
+function aplicarCotizador(d){
+  if (!d || !d.precios || !Object.keys(d.precios).length) return;
+  DATA.cotizador.precios = d.precios;
+  if (d.combos && d.combos.length) DATA.cotizador.combos = d.combos;
+  if (d.horasKit) COTIZADOR_HORAS.horasKit = d.horasKit;
+  if (d.alineacionHoras) COTIZADOR_HORAS.alineacionHoras = d.alineacionHoras;
+  // Modelos nuevos del libro que no estén en ninguna lista de combustión
+  // → Gasolina (el coordinador puede moverlos en data.js si aplica).
+  const listas = DATA.cotizador.combustion || {};
+  const conocidos = new Set(Object.values(listas).flat());
+  Object.keys(d.precios).forEach(m => { if (!conocidos.has(m)) { (listas.Gasolina = listas.Gasolina || []).push(m); listas.Gasolina.sort(); } });
+  S.cotizadorSync = d.ultimaSync || S.cotizadorSync || null;
+}
 function cargarCotizadorEnVivo(){
-  // Capa 1: si hay precios cacheados de una sesión anterior, úsalos ya.
-  try {
-    const cache = JSON.parse(localStorage.getItem(LS_COTIZADOR) || 'null');
-    if (cache && cache.precios && Object.keys(cache.precios).length) DATA.cotizador.precios = cache.precios;
-  } catch {}
-  // Pinta de inmediato (con cache o seed) — el asesor nunca espera.
+  // Capa 1: caché local de la última lectura (pinta de inmediato).
+  try { aplicarCotizador(JSON.parse(localStorage.getItem(LS_COTIZADOR) || 'null')); } catch {}
   poblarCotizador();
-  // Capa 2: si hay conexión, refresca precios en vivo (timeout 3s).
-  if (getApiUrl()) {
-    apiCall('consultarCotizador').then(r => {
-      if (r && r.precios && Object.keys(r.precios).length) {
-        DATA.cotizador.precios = r.precios;
-        localStorage.setItem(LS_COTIZADOR, JSON.stringify({ precios: r.precios, ts: Date.now() }));
-        poblarCotizador();   // re-pinta con precios frescos
-      }
-    }).catch(()=>{}); // Capa 3: si falla, se queda con cache/seed (ya pintado)
-  }
+  // Capa 2: Supabase (fuente de verdad). Capa 3: si falla, caché/seed.
+  if (!supabaseEnabled) return;
+  sbCargarCotizador().then(d => {
+    if (!d) return;
+    aplicarCotizador(d);
+    try { localStorage.setItem(LS_COTIZADOR, JSON.stringify(d)); } catch {}
+    const sel = $('#cotModelo');
+    const modeloPrevio = sel ? sel.value : '';
+    const kmPrevio = $('#cotKm') ? $('#cotKm').value : '';
+    poblarCotizador();
+    if (sel && modeloPrevio) { sel.value = modeloPrevio; poblarKm(); if ($('#cotKm')) $('#cotKm').value = kmPrevio; }
+    u();
+  }).catch(e => console.warn('[CETA] cotizador Supabase', e));
 }
 
 // ===== Cascada de dropdowns del cotizador =====
