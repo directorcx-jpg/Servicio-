@@ -46,6 +46,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 23 | 2026-08-21 | Pablo | Placas mal digitadas crean vehículos fantasma: el cliente queda con dos placas y doble registro (casos NZY904→NXO081 y MXM930→NXM930) | Alta | ✅ Corregido |
 | 24 | 2026-08-21 | Pablo | Seguimientos programados que quedan vivos aunque el cliente terminó agendado en una gestión posterior (caso LUT225): la cola acumula llamadas ya innecesarias | Media | ✅ Corregido |
 | 25 | 2026-08-21 | Pablo | Registros desorganizados: guardar con datos parciales (solo placa) desvinculaba el cliente del vehículo y borraba datos conocidos (LUT225 quedó "Sin cliente asociado") | Alta | ✅ Corregido |
+| 26 | 2026-08-21 | Pablo | Leads Meta (hojas KIA y Honda) quedaban en Drive sin gestionar: transcripción manual y contactos fuera de la meta de 2 horas | Alta | ✅ En producción |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -221,7 +222,21 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   cliente (radicados solo con placa, sin fuente — se completan al
   contactar y ya no se pierden), 1.055 nombres provisionales del import
   (se completan solos al gestionar) y 13 nombres basura tipo
-  "VALIDAR"/"Sin nombre". (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
+  "VALIDAR"/"Sin nombre".
+- **#26 Ingesta automática de leads Meta** (spec
+  2026-08-21-ingesta-leads-meta; migraciones `ingesta_leads_meta` +
+  `ingesta_leads_cortes_diarios`; Edge Function `ingestar-leads`): dos
+  cortes diarios (8:00 am y 3:00 pm) leen las hojas de leads KIA y Honda
+  y crean casos internos con marca "Lead": teléfono → cliente, placa y
+  vehículo EN LA NOTA para validar al llamar (un lead no es información
+  verificada, no crea vehículos), tipo por campaña (tapetes/accesorios/
+  cover → Accesorios·A, colisión → Especializada·B, resto →
+  Mantenimiento·A), sede por ciudad, rotación en bloques de 5 replicada
+  en el servidor (`colas_rotacion` + `siguiente_asesor_rotacion`), dedupe
+  por id del lead (`leads_ingestados`) y notificación al chat de la sede
+  con el trigger existente. Carga inicial desde el 21/08. PENDIENTE:
+  compartir ambas hojas como "cualquiera con el enlace: lector" para que
+  la función pueda leerlas (la corrida de prueba devolvió 401). (b) direcciones y mapas de Cartago (Cl. 10 # 6-21) y
   La Dorada (Cra. 2 # 21-09, Obrero) actualizados en Contactos y Sedes;
   (c) cotizador re-sincronizado con el libro actual: 432 de 449 kits
   habían cambiado de precio, el libro consolidó revisiones (53 grupos de
