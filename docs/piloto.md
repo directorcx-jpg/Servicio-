@@ -48,6 +48,9 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 25 | 2026-08-21 | Pablo | Registros desorganizados: guardar con datos parciales (solo placa) desvinculaba el cliente del vehículo y borraba datos conocidos (LUT225 quedó "Sin cliente asociado") | Alta | ✅ Corregido |
 | 26 | 2026-08-21 | Pablo | Leads Meta (hojas KIA y Honda) quedaban en Drive sin gestionar: transcripción manual y contactos fuera de la meta de 2 horas | Alta | ✅ En producción |
 | 27 | 2026-08-21 | Pablo | Cada actualización de precios del libro exigía re-sincronizar el CRM a mano (seed viejo, horas estáticas, Apps Script lento → caché desactualizada) | Alta | ✅ Corregido |
+| 28 | 2026-08-21 | Pablo | Los leads Meta entraban como origen "Interno": no se distinguían en Control ni se podía medir su efectividad | Media | ✅ Corregido |
+| 29 | 2026-08-21 | Pablo | La matriz de agendas del TV mostraba todo el mes por fecha de cita, no para qué días quedó agendado lo radicado en el rango | Media | ✅ Corregido |
+| 30 | 2026-08-21 | Pablo | La tarjeta de cotización descargable no tenía la identidad Armotor (colores, tipografía, logo, TyC) | Baja | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -248,3 +251,20 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   del libro no tienen horas en "Listados de Kits 2" (el propio Excel no
   calcula MO por horas ahí); el CRM usa el respaldo MO de precios +
   alineación.
+- **#28–#30 (v1.30.0)**: (a) origen nuevo `lead_posventa` ("Leads
+  posventa") en el enum y en la Edge Function `ingestar-leads` v3 — sigue
+  siendo caso interno (bandeja, cola y rotación) pero se ve con badge
+  propio en Control y en el detalle; filtro **Origen** en Control y, al
+  elegir Leads posventa, bloque "Efectividad de leads posventa": recibidos,
+  sin gestionar, contactados (tasa de contacto), agendados y efectividad
+  (agendados ÷ recibidos), por asesor y por marca (KIA/Honda). Los 2 leads
+  ya ingresados se reclasificaron. Pendiente (acordado): embudo dedicado
+  por campaña cuando haya 2–3 semanas de datos. (b) Matriz del TV: ahora
+  toma las gestiones radicadas en el rango del tablero y muestra solo los
+  días (pueden cruzar de mes) en que quedaron agendadas sus citas, por
+  ciudad. (c) Tarjeta de cotización con identidad Armotor: cabecera y pie
+  azul petróleo (#1F2D3A), Montserrat, rojo Armotor en precio/acentos,
+  chip "Aplica términos y condiciones" + "Precios sujetos a variación" y
+  "Armotor le pone motor a tu vida" resaltado; usa
+  `assets/logo-armotor-blanco.(svg|png)` si existe (pendiente que Pablo lo
+  cargue; mientras tanto logo en texto).

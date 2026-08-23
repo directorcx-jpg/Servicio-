@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.29.0';
+import { DATA } from './data.js?v=1.30.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -17,9 +17,8 @@ import {
   listarSeguimientos as sbListarSeguimientos,
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
-  listarCitasEntre as sbListarCitasEntre,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.28.1';
+} from './src/lib/gestiones.js?v=1.30.0';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -1063,6 +1062,9 @@ function updateInternosBadges(){
 // =============================================================
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
+// Casos internos = radicados por un compañero o leads Meta (ambos con cola y rotación).
+function esCasoInterno(g){ return g.origen === 'Interno' || g.origen === 'Leads posventa'; }
+const ORIGEN_BADGE = { 'Leads posventa': 'background:rgba(245,158,11,.14);color:#d97706;font-weight:600', 'Interno': 'background:rgba(168,85,247,.12);color:#a855f7' };
 const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
 const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
 // Rango por defecto del tablero: últimos 7 días (fecha de radicación).
@@ -1071,7 +1073,8 @@ function ctrlRangoDefecto(){
   const iso = x => x.toISOString().slice(0, 10);
   return { desde: iso(d), hasta: iso(hoy) };
 }
-let ctrlFiltro = { asesor:'', resultado:'', ...ctrlRangoDefecto() };
+let ctrlFiltro = { asesor:'', resultado:'', origen:'', ...ctrlRangoDefecto() };
+const CTRL_ORIGENES = ['Inbound','Base','Formulario','Chat MTIC','Otros','Interno','Leads posventa'];
 // Resultado de la consulta por rango a Supabase (spec filtro-fecha-radicacion):
 // clave = 'desde|hasta' consultada; rows = gestiones del rango; error para el aviso.
 let ctrlRango = { clave:'', rows:null, cargandoClave:'', error:'' };
@@ -1081,7 +1084,7 @@ const CTRL_TOPE = 2000;
 // 'def' = visible por defecto. El render() las pinta en este orden.
 const CTRL_COLUMNS = [
   { key:'hora',        label:'Radicado',      def:true,  render: g => `<span style="font-family:var(--fm);font-size:11px">${esc(fmtFechaHora(g._ts))}</span>` },
-  { key:'origen',      label:'Origen',        def:true,  render: g => esc(g.origen||'Inbound') },
+  { key:'origen',      label:'Origen',        def:true,  render: g => ORIGEN_BADGE[g.origen] ? `<span class="badge" style="${ORIGEN_BADGE[g.origen]}">${esc(g.origen)}</span>` : esc(g.origen||'Inbound') },
   { key:'asesor',      label:'Asesor',        def:true,  render: g => esc(g.asignadoAlias||g.asesorCeta||'—') },
   { key:'placa',       label:'Placa',         def:true,  render: g => `<span style="font-family:var(--fm)">${esc(g.placa||'—')}</span>` },
   { key:'cliente',     label:'Cliente',       def:true,  render: g => esc(g.nombre||'—') },
@@ -1263,6 +1266,51 @@ function renderHomeAlertas(){
     : '';
 }
 
+// Embudo de leads Meta (filtro Origen = Leads posventa): recibidos →
+// contactados → agendados, con tasas. "Contactado" = cualquier
+// tipificación distinta de pendiente / no contesta.
+function tarjetasLeads(fil){
+  const rec = fil.length;
+  const pend = fil.filter(g => g.resultado === 'pendiente').length;
+  const noc = fil.filter(g => g.resultado === 'noc').length;
+  const cont = rec - pend - noc;
+  const ag = fil.filter(g => g.resultado === 'agenda').length;
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  const porAsesor = {};
+  fil.forEach(g => {
+    const a = g.asignadoAlias || g.asesorCeta || '—';
+    porAsesor[a] = porAsesor[a] || { r:0, c:0, ag:0 };
+    porAsesor[a].r++;
+    if (!['pendiente','noc'].includes(g.resultado)) porAsesor[a].c++;
+    if (g.resultado === 'agenda') porAsesor[a].ag++;
+  });
+  const porMarca = {};
+  fil.forEach(g => {
+    const m = /LEAD META \((\w+)/.exec(g.notaSolicitante || '')?.[1] || '—';
+    porMarca[m] = porMarca[m] || { r:0, ag:0 };
+    porMarca[m].r++;
+    if (g.resultado === 'agenda') porMarca[m].ag++;
+  });
+  const tarjeta = (l, n, c, sub) => `<div class="fb" style="text-align:center;padding:14px;border-top:3px solid ${c||'var(--bd)'}"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div>${sub?`<div style="font-size:9px;color:var(--tx3)">${sub}</div>`:''}</div>`;
+  const filaA = ([a,x]) => `<tr><td><strong>${esc(a)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.r}</td><td style="text-align:center;font-family:var(--fm)">${x.c}</td><td style="text-align:center;font-family:var(--fm)">${x.ag}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${pct(x.ag,x.r)}</td></tr>`;
+  const filaM = ([m,x]) => `<tr><td><strong>${esc(m)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.r}</td><td style="text-align:center;font-family:var(--fm)">${x.ag}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${pct(x.ag,x.r)}</td></tr>`;
+  return `<div class="fb" style="margin-bottom:14px;border-left:3px solid #d97706"><div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-bullhorn"></i></span>Efectividad de leads posventa <span style="font-size:10px;color:var(--tx3);font-weight:400">· leads recibidos en el rango</span></div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px">
+      ${tarjeta('Leads recibidos', rec, '#d97706')}
+      ${tarjeta('Sin gestionar', pend, 'var(--wr)')}
+      ${tarjeta('Contactados', cont, 'var(--in)', 'tasa de contacto ' + pct(cont, rec))}
+      ${tarjeta('Agendados', ag, 'var(--ok)')}
+      ${tarjeta('Efectividad', pct(ag, rec), 'var(--ok)', 'agendados ÷ recibidos')}
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Recibidos</th><th style="text-align:center">Contactados</th><th style="text-align:center">Agendados</th><th style="text-align:center">Efectividad</th></tr></thead><tbody>
+        ${Object.entries(porAsesor).sort((a,b)=>b[1].r-a[1].r).map(filaA).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--tx3)">Sin leads en el rango</td></tr>'}
+      </tbody></table>
+      <table class="tbl"><thead><tr><th>Marca</th><th style="text-align:center">Recibidos</th><th style="text-align:center">Agendados</th><th style="text-align:center">Efect.</th></tr></thead><tbody>
+        ${Object.entries(porMarca).sort((a,b)=>b[1].r-a[1].r).map(filaM).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--tx3)">—</td></tr>'}
+      </tbody></table>
+    </div></div>`;
+}
 function renderControl(){
   const el = $('#v-control');
   if (!perms().controlGestion) { el.innerHTML = emptyState('fa-lock','Control de Gestión','Tu rol no tiene acceso a esta vista.'); return; }
@@ -1307,7 +1355,8 @@ function renderControl(){
   const asesores = [...new Set(rows.map(g => g.asesorCeta).filter(Boolean))].sort();
   const fil = rows.filter(g =>
     (!ctrlFiltro.asesor || g.asesorCeta === ctrlFiltro.asesor) &&
-    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado));
+    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado) &&
+    (!ctrlFiltro.origen || (g.origen || 'Inbound') === ctrlFiltro.origen));
 
   const total = fil.length;
   const agend = fil.filter(g => g.resultado === 'agenda').length;
@@ -1332,6 +1381,8 @@ function renderControl(){
         <select id="ctrlAsesor" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${asesores.map(a=>`<option ${ctrlFiltro.asesor===a?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
       <div class="ff" style="min-width:160px"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Resultado</label>
         <select id="ctrlResultado" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${ctrlFiltro.resultado===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="ff"><label style="font-size:9px;color:var(--tx3);text-transform:uppercase">Origen</label>
+        <select id="ctrlOrigen" style="border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:6px;border-radius:5px"><option value="">Todos</option>${CTRL_ORIGENES.map(o=>`<option ${ctrlFiltro.origen===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div>
       <button class="btn btn-gh" id="ctrlClear"><i class="fas fa-filter-circle-xmark"></i> Limpiar</button>
       <div style="margin-left:auto;display:flex;gap:6px">
         ${supabaseEnabled?`<button class="btn btn-gh" id="ctrlSync" title="Traer las gestiones del equipo"><i class="fas fa-rotate"></i> Actualizar</button>`:''}
@@ -1342,6 +1393,7 @@ function renderControl(){
     ${rangoCargando ? `<div class="al in" style="margin-bottom:10px"><i class="fas fa-spinner fa-spin"></i><div>Consultando lo radicado del ${esc(ctrlFiltro.desde)} al ${esc(ctrlFiltro.hasta)}…</div></div>` : ''}
     ${ctrlRango.error && !rangoCargando ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>${esc(ctrlRango.error)}</div></div>` : ''}
     ${!rangoCargando && supabaseEnabled && (ctrlRango.rows||[]).length >= CTRL_TOPE ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>El rango supera ${CTRL_TOPE.toLocaleString('es-CO')} gestiones — se muestran las más recientes. Acorta el rango para ver todo.</div></div>` : ''}
+    ${ctrlFiltro.origen === 'Leads posventa' ? tarjetasLeads(fil) : ''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
         `<div class="fb" style="text-align:center;padding:14px"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div></div>`).join('')}
@@ -1390,7 +1442,8 @@ function renderControl(){
     ${graficasHTML(fil)}`;
   const a = $('#ctrlAsesor'); if (a) a.addEventListener('change', e => { ctrlFiltro.asesor = e.target.value; renderControl(); });
   const rr = $('#ctrlResultado'); if (rr) rr.addEventListener('change', e => { ctrlFiltro.resultado = e.target.value; renderControl(); });
-  const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'', ...ctrlRangoDefecto() }; renderControl(); });
+  const ro = $('#ctrlOrigen'); if (ro) ro.addEventListener('change', e => { ctrlFiltro.origen = e.target.value; renderControl(); });
+  const cl = $('#ctrlClear'); if (cl) cl.addEventListener('click', () => { ctrlFiltro = { asesor:'', resultado:'', origen:'', ...ctrlRangoDefecto() }; renderControl(); });
   // Las fechas NO consultan solas: se aplican con el botón (piloto #10).
   const ap = $('#ctrlAplicar'); if (ap) ap.addEventListener('click', () => {
     const def = ctrlRangoDefecto();
@@ -1451,7 +1504,7 @@ async function refrescarInternos(opts){
     try { S.asesoresTaller = await listarAsesoresTaller(); refrescarAsesoresTallerCache(); } catch (e) { console.warn('[CETA] asesoresTaller', e); }
     const internos = await sbListarCasosInternos({});
     conAliases(internos);
-    const otros = getGestionesLocal().filter(g => g.origen !== 'Interno');
+    const otros = getGestionesLocal().filter(g => !esCasoInterno(g));
     setGestionesLocal([...internos, ...otros].sort((a,b)=>(b._ts||0)-(a._ts||0)));
     if ($('#v-internos')?.dataset.built === '1') renderBandeja();
     updateInternosBadges();
@@ -1794,8 +1847,8 @@ function openCaseDetail(id){
     </div>
     <div class="modal-body">
       <div class="badges" style="margin-bottom:12px">
-        ${g.origen==='Interno'?`<span class="badge" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-inbox"></i> Interno · Cola ${esc(g.cola||'—')}</span>`:''}
-        <span class="badge"><i class="fas fa-user"></i> ${g.origen==='Interno'?'Asignado':'Creó'}: ${esc(g.asignadoAlias||g.createdByAlias||g.asesorCeta||'—')}</span>
+        ${g.origen==='Leads posventa'?`<span class="badge" style="background:rgba(245,158,11,.14);color:#d97706"><i class="fas fa-bullhorn"></i> Lead posventa · Cola ${esc(g.cola||'—')}</span>`:esCasoInterno(g)?`<span class="badge" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-inbox"></i> Interno · Cola ${esc(g.cola||'—')}</span>`:''}
+        <span class="badge"><i class="fas fa-user"></i> ${esCasoInterno(g)?'Asignado':'Creó'}: ${esc(g.asignadoAlias||g.createdByAlias||g.asesorCeta||'—')}</span>
         <span class="badge"><i class="fas fa-clock"></i> ${esc(fmtFechaHora(g._ts))}</span>
         ${!editable?'<span class="badge" style="background:var(--wrs);color:var(--wr)"><i class="fas fa-eye"></i> Solo lectura</span>':''}
       </div>
@@ -1854,6 +1907,7 @@ function openCaseDetail(id){
 function fmtHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
 function fmtFechaHora(ts){ if(!ts) return '—'; const d=new Date(ts); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }
 
+function fmtFechaCorta(iso){ if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}`; }
 // ===== GRÁFICAS de Control de Gestión (CSS puro, sin librerías) =====
 const CHART_COLORS = ['#e53935','#2563eb','#16a34a','#ea580c','#a855f7','#0891b2','#b45309','#db2777'];
 // Barras horizontales a partir de un mapa {etiqueta: valor}.
@@ -1931,12 +1985,12 @@ let tvTimer = null;
 // =============================================================
 const LS_TV_PANELES = 'ceta_tv_paneles';
 const TV_PANELES = {
-  dia:        'Agendas por día y ciudad (mes en curso)',
+  dia:        'Agendas por día y ciudad (citas de lo radicado en el rango)',
   asesor:     'Gestión por asesor',
   servicio:   'Servicio agendado por asesor',
   pendientes: 'Pendientes y No contesta'
 };
-let tvWin = null, tvUltimaOk = 0, tvCitasMes = null;
+let tvWin = null, tvUltimaOk = 0;
 
 function getTVPaneles(){
   // Se descartan claves de paneles retirados (ej. el viejo 'ciudad');
@@ -2002,22 +2056,12 @@ async function actualizarTV(){
       conAliases(rows);
       tvUltimaOk = Date.now();
     } catch (e) { console.warn('[CETA] actualizarTV', e); }
-    // Panel "Agendas por día": citas del MES EN CURSO por fecha de cita
-    // (independiente del rango de radicación del tablero).
-    if (getTVPaneles().includes('dia')) {
-      try {
-        const hoyD = new Date();
-        const ini = new Date(hoyD.getFullYear(), hoyD.getMonth(), 1);
-        const fin = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
-        const iso = x => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-        tvCitasMes = await sbListarCitasEntre(iso(ini), iso(fin));
-      } catch (e) { console.warn('[CETA] citas del mes', e); }
-    }
   }
   if (!rows) rows = ctrlRango.rows || gestionesVisibles();
   const fil = rows.filter(g =>
     (!ctrlFiltro.asesor || g.asesorCeta === ctrlFiltro.asesor) &&
-    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado));
+    (!ctrlFiltro.resultado || g.resultado === ctrlFiltro.resultado) &&
+    (!ctrlFiltro.origen || (g.origen || 'Inbound') === ctrlFiltro.origen));
   try { pintarTV(fil); } catch (e) { console.error('[CETA] pintarTV', e); }
 }
 
@@ -2032,35 +2076,33 @@ function tvHTML(rows){
   const bloques = [];
 
   if (paneles.includes('dia')) {
-    // Matriz ciudad × día del mes en curso (por fecha de CITA, no de
-    // radicación): cuántas agendas hay cada día en cada ciudad + Total.
-    const citas = tvCitasMes || rows.filter(g => g.resultado === 'agenda' && g.fechaCita).map(g => ({ f: g.fechaCita, ciudad: g.ciudad || '—' }));
-    const hoyD = new Date();
-    const mesActual = `${hoyD.getFullYear()}-${String(hoyD.getMonth()+1).padStart(2,'0')}`;
-    const diasMes = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0).getDate();
-    const diaHoy = hoyD.getDate();
-    const matriz = {};   // ciudad -> {dia: n}
-    let totalMes = 0;
+    // Matriz ciudad × día: para las gestiones RADICADAS en el rango del
+    // tablero, en qué días quedaron agendadas las citas (solo días con
+    // agenda, pueden cruzar el mes). Responde "de lo radicado, ¿para
+    // cuándo quedó la agenda?".
+    const citas = rows.filter(g => g.resultado === 'agenda' && g.fechaCita).map(g => ({ f: g.fechaCita, ciudad: g.ciudad || '—' }));
+    const hoyF = new Date().toISOString().slice(0, 10);
+    const matriz = {};   // ciudad -> {fecha: n}
+    const fechasSet = new Set();
     citas.forEach(c => {
-      if (!c.f.startsWith(mesActual)) return;
-      const dia = parseInt(c.f.slice(8), 10);
-      (matriz[c.ciudad] = matriz[c.ciudad] || {})[dia] = (matriz[c.ciudad][dia] || 0) + 1;
-      totalMes++;
+      (matriz[c.ciudad] = matriz[c.ciudad] || {})[c.f] = (matriz[c.ciudad][c.f] || 0) + 1;
+      fechasSet.add(c.f);
     });
     const ordenC = ['Pereira','Manizales','Armenia','Cartago','La Dorada'];
     const ciudades = Object.keys(matriz).sort((a, b) =>
       (ordenC.indexOf(a) + 99 * (ordenC.indexOf(a) < 0)) - (ordenC.indexOf(b) + 99 * (ordenC.indexOf(b) < 0)));
-    const dias = Array.from({ length: diasMes }, (_, i) => i + 1);
-    const totDia = d => ciudades.reduce((s, c) => s + (matriz[c][d] || 0), 0);
+    const fechas = [...fechasSet].sort();
+    const totDia = f => ciudades.reduce((s, c) => s + (matriz[c][f] || 0), 0);
     const celda = (n, esHoy) => `<td class="${esHoy ? 'hoy' : ''}${n ? '' : ' cero'}">${n || 0}</td>`;
-    const diasConAgenda = dias.filter(d => totDia(d) > 0).length;
-    const mesNombre = hoyD.toLocaleDateString('es-CO', { month: 'long' });
-    bloques.push(`<div class="card full"><h2>📆 Agendas por día y ciudad · ${esc(mesNombre)} <span class="sub">· ${diasConAgenda} de ${diasMes} días con agenda · ${totalMes} citas</span></h2>
-      <div class="scrollx"><table class="dias"><thead><tr><th class="ciu"></th>${dias.map(d => `<th class="${d === diaHoy ? 'hoy' : ''}">${d}</th>`).join('')}</tr></thead><tbody>
-        ${ciudades.map(c => `<tr><td class="ciu">${esc(c)}</td>${dias.map(d => celda(matriz[c][d] || 0, d === diaHoy)).join('')}</tr>`).join('')}
-        <tr class="tot"><td class="ciu">Total Citas</td>${dias.map(d => celda(totDia(d), d === diaHoy)).join('')}</tr>
+    const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const cab = f => `${parseInt(f.slice(8), 10)}<br><small>${MES[parseInt(f.slice(5, 7), 10) - 1]}</small>`;
+    const rango = ctrlFiltro.desde === ctrlFiltro.hasta ? `radicado el ${fmtFechaCorta(ctrlFiltro.desde)}` : `radicado del ${fmtFechaCorta(ctrlFiltro.desde)} al ${fmtFechaCorta(ctrlFiltro.hasta)}`;
+    bloques.push(`<div class="card full"><h2>📆 Agendas por día y ciudad <span class="sub">· ${esc(rango)} · ${fechas.length} día${fechas.length === 1 ? '' : 's'} con agenda · ${citas.length} citas</span></h2>
+      <div class="scrollx"><table class="dias"><thead><tr><th class="ciu"></th>${fechas.map(f => `<th class="${f === hoyF ? 'hoy' : ''}">${cab(f)}</th>`).join('')}</tr></thead><tbody>
+        ${ciudades.map(c => `<tr><td class="ciu">${esc(c)}</td>${fechas.map(f => celda(matriz[c][f] || 0, f === hoyF)).join('')}</tr>`).join('')}
+        <tr class="tot"><td class="ciu">Total Citas</td>${fechas.map(f => celda(totDia(f), f === hoyF)).join('')}</tr>
       </tbody></table></div>
-      ${ciudades.length ? '' : '<div class="vacio">Sin citas agendadas este mes</div>'}
+      ${ciudades.length ? '' : '<div class="vacio">Sin citas agendadas en las gestiones del rango</div>'}
     </div>`);
   }
   if (paneles.includes('asesor')) {
@@ -2115,7 +2157,8 @@ function tvHTML(rows){
 
   const filtros = [ctrlFiltro.desde + ' → ' + ctrlFiltro.hasta,
     ctrlFiltro.asesor ? 'Asesor: ' + ctrlFiltro.asesor : '',
-    ctrlFiltro.resultado ? (RESULT_LABEL[ctrlFiltro.resultado] || '') : ''].filter(Boolean).join(' · ');
+    ctrlFiltro.resultado ? (RESULT_LABEL[ctrlFiltro.resultado] || '') : '',
+    ctrlFiltro.origen ? 'Origen: ' + ctrlFiltro.origen : ''].filter(Boolean).join(' · ');
   const haceMin = tvUltimaOk ? Math.round((Date.now() - tvUltimaOk) / 60000) : null;
   return `<style>
     :root{--bg:#16161f;--bgp:#1e1e2a;--bd:#32323f;--tx:#e8e8f0;--tx3:#8b8b9a;--ac:#E53935;--ok:#22c55e;--in:#38bdf8;--wr:#f59e0b}
@@ -2139,7 +2182,7 @@ function tvHTML(rows){
     .card h2 .sub{font-weight:400;color:var(--tx3);font-size:clamp(10px,1.1vw,14px)}
     .scrollx{overflow-x:auto}
     table.dias{width:100%;border-collapse:collapse;font-size:clamp(9px,1vw,13px);text-align:center}
-    table.dias th{color:var(--tx3);font-weight:600;padding:2px 3px;min-width:20px}
+    table.dias th{color:var(--tx3);font-weight:600;padding:2px 4px;min-width:26px;line-height:1.1}table.dias th small{font-size:.75em;font-weight:500;opacity:.8}
     table.dias td{padding:3px;border-top:1px solid var(--bd);font-family:monospace}
     table.dias .ciu{text-align:left;font-family:inherit;white-space:nowrap;padding-right:8px;font-weight:600}
     table.dias td.cero{color:#4a4a58}
@@ -3087,12 +3130,23 @@ function downloadCard(){
   $('#tInc').innerHTML = (q.incluye||[]).map(x => `<li>• ${x}</li>`).join('');
   $('#tExc').innerHTML = (q.noIncluye||[]).map(x => `<li>• ${x}</li>`).join('');
   t.style.left = '0';
-  html2canvas(t, {scale:2}).then(c => {
+  // Logo oficial (assets/logo-armotor-blanco.png|svg); si no existe, queda el texto.
+  cargarLogoTarjeta().finally(() => html2canvas(t, {scale:2, useCORS:true}).then(c => {
     t.style.left = '-9999px';
     const a = document.createElement('a');
     a.download = `Armotor_${(f.placa||'srv').toUpperCase()}.png`;
     a.href = c.toDataURL(); a.click(); toast('Tarjeta descargada');
-  }).catch(() => { t.style.left = '-9999px'; toast('Error al generar la tarjeta'); });
+  }).catch(() => { t.style.left = '-9999px'; toast('Error al generar la tarjeta'); }));
+}
+let _logoTarjeta; // undefined = sin probar, null = no existe, string = src
+function cargarLogoTarjeta(){
+  if (_logoTarjeta !== undefined) return Promise.resolve();
+  const rutas = ['assets/logo-armotor-blanco.svg', 'assets/logo-armotor-blanco.png'];
+  const probar = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(src); i.onerror = no; i.src = src; });
+  return probar(rutas[0]).catch(() => probar(rutas[1])).then(src => {
+    _logoTarjeta = src;
+    $('#tLogo').innerHTML = `<img src="${src}" alt="Armotor">`;
+  }).catch(() => { _logoTarjeta = null; });
 }
 
 // =============================================================
@@ -3389,7 +3443,7 @@ function casoAbiertoPorPlaca(placa){
 // Balance del día por asesor y cola (para Control de Gestión).
 function balanceDelDia(){
   const hoy = hoyStr();
-  const casos = getGestionesLocal().filter(g => g.origen === 'Interno' && new Date(g._ts||0).toISOString().slice(0,10) === hoy);
+  const casos = getGestionesLocal().filter(g => esCasoInterno(g) && new Date(g._ts||0).toISOString().slice(0,10) === hoy);
   const bal = {};
   rotacionPool().forEach(u => { bal[u.alias] = { A: 0, B: 0 }; });
   casos.forEach(g => {
@@ -3403,7 +3457,7 @@ function balanceDelDia(){
 
 // Casos internos PENDIENTES visibles para el usuario actual (su bandeja).
 function casosPendientes(){
-  const all = getGestionesLocal().filter(g => g.origen === 'Interno' && g.resultado === 'pendiente');
+  const all = getGestionesLocal().filter(g => esCasoInterno(g) && g.resultado === 'pendiente');
   if (!S.user) return [];
   if (esCoordinacion() || S.user.rol === 'analista') return all;
   return all.filter(g => g.asignadoId === S.user.id);

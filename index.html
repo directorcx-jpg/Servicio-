@@ -6,7 +6,7 @@
 <meta name="supabase-url" content="">
 <meta name="supabase-anon-key" content="">
 <title>CRM CETA — Armotor</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -122,15 +122,27 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 .sub-l{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:8px 0 4px;display:flex;align-items:center;gap:4px}
 .sub-l i{font-size:10px}
 .hidden{display:none!important}
-.tarjeta{position:fixed;left:-9999px;top:0;width:600px;background:#fff;color:#1c1917;font-family:'Inter',sans-serif;padding:0}
-.tarjeta *{color:#1c1917}
-.tarjeta-hd{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
-.tarjeta-hd *{color:#fff}.tarjeta-hd .lt{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px}
-.tarjeta-body{padding:20px}
-.tarjeta-pr{text-align:center;padding:14px;background:#f5f5f5;border-radius:8px;margin-bottom:14px}
-.tarjeta-pr .v{font-family:'Manrope',sans-serif;font-size:32px;font-weight:800;color:#e53935}
-.tarjeta-pr .l{font-size:11px;color:#666}
-.tarjeta-ft{background:#f9f9f9;padding:12px 22px;font-size:9px;color:#999;text-align:center;border-top:1px solid #eee}
+.tarjeta{position:fixed;left:-9999px;top:0;width:600px;background:#fff;color:#1f2427;font-family:'Inter',sans-serif;padding:0;--az:#12232b;--az50:rgba(18,35,43,.5)}
+.tarjeta *{color:#1f2427}
+.tarjeta-hd{background:var(--az);color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center}
+.tarjeta-hd *{color:#fff}
+.tarjeta-hd .logo{display:flex;flex-direction:column;line-height:1}
+.tarjeta-hd .logo img{height:52px;width:auto;display:block;margin:-6px 0 -6px -10px}
+.tarjeta-hd .logo .lt{font-family:'Montserrat',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.02em}
+.tarjeta-hd .logo .lt small{font-weight:600;font-size:13px;opacity:.85;letter-spacing:0}
+.tarjeta-hd .logo .tg{font-size:9px;margin-top:3px;opacity:.9}.tarjeta-hd .logo .tg b{font-weight:800}
+.tarjeta-hd .tt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;opacity:.9}
+.tarjeta-body{padding:20px 24px}
+.tarjeta-body h4{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;color:var(--az);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--az50)}
+.tarjeta-body #tCli{font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:var(--az)}
+.tarjeta-pr{text-align:center;padding:16px;background:#fff;border:1px solid var(--az50);border-radius:8px;margin-bottom:16px}
+.tarjeta-pr .v{font-family:'Montserrat',sans-serif;font-size:38px;font-weight:900;color:var(--az);letter-spacing:-.02em}
+.tarjeta-pr .l{font-size:11px;color:var(--az);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.tarjeta-llevar{border-top:1px solid var(--az50);padding:10px 0 0;font-size:10px;color:var(--az);margin-top:14px;font-weight:700}
+.tarjeta-ft{background:var(--az);padding:14px 24px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
+.tarjeta-ft *{color:#fff}
+.tarjeta-ft .tyc{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;letter-spacing:.04em}
+.tarjeta-ft .slogan{font-family:'Montserrat',sans-serif;font-weight:900;font-size:13px}
 .ft-bar{display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bgp);border-top:1px solid var(--bd);font-size:10px;color:var(--tx3);font-family:var(--fm)}
 .ft-bar .li{display:flex;align-items:center;gap:4px;margin-left:auto}
 .toast{position:fixed;bottom:50px;right:20px;background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transform:translateY(16px);transition:var(--t);z-index:100}
@@ -510,15 +522,18 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <!-- Tarjeta oculta -->
 <div class="tarjeta" id="tarjeta">
-  <div class="tarjeta-hd"><div class="lt">ARMOTOR</div><div style="font-size:10px;opacity:.8">Cotización de servicio</div></div>
-  <div class="tarjeta-body">
-    <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px"><div><strong id="tCli">Cliente</strong><br><span style="color:#666" id="tVeh">Modelo</span></div><div style="text-align:right;color:#666;font-size:11px" id="tFe"></div></div>
-    <div class="tarjeta-pr"><div class="l" id="tSrv">Mantenimiento 10.000 km</div><div class="v" id="tPr">$ —</div></div>
-    <div style="margin-bottom:12px"><h4 style="font-size:12px;color:#16a34a;margin-bottom:6px;border-bottom:2px solid #e8f5e9;padding-bottom:4px">✅ Incluye</h4><ul style="list-style:none;font-size:10px;columns:2;column-gap:12px" id="tInc"></ul></div>
-    <div><h4 style="font-size:12px;color:#ea580c;margin-bottom:6px;border-bottom:2px solid #fff3e0;padding-bottom:4px">⚠️ No incluido (sujeto a inspección)</h4><ul style="list-style:none;font-size:10px" id="tExc"></ul></div>
-    <div style="background:#f0fdf4;border-radius:5px;padding:6px 10px;font-size:10px;color:#15803d;margin-top:10px">📋 Llevar: tarjeta de propiedad, manual de garantías, llave de pernos</div>
+  <div class="tarjeta-hd">
+    <div class="logo" id="tLogo"><div class="lt"><small>30</small>armotor</div><div class="tg">Le pone <b>motor</b> a tu vida</div></div>
+    <div class="tt">Cotización de servicio</div>
   </div>
-  <div class="tarjeta-ft">Precios sujetos a variación · Armotor le pone motor a su vida</div>
+  <div class="tarjeta-body">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:12px"><div><strong id="tCli">Cliente</strong><br><span style="color:#3a4246" id="tVeh">Modelo</span></div><div style="text-align:right;color:#3a4246;font-size:11px" id="tFe"></div></div>
+    <div class="tarjeta-pr"><div class="l" id="tSrv">Mantenimiento 10.000 km</div><div class="v" id="tPr">$ —</div></div>
+    <div style="margin-bottom:12px"><h4>✔ Incluye</h4><ul style="list-style:none;font-size:10px;columns:2;column-gap:12px" id="tInc"></ul></div>
+    <div><h4>⚠ No incluido (sujeto a inspección)</h4><ul style="list-style:none;font-size:10px" id="tExc"></ul></div>
+    <div class="tarjeta-llevar">Llevar: tarjeta de propiedad, manual de garantías, llave de pernos</div>
+  </div>
+  <div class="tarjeta-ft"><div class="tyc">Aplica TyC: Precios sujetos a variación.</div><div class="slogan">Armotor le pone motor a tu vida</div></div>
 </div>
 <!-- Modo TV (fullscreen) -->
 <div class="tv-overlay" id="tvOverlay">
@@ -531,6 +546,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.29.0"></script>
+<script type="module" src="app.js?v=1.30.0"></script>
 </body>
 </html>
