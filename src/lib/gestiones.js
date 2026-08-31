@@ -15,7 +15,7 @@ import { supabase } from './supabaseClient.js';
 // ---------------------------------------------------------------
 //  Traducciones UI ⇄ enums de la base
 // ---------------------------------------------------------------
-const ORIGEN_A_DB = { 'Inbound':'inbound', 'Base':'base', 'Formulario':'formulario', 'Chat MTIC':'chat_mtic', 'Otros':'otros', 'Interno':'interno', 'Leads posventa':'lead_posventa' };
+const ORIGEN_A_DB = { 'Inbound':'inbound', 'Base':'base', 'Formulario':'formulario', 'Chat MTIC':'chat_mtic', 'Otros':'otros', 'Interno':'interno', 'Leads posventa':'lead_posventa', 'No ingresó taller':'no_ingreso' };
 const ORIGEN_A_UI = Object.fromEntries(Object.entries(ORIGEN_A_DB).map(([k,v]) => [v,k]));
 
 const RESULTADO_A_DB = {
@@ -223,7 +223,7 @@ async function camposGestionDesdePayload(p){
 // Traduce el payload de la UI a la fila COMPLETA de `gestiones` (sin FKs,
 // que se resuelven en guardarGestion).
 async function filaDesdePayload(p, usuario){
-  const esInterno = p.origen === 'Interno' || p.origen === 'Leads posventa';
+  const esInterno = ['Interno', 'Leads posventa', 'No ingresó taller'].includes(p.origen);
   const resultadoDb = esInterno && !p.resultado ? null : (RESULTADO_A_DB[p.resultado] || null);
   const comunes = await camposGestionDesdePayload(p);
   return {
@@ -428,7 +428,7 @@ export async function listarSeguimientos(filtros){
 export async function listarCasosInternos(filtros){
   requiereSupabase();
   const f = filtros || {};
-  let q = supabase.from('gestiones').select(SELECT_GESTION).in('origen', ['interno', 'lead_posventa'])
+  let q = supabase.from('gestiones').select(SELECT_GESTION).in('origen', ['interno', 'lead_posventa', 'no_ingreso'])
     .order('creado_en', { ascending: false }).limit(f.limite || 500);
   if (f.estado)    q = q.eq('estado', f.estado);
   if (f.cola)      q = q.eq('cola', f.cola);

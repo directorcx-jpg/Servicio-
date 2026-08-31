@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.30.0';
+import { DATA } from './data.js?v=1.31.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -18,7 +18,7 @@ import {
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.30.0';
+} from './src/lib/gestiones.js?v=1.31.0';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -1063,8 +1063,8 @@ function updateInternosBadges(){
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
 // Casos internos = radicados por un compañero o leads Meta (ambos con cola y rotación).
-function esCasoInterno(g){ return g.origen === 'Interno' || g.origen === 'Leads posventa'; }
-const ORIGEN_BADGE = { 'Leads posventa': 'background:rgba(245,158,11,.14);color:#d97706;font-weight:600', 'Interno': 'background:rgba(168,85,247,.12);color:#a855f7' };
+function esCasoInterno(g){ return ['Interno', 'Leads posventa', 'No ingresó taller'].includes(g.origen); }
+const ORIGEN_BADGE = { 'Leads posventa': 'background:rgba(245,158,11,.14);color:#d97706;font-weight:600', 'No ingresó taller': 'background:rgba(56,189,248,.14);color:#0284c7;font-weight:600', 'Interno': 'background:rgba(168,85,247,.12);color:#a855f7' };
 const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
 const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
 // Rango por defecto del tablero: últimos 7 días (fecha de radicación).
@@ -1074,7 +1074,7 @@ function ctrlRangoDefecto(){
   return { desde: iso(d), hasta: iso(hoy) };
 }
 let ctrlFiltro = { asesor:'', resultado:'', origen:'', ...ctrlRangoDefecto() };
-const CTRL_ORIGENES = ['Inbound','Base','Formulario','Chat MTIC','Otros','Interno','Leads posventa'];
+const CTRL_ORIGENES = ['Inbound','Base','Formulario','Chat MTIC','Otros','Interno','Leads posventa','No ingresó taller'];
 // Resultado de la consulta por rango a Supabase (spec filtro-fecha-radicacion):
 // clave = 'desde|hasta' consultada; rows = gestiones del rango; error para el aviso.
 let ctrlRango = { clave:'', rows:null, cargandoClave:'', error:'' };
@@ -1266,6 +1266,37 @@ function renderHomeAlertas(){
     : '';
 }
 
+// Recuperación de no-ingresos (filtro Origen = No ingresó taller):
+// alertas recibidas → contactados → reagendados, con tasas.
+function tarjetasNoIngresos(fil){
+  const rec = fil.length;
+  const pend = fil.filter(g => g.resultado === 'pendiente').length;
+  const noc = fil.filter(g => g.resultado === 'noc').length;
+  const cont = rec - pend - noc;
+  const ag = fil.filter(g => g.resultado === 'agenda').length;
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  const porAsesor = {};
+  fil.forEach(g => {
+    const a = g.asignadoAlias || g.asesorCeta || '—';
+    porAsesor[a] = porAsesor[a] || { r:0, c:0, ag:0 };
+    porAsesor[a].r++;
+    if (!['pendiente','noc'].includes(g.resultado)) porAsesor[a].c++;
+    if (g.resultado === 'agenda') porAsesor[a].ag++;
+  });
+  const tarjeta = (l, n, c, sub) => `<div class="fb" style="text-align:center;padding:14px;border-top:3px solid ${c||'var(--bd)'}"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div>${sub?`<div style="font-size:9px;color:var(--tx3)">${sub}</div>`:''}</div>`;
+  const filaA = ([a,x]) => `<tr><td><strong>${esc(a)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.r}</td><td style="text-align:center;font-family:var(--fm)">${x.c}</td><td style="text-align:center;font-family:var(--fm)">${x.ag}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${pct(x.ag,x.r)}</td></tr>`;
+  return `<div class="fb" style="margin-bottom:14px;border-left:3px solid #0284c7"><div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-car-side"></i></span>Recuperación de no-ingresos al taller <span style="font-size:10px;color:var(--tx3);font-weight:400">· alertas recibidas en el rango</span></div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px">
+      ${tarjeta('No-ingresos', rec, '#0284c7')}
+      ${tarjeta('Sin gestionar', pend, 'var(--wr)')}
+      ${tarjeta('Contactados', cont, 'var(--in)', 'tasa de contacto ' + pct(cont, rec))}
+      ${tarjeta('Reagendados', ag, 'var(--ok)')}
+      ${tarjeta('Recuperación', pct(ag, rec), 'var(--ok)', 'reagendados ÷ recibidos')}
+    </div>
+    <table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Recibidos</th><th style="text-align:center">Contactados</th><th style="text-align:center">Reagendados</th><th style="text-align:center">Recuperación</th></tr></thead><tbody>
+      ${Object.entries(porAsesor).sort((a,b)=>b[1].r-a[1].r).map(filaA).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--tx3)">Sin no-ingresos en el rango</td></tr>'}
+    </tbody></table></div>`;
+}
 // Embudo de leads Meta (filtro Origen = Leads posventa): recibidos →
 // contactados → agendados, con tasas. "Contactado" = cualquier
 // tipificación distinta de pendiente / no contesta.
@@ -1393,7 +1424,7 @@ function renderControl(){
     ${rangoCargando ? `<div class="al in" style="margin-bottom:10px"><i class="fas fa-spinner fa-spin"></i><div>Consultando lo radicado del ${esc(ctrlFiltro.desde)} al ${esc(ctrlFiltro.hasta)}…</div></div>` : ''}
     ${ctrlRango.error && !rangoCargando ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>${esc(ctrlRango.error)}</div></div>` : ''}
     ${!rangoCargando && supabaseEnabled && (ctrlRango.rows||[]).length >= CTRL_TOPE ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>El rango supera ${CTRL_TOPE.toLocaleString('es-CO')} gestiones — se muestran las más recientes. Acorta el rango para ver todo.</div></div>` : ''}
-    ${ctrlFiltro.origen === 'Leads posventa' ? tarjetasLeads(fil) : ''}
+    ${ctrlFiltro.origen === 'Leads posventa' ? tarjetasLeads(fil) : ctrlFiltro.origen === 'No ingresó taller' ? tarjetasNoIngresos(fil) : ''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
         `<div class="fb" style="text-align:center;padding:14px"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div></div>`).join('')}
@@ -1847,7 +1878,7 @@ function openCaseDetail(id){
     </div>
     <div class="modal-body">
       <div class="badges" style="margin-bottom:12px">
-        ${g.origen==='Leads posventa'?`<span class="badge" style="background:rgba(245,158,11,.14);color:#d97706"><i class="fas fa-bullhorn"></i> Lead posventa · Cola ${esc(g.cola||'—')}</span>`:esCasoInterno(g)?`<span class="badge" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-inbox"></i> Interno · Cola ${esc(g.cola||'—')}</span>`:''}
+        ${g.origen==='No ingresó taller'?`<span class="badge" style="background:rgba(56,189,248,.14);color:#0284c7"><i class="fas fa-car-side"></i> No ingresó taller · Cola ${esc(g.cola||'—')}</span>`:g.origen==='Leads posventa'?`<span class="badge" style="background:rgba(245,158,11,.14);color:#d97706"><i class="fas fa-bullhorn"></i> Lead posventa · Cola ${esc(g.cola||'—')}</span>`:esCasoInterno(g)?`<span class="badge" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-inbox"></i> Interno · Cola ${esc(g.cola||'—')}</span>`:''}
         <span class="badge"><i class="fas fa-user"></i> ${esCasoInterno(g)?'Asignado':'Creó'}: ${esc(g.asignadoAlias||g.createdByAlias||g.asesorCeta||'—')}</span>
         <span class="badge"><i class="fas fa-clock"></i> ${esc(fmtFechaHora(g._ts))}</span>
         ${!editable?'<span class="badge" style="background:var(--wrs);color:var(--wr)"><i class="fas fa-eye"></i> Solo lectura</span>':''}

@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.30.0",
+    version: "1.31.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -123,7 +123,7 @@ export const DATA = {
       B: { nombre: "Cola B · No genera factura" }
     },
     tiposRadicacion: ["Nuevo", "Reagendar"],
-    gruposChat: ["Citas Taller", "G Manizales", "G Pereira", "G Armenia", "G La Dorada", "G Cartago", "Leads posventa", "Otros"],
+    gruposChat: ["Citas Taller", "G Manizales", "G Pereira", "G Armenia", "G La Dorada", "G Cartago", "Leads posventa", "No ingresos", "Otros"],
     propiedadDias: 10,     // REGLA 0: ventana de propiedad por placa
     slaMinutos: 5          // temporizador del caso se pone rojo a los 5 min
   },

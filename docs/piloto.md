@@ -51,6 +51,8 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 28 | 2026-08-21 | Pablo | Los leads Meta entraban como origen "Interno": no se distinguían en Control ni se podía medir su efectividad | Media | ✅ Corregido |
 | 29 | 2026-08-21 | Pablo | La matriz de agendas del TV mostraba todo el mes por fecha de cita, no para qué días quedó agendado lo radicado en el rango | Media | ✅ Corregido |
 | 30 | 2026-08-21 | Pablo | La tarjeta de cotización descargable no tenía la identidad Armotor (colores, tipografía, logo, TyC) | Baja | ✅ Corregido |
+| 31 | 2026-08-29 | Pablo | Cotizador sin modelos para Juan Manuel (Johana sí veía): la hoja "Kits Kia" del libro quedó con 464 filas ocultas y el corte de las 9 pm borró 434 kits de Supabase | Alta | ✅ Corregido |
+| 32 | 2026-08-31 | Pablo | Vehículos agendados que no ingresan al taller: la alerta por correo al asesor de servicio no genera la llamada de reagendamiento (IT no comparte el sheet de entradas) | Alta | ✅ En producción |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -268,3 +270,36 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   "Armotor le pone motor a tu vida" resaltado; usa
   `assets/logo-armotor-blanco.(svg|png)` si existe (pendiente que Pablo lo
   cargue; mientras tanto logo en texto).
+- **#31 (solo Supabase, sin cambio de código en el repo)**: la lectura por
+  CSV (gviz) omite filas ocultas/filtradas; el 28/08 en la noche el corte
+  vio solo 4 kits (TASMAN) y, fiel al libro, eliminó los otros 434 —
+  quien tenía caché local buena (Johana) no lo notaba, quien recibía datos
+  frescos (Juan Manuel) veía el selector de modelos vacío. Corrección:
+  (a) datos restaurados desde el export completo del libro (438 kits, 43
+  modelos, 390 con horas, TASMAN incluido), registrado en
+  `cotizador_sync_log`; (b) Edge Function `sincronizar-cotizador` v3 con
+  guarda: si el libro devuelve menos de la mitad de los kits que ya tiene
+  el CRM, aborta sin modificar nada y deja el motivo en la bitácora
+  (verificado en vivo: abortó con 4 vs 438). PENDIENTE del equipo del
+  analista de datos: desocultar las filas de "Kits Kia" — mientras sigan
+  ocultas el corte nocturno aborta (protegido) y los cambios nuevos del
+  libro no entran al CRM. Regla operativa: no dejar filtros ni filas
+  ocultas guardadas en esa hoja.
+- **#32 Ingesta de no-ingresos al taller** (spec
+  2026-08-31-ingesta-no-ingresos-taller; migraciones `origen_no_ingreso` +
+  `ingesta_no_ingresos_taller`; Edge Function `ingestar-no-ingresos`;
+  v1.31.0): una rutina programada de Claude lee el buzón del director CX
+  (lun–sáb 7:30 am–2:00 pm, cada 20 min) y cada correo "ALERTA: Vehículo …
+  no ha llegado" de auxsistemas se convierte en caso interno con marca
+  "No ingresó" y origen propio. Asignación: si la placa tiene gestión
+  agendada en el CRM en los últimos 45 días vuelve al asesor CETA que la
+  agendó (si sigue activo); si no, rotación Cola A. Sin chat (grupo
+  "No ingresos" sin webhook). Dedupe por placa+fecha
+  (`no_ingresos_ingestados`). Control: filtro Origen "No ingresó taller" +
+  bloque "Recuperación de no-ingresos" (recibidos, contactados,
+  reagendados, tasa por asesor). Backfill 29–31/08: 7 alertas → 7 casos,
+  6 con match al asesor que agendó y 1 a rotación; dedupe verificado.
+  NOTA OPERATIVA: la rutina corre mientras la app de Claude esté abierta
+  en el equipo del director; si está cerrada, se pone al día al abrirla
+  (el dedupe evita duplicados). Si IT comparte el sheet o un webhook, se
+  migra el puente sin tocar el CRM.
