@@ -19,7 +19,7 @@ const ORIGEN_A_DB = { 'Inbound':'inbound', 'Base':'base', 'Formulario':'formular
 const ORIGEN_A_UI = Object.fromEntries(Object.entries(ORIGEN_A_DB).map(([k,v]) => [v,k]));
 
 const RESULTADO_A_DB = {
-  agenda:'agendado', seg:'seguimiento', comunica:'se_comunica', noc:'no_contesta',
+  agenda:'agendado', reagenda:'reagendado', seg:'seguimiento', comunica:'se_comunica', noc:'no_contesta',
   sinKm:'sin_km', otroTaller:'otro_taller', actualizar:'actualizar_datos', noContactar:'no_contactar',
   companero:'gestion_companero'
 };
@@ -402,7 +402,7 @@ export async function listarCitasEntre(desde, hasta){
   const { data, error } = await supabase
     .from('gestiones')
     .select('cita_fecha, sede')
-    .eq('resultado', 'agendado')
+    .in('resultado', ['agendado', 'reagendado'])
     .gte('cita_fecha', desde)
     .lte('cita_fecha', hasta)
     .limit(3000);

@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.31.0';
+import { DATA } from './data.js?v=1.32.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -18,7 +18,7 @@ import {
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.31.0';
+} from './src/lib/gestiones.js?v=1.32.0';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -450,10 +450,10 @@ function renderHome(){
   const todas = getGestionesLocal();
   const propias = equipo ? todas : todas.filter(g => (g.asesorCeta||g.asignadoAlias) === S.user.alias);
   const deHoy = propias.filter(g => new Date(g._ts||0).toISOString().slice(0,10) === hoyStr2);
-  const agend = propias.filter(g => g.resultado === 'agenda').length;
+  const agend = propias.filter(g => esAgendaRes(g.resultado)).length;
   const pend = propias.filter(g => g.resultado === 'pendiente').length;
   const stats = equipo
-    ? [[String(todas.length),'Gestiones totales',''],[String(todas.filter(g=>g.resultado==='agenda').length),'Agendadas','var(--ok)'],[String(todas.filter(g=>g.resultado==='pendiente').length),'Pendientes','var(--wr)'],[String(deHoy.length),'Hoy','']]
+    ? [[String(todas.length),'Gestiones totales',''],[String(todas.filter(g=>esAgendaRes(g.resultado)).length),'Agendadas','var(--ok)'],[String(todas.filter(g=>g.resultado==='pendiente').length),'Pendientes','var(--wr)'],[String(deHoy.length),'Hoy','']]
     : [[String(deHoy.length),'Mis gestiones hoy',''],[String(agend),'Mis agendadas','var(--ok)'],[String(pend),'Mis pendientes','var(--wr)'],[String(propias.length),'Mi total','']];
   $('#homeStats').innerHTML = stats.map(([n,l,c]) =>
     `<div><div style="font-family:var(--fd);font-weight:700;font-size:20px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${l}</div></div>`
@@ -1063,10 +1063,12 @@ function updateInternosBadges(){
 //  CONTROL DE GESTIÓN (coordinador/analista) + Modo TV
 // =============================================================
 // Casos internos = radicados por un compañero o leads Meta (ambos con cola y rotación).
+// Agendado y Reagenda comparten todo el flujo de cita (secciones, nota, métricas).
+function esAgendaRes(r){ return r === 'agenda' || r === 'reagenda'; }
 function esCasoInterno(g){ return ['Interno', 'Leads posventa', 'No ingresó taller'].includes(g.origen); }
 const ORIGEN_BADGE = { 'Leads posventa': 'background:rgba(245,158,11,.14);color:#d97706;font-weight:600', 'No ingresó taller': 'background:rgba(56,189,248,.14);color:#0284c7;font-weight:600', 'Interno': 'background:rgba(168,85,247,.12);color:#a855f7' };
-const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
-const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
+const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', reagenda:'Reagenda', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
+const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', reagenda:'#0d9488', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
 // Rango por defecto del tablero: últimos 7 días (fecha de radicación).
 function ctrlRangoDefecto(){
   const hoy = new Date(); const d = new Date(); d.setDate(hoy.getDate() - 6);
@@ -1273,7 +1275,7 @@ function tarjetasNoIngresos(fil){
   const pend = fil.filter(g => g.resultado === 'pendiente').length;
   const noc = fil.filter(g => g.resultado === 'noc').length;
   const cont = rec - pend - noc;
-  const ag = fil.filter(g => g.resultado === 'agenda').length;
+  const ag = fil.filter(g => esAgendaRes(g.resultado)).length;
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
   const porAsesor = {};
   fil.forEach(g => {
@@ -1281,7 +1283,7 @@ function tarjetasNoIngresos(fil){
     porAsesor[a] = porAsesor[a] || { r:0, c:0, ag:0 };
     porAsesor[a].r++;
     if (!['pendiente','noc'].includes(g.resultado)) porAsesor[a].c++;
-    if (g.resultado === 'agenda') porAsesor[a].ag++;
+    if (esAgendaRes(g.resultado)) porAsesor[a].ag++;
   });
   const tarjeta = (l, n, c, sub) => `<div class="fb" style="text-align:center;padding:14px;border-top:3px solid ${c||'var(--bd)'}"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div>${sub?`<div style="font-size:9px;color:var(--tx3)">${sub}</div>`:''}</div>`;
   const filaA = ([a,x]) => `<tr><td><strong>${esc(a)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.r}</td><td style="text-align:center;font-family:var(--fm)">${x.c}</td><td style="text-align:center;font-family:var(--fm)">${x.ag}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${pct(x.ag,x.r)}</td></tr>`;
@@ -1305,7 +1307,7 @@ function tarjetasLeads(fil){
   const pend = fil.filter(g => g.resultado === 'pendiente').length;
   const noc = fil.filter(g => g.resultado === 'noc').length;
   const cont = rec - pend - noc;
-  const ag = fil.filter(g => g.resultado === 'agenda').length;
+  const ag = fil.filter(g => esAgendaRes(g.resultado)).length;
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
   const porAsesor = {};
   fil.forEach(g => {
@@ -1313,14 +1315,14 @@ function tarjetasLeads(fil){
     porAsesor[a] = porAsesor[a] || { r:0, c:0, ag:0 };
     porAsesor[a].r++;
     if (!['pendiente','noc'].includes(g.resultado)) porAsesor[a].c++;
-    if (g.resultado === 'agenda') porAsesor[a].ag++;
+    if (esAgendaRes(g.resultado)) porAsesor[a].ag++;
   });
   const porMarca = {};
   fil.forEach(g => {
     const m = /LEAD META \((\w+)/.exec(g.notaSolicitante || '')?.[1] || '—';
     porMarca[m] = porMarca[m] || { r:0, ag:0 };
     porMarca[m].r++;
-    if (g.resultado === 'agenda') porMarca[m].ag++;
+    if (esAgendaRes(g.resultado)) porMarca[m].ag++;
   });
   const tarjeta = (l, n, c, sub) => `<div class="fb" style="text-align:center;padding:14px;border-top:3px solid ${c||'var(--bd)'}"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div>${sub?`<div style="font-size:9px;color:var(--tx3)">${sub}</div>`:''}</div>`;
   const filaA = ([a,x]) => `<tr><td><strong>${esc(a)}</strong></td><td style="text-align:center;font-family:var(--fm)">${x.r}</td><td style="text-align:center;font-family:var(--fm)">${x.c}</td><td style="text-align:center;font-family:var(--fm)">${x.ag}</td><td style="text-align:center;font-family:var(--fm);font-weight:700">${pct(x.ag,x.r)}</td></tr>`;
@@ -1390,7 +1392,7 @@ function renderControl(){
     (!ctrlFiltro.origen || (g.origen || 'Inbound') === ctrlFiltro.origen));
 
   const total = fil.length;
-  const agend = fil.filter(g => g.resultado === 'agenda').length;
+  const agend = fil.filter(g => esAgendaRes(g.resultado)).length;
   const noc = fil.filter(g => g.resultado === 'noc').length;
   const segc = fil.filter(g => g.resultado === 'seg').length;
 
@@ -1734,7 +1736,7 @@ async function abrirFicha360(sug){
 function renderFicha360(cliente, gs){
   const ficha = $('#cliFicha'); if (!ficha) return;
   const hoyISO = new Date().toISOString().slice(0, 10);
-  const citas = gs.filter(g => g.resultado === 'agenda' && g.fechaCita && g.fechaCita >= hoyISO)
+  const citas = gs.filter(g => esAgendaRes(g.resultado) && g.fechaCita && g.fechaCita >= hoyISO)
                   .sort((a, b) => a.fechaCita.localeCompare(b.fechaCita));
   const segs  = gs.filter(g => g.resultado === 'seg' && g.segFecha);
   const cots  = gs.filter(g => g.valor || g.kmServicio);
@@ -1982,7 +1984,7 @@ function stackedChart(titulo, icon, data, categorias){
 function graficasHTML(rows){
   if (!rows.length) return '';
   // Solo cuentan las AGENDADAS para "agendas por ciudad/asesor"; resultados usa todo.
-  const agendadas = rows.filter(g => g.resultado === 'agenda');
+  const agendadas = rows.filter(g => esAgendaRes(g.resultado));
   // Agendas por ciudad
   const porCiudad = {};
   agendadas.forEach(g => { const c = g.ciudad||'—'; porCiudad[c]=(porCiudad[c]||0)+1; });
@@ -2100,7 +2102,7 @@ async function actualizarTV(){
 function tvHTML(rows){
   const paneles = getTVPaneles();
   const total = rows.length;
-  const agend = rows.filter(g => g.resultado === 'agenda').length;
+  const agend = rows.filter(g => esAgendaRes(g.resultado)).length;
   const segc  = rows.filter(g => g.resultado === 'seg').length;
   const nocc  = rows.filter(g => g.resultado === 'noc').length;
   const pend  = rows.filter(g => g.resultado === 'pendiente').length;
@@ -2111,7 +2113,7 @@ function tvHTML(rows){
     // tablero, en qué días quedaron agendadas las citas (solo días con
     // agenda, pueden cruzar el mes). Responde "de lo radicado, ¿para
     // cuándo quedó la agenda?".
-    const citas = rows.filter(g => g.resultado === 'agenda' && g.fechaCita).map(g => ({ f: g.fechaCita, ciudad: g.ciudad || '—' }));
+    const citas = rows.filter(g => esAgendaRes(g.resultado) && g.fechaCita).map(g => ({ f: g.fechaCita, ciudad: g.ciudad || '—' }));
     const hoyF = new Date().toISOString().slice(0, 10);
     const matriz = {};   // ciudad -> {fecha: n}
     const fechasSet = new Set();
@@ -2142,7 +2144,7 @@ function tvHTML(rows){
       const a = g.asesorCeta || '—';
       por[a] = por[a] || { t: 0, ag: 0, sg: 0, nc: 0 };
       por[a].t++;
-      if (g.resultado === 'agenda') por[a].ag++;
+      if (esAgendaRes(g.resultado)) por[a].ag++;
       else if (g.resultado === 'seg') por[a].sg++;
       else if (g.resultado === 'noc') por[a].nc++;
     });
@@ -2155,7 +2157,7 @@ function tvHTML(rows){
     // Barras apiladas por asesor: cada segmento es un tipo de servicio con
     // su color; el largo de la barra es proporcional al total del asesor.
     const por = {}, totTipo = {};
-    rows.filter(g => g.resultado === 'agenda').forEach(g => {
+    rows.filter(g => esAgendaRes(g.resultado)).forEach(g => {
       const a = g.asesorCeta || '—', s = g.servicio || g.motivo || 'Sin tipo';
       por[a] = por[a] || { t: 0, ss: {} };
       por[a].t++;
@@ -2415,7 +2417,7 @@ function pickRes(b){
   const ocultar = id => $('#'+id) && $('#'+id).classList.add('hidden');
   const todasSec = ['sCotiz','sNovedad','sWego','sAdic','sObs'];
 
-  if (r === 'agenda') {
+  if (esAgendaRes(r)) {
     todasSec.forEach(mostrar);
     poblarComunicaSub(); poblarHoras();
   } else {
@@ -2448,7 +2450,7 @@ function aplicarVisibilidadCotizador(){
   const motivo = ($('#motivoSel')?.value || '').toLowerCase();
   const motivoOk = motivo === 'mantenimiento' || motivo === 'cotización' || motivo === 'cotizacion';
   // resultados donde tiene sentido cotizar
-  const resOk = ['agenda','comunica','seg'].includes(S.resultado);
+  const resOk = ['agenda','reagenda','comunica','seg'].includes(S.resultado);
   // caso interno Cola B nunca cotiza
   let colaB = false;
   if (S.casoActivo) { const ca = getGestionesLocal().find(x=>x.id===S.casoActivo); colaB = ca && colaDeServicio(ca.servicio)==='B'; }
@@ -2982,7 +2984,7 @@ function u(){
   // detalle · al final placa y teléfono · cierre CALL CENTER /iniciales.
   // Sin signos (++, ??, *): máximo detalle legible.
   const valorNota = q.found ? q.texto.replace('$ ', '') : '';
-  const motivoSel = f.motivo || (r === 'agenda' || r === 'seg' || r === 'sinKm' ? 'Mantenimiento' : '');
+  const motivoSel = f.motivo || (esAgendaRes(r) || r === 'seg' || r === 'sinKm' ? 'Mantenimiento' : '');
   const motivoLinea = motivoSel
     ? [motivoSel.toUpperCase(), kmTxt.toUpperCase(), valorNota ? `${valorNota} IVA INCLUIDO` : ''].filter(Boolean).join(' ')
     : '';
@@ -2991,11 +2993,12 @@ function u(){
   const armarNota = partes => [motivoLinea, ...partes, pla, tel].filter(Boolean).join(' // ')
     + ' // CALL CENTER' + (iniNota ? ` /${iniNota}` : '');
 
-  if (r === 'agenda') {
+  if (esAgendaRes(r)) {
     const serv = motivo.toUpperCase();
     mot = serv === 'MANTENIMIENTO' ? 'CAMBIO DE ACEITE' : serv;
     voz = (S.hasNovedad && f.novedad) ? f.novedad.toUpperCase() : 'MANTENIMIENTO PREVENTIVO';
     const pts = [];
+    if (r === 'reagenda') pts.push('REAGENDA (NO INGRESÓ A CITA ANTERIOR)');
     if (S.hasNovedad && f.novedad) pts.push(f.novedad.toUpperCase());          // 2º: la novedad tal cual
     S.checks.forEach(c => pts.push(c));                                        // 3º: VALIDAR …
     if (S.adicionales.has('telemetria')) pts.push(S.teleAcepta ? 'CONTRATA TELEMETRIA' : 'OFRECE TELEMETRIA');
@@ -3090,7 +3093,7 @@ function validateSemaforo(){
   if (r !== 'sinKm' && r !== 'companero' && !f.kmActual) req.push('Km actual');
   // Gestión de compañero: la observación que referencia la gestión previa es obligatoria.
   if (r === 'companero' && !f.observacion) req.push('Observación (quién gestionó)');
-  if (r === 'agenda') {
+  if (esAgendaRes(r)) {
     if (!f.asesorTaller) req.push('Asesor taller');
     if (S.hasWG) {
       if (!f.wgFecha)     req.push('Fecha We Go');

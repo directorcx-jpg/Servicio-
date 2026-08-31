@@ -53,6 +53,7 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 30 | 2026-08-21 | Pablo | La tarjeta de cotización descargable no tenía la identidad Armotor (colores, tipografía, logo, TyC) | Baja | ✅ Corregido |
 | 31 | 2026-08-29 | Pablo | Cotizador sin modelos para Juan Manuel (Johana sí veía): la hoja "Kits Kia" del libro quedó con 464 filas ocultas y el corte de las 9 pm borró 434 kits de Supabase | Alta | ✅ Corregido |
 | 32 | 2026-08-31 | Pablo | Vehículos agendados que no ingresan al taller: la alerta por correo al asesor de servicio no genera la llamada de reagendamiento (IT no comparte el sheet de entradas) | Alta | ✅ En producción |
+| 33 | 2026-08-31 | Pablo | Al gestionar un no-ingreso no había forma de tipificar la reagenda: tocaba usar "Agendado" y no se distinguía cita nueva de cita recuperada | Media | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -303,3 +304,13 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   en el equipo del director; si está cerrada, se pone al día al abrirla
   (el dedupe evita duplicados). Si IT comparte el sheet o un webhook, se
   migra el puente sin tocar el CRM.
+- **#33 Resultado "Reagenda" (v1.32.0)**: nueva tipificación 🔁 Reagenda en
+  el panel, disponible en todas las gestiones. Abre las mismas secciones
+  que Agendado (asesor de taller, fecha y hora de cita, We Go, cotización,
+  adicionales) con las mismas validaciones; la nota Quiter inicia con
+  "REAGENDA (NO INGRESÓ A CITA ANTERIOR)". Enum `reagendado` en Supabase;
+  el chat de Citas Taller notifica con "📅 Cita (reagendada)"; el trigger
+  que cierra seguimientos al agendar también aplica; las reagendas cuentan
+  como agendas en Control, Modo TV, matriz de citas y en las tarjetas de
+  efectividad de leads y recuperación de no-ingresos; el match de 45 días
+  del ingestor de no-ingresos también reconoce citas reagendadas.
