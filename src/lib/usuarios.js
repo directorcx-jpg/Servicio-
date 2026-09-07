@@ -53,3 +53,26 @@ export async function listarAsesoresTaller() {
   if (error) throw new Error('No se pudo leer los asesores de taller: ' + error.message);
   return (data || []).map(a => ({ id: a.id, nombre: a.nombre, sede: a.sedes ? a.sedes.ciudad : null }));
 }
+
+// ===== Panel "Equipo en rotación" (coordinador/administrador) =====
+// Lista completa de asesores CC con estado y pendientes (RPC security definer).
+export async function listarEquipoCC() {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('listar_equipo_cc');
+  if (error) { console.error('[Usuarios] listarEquipoCC', error); return []; }
+  return data || [];
+}
+
+// Cambia el estado operativo de un asesor (valida rol en el servidor).
+export async function setAsesorOperativo(id, activo) {
+  const { error } = await supabase.rpc('set_asesor_operativo', { p_id: id, p_activo: activo });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+// Reparte por rotación los casos pendientes de un asesor. Devuelve cuántos.
+export async function repartirPendientes(id) {
+  const { data, error } = await supabase.rpc('repartir_pendientes', { p_id: id });
+  if (error) throw new Error(error.message);
+  return data || 0;
+}

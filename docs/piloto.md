@@ -54,6 +54,8 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
 | 31 | 2026-08-29 | Pablo | Cotizador sin modelos para Juan Manuel (Johana sí veía): la hoja "Kits Kia" del libro quedó con 464 filas ocultas y el corte de las 9 pm borró 434 kits de Supabase | Alta | ✅ Corregido |
 | 32 | 2026-08-31 | Pablo | Vehículos agendados que no ingresan al taller: la alerta por correo al asesor de servicio no genera la llamada de reagendamiento (IT no comparte el sheet de entradas) | Alta | ✅ En producción |
 | 33 | 2026-08-31 | Pablo | Al gestionar un no-ingreso no había forma de tipificar la reagenda: tocaba usar "Agendado" y no se distinguía cita nueva de cita recuperada | Media | ✅ Corregido |
+| 34 | 2026-09-01 | Pablo | We Go marcado con la tipificación Reagenda no notificaba: el hilo de chat y el recordatorio diario solo reconocían "Agendado" | Alta | ✅ Corregido |
+| 35 | 2026-09-04 | Pablo | La rotación seguía asignando casos a asesores inactivados (Mille, Juan Diego): los bloques ya armados no validaban contra los activos; y el coordinador no tenía forma de controlar quién está operativo | Alta | ✅ Corregido |
 
 ## Corregidos y desplegados
 - **#1 Descuento del cotizador** (v1.18.1): la fórmula ahora descuenta solo
@@ -314,3 +316,29 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   como agendas en Control, Modo TV, matriz de citas y en las tarjetas de
   efectividad de leads y recuperación de no-ingresos; el match de 45 días
   del ingestor de no-ingresos también reconoce citas reagendadas.
+- **#34 We Go con Reagenda (v1.32.1)**: al crear la tipificación Reagenda
+  (#33) quedaron por fuera dos automatizaciones de We Go: el trigger
+  `notificar_wego` (hilo en el chat de la sede) y `recordatorio_wego`
+  (resumen diario de la víspera) solo disparaban con resultado
+  "agendado". Ambos actualizados para incluir `reagendado` (el mensaje
+  dice "We Go agendado (reagenda)"). Además, el caso OZZ565 (no-ingreso
+  → Reagenda de Karen, 01/09) quedó guardado SIN We Go
+  (`we_go_aplica=false`): el switch no estaba activo al guardar — se pidió
+  regestionar el caso activando We Go. Front: ajuste menor para que al
+  cancelar un caso activo la sección We Go reaparezca también con
+  Reagenda. Verificado el flujo Reagenda+We Go en navegador (sección
+  visible, switch y campos guardan en el payload).
+- **#35 Rotación con inactivos + panel "Equipo en rotación" (v1.33.0; spec
+  2026-09-04-equipo-en-rotacion)**: (a) `siguiente_asesor_rotacion` ahora
+  salta a los asesores inactivos al momento de entregar (el bloque de 5
+  pudo armarse antes de la inactivación) y el front hace lo mismo con el
+  bloque del día guardado en el navegador — verificado: 9 asignaciones
+  seguidas en servidor y 6 en front sin tocar a los inactivos; (b) los 2
+  pendientes de Mille se repartieron por rotación (NXK576 → Alejandro P,
+  PAS447 → Juan Manuel) con registro en historial; (c) nueva sección
+  "Equipo en rotación" en Configuración (coordinador/administrador):
+  switch Operativo por asesor CC vía RPC `set_asesor_operativo` (valida el
+  rol en el servidor y reinicia los bloques), contador de pendientes y
+  botón "Repartir pendientes" (`repartir_pendientes`, reasigna por
+  rotación con historial). Al cambiar un estado el front limpia su bloque
+  local y recarga la lista de activos.

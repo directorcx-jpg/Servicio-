@@ -3,11 +3,11 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.32.0';
+import { DATA } from './data.js?v=1.33.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
-import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller } from './src/lib/usuarios.js';
+import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller, listarEquipoCC, setAsesorOperativo, repartirPendientes } from './src/lib/usuarios.js?v=1.33.0';
 import {
   guardarGestion as sbGuardarGestion,
   listarGestiones as sbListarGestiones,
@@ -2256,10 +2256,62 @@ function pintarTV(rows){
 // =============================================================
 const inpStyle = 'border:1px solid var(--bd);background:var(--bgs);color:var(--tx);padding:5px 7px;border-radius:5px;font-size:11px;font-family:var(--f)';
 
+
+// ===== Equipo en rotación: el coordinador enciende/apaga asesores CC =====
+// Apagar a alguien lo saca de la rotación al instante (server + front) y
+// permite repartir sus pendientes por rotación de una sola vez (piloto #35).
+async function renderEquipoConfig(){
+  const box = $('#equipoRotacion'); if (!box) return;
+  if (!supabaseEnabled) { box.innerHTML = '<div style="font-size:11px;color:var(--tx3)">Disponible solo con conexión a Supabase.</div>'; return; }
+  let equipo = [];
+  try { equipo = await listarEquipoCC(); } catch (e) { console.error(e); }
+  if (!equipo.length) { box.innerHTML = '<div style="font-size:11px;color:var(--tx3)">No se pudo cargar el equipo.</div>'; return; }
+  box.innerHTML = `
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Apagar a un asesor lo saca de la rotación de casos internos de inmediato (vacaciones, licencia, retiro). Sus casos pendientes se pueden repartir entre los demás con un clic.</div>
+    <table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Operativo</th><th style="text-align:center">Pendientes</th><th></th></tr></thead><tbody>
+    ${equipo.map(u => `<tr>
+      <td><strong>${esc(u.alias || u.nombre)}</strong>${u.activo ? '' : ' <span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444">Inactivo</span>'}</td>
+      <td style="text-align:center"><label class="tog" style="justify-content:center"><span class="tog-sw eq-tog ${u.activo?'on':''}" data-id="${esc(u.id)}" data-alias="${esc(u.alias||u.nombre)}" data-activo="${u.activo?'1':'0'}"></span></label></td>
+      <td style="text-align:center;font-family:var(--fm)">${u.pendientes}</td>
+      <td style="text-align:right">${(!u.activo && Number(u.pendientes) > 0) ? `<button class="btn btn-gh eq-rep" data-id="${esc(u.id)}" data-alias="${esc(u.alias||u.nombre)}"><i class="fas fa-shuffle"></i> Repartir pendientes</button>` : ''}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+  $$('#equipoRotacion .eq-tog').forEach(sw => sw.addEventListener('click', () => {
+    const activar = sw.dataset.activo !== '1';
+    const alias = sw.dataset.alias;
+    confirmModal(activar ? `Activar a ${alias}` : `Inactivar a ${alias}`,
+      activar
+        ? `<strong>${esc(alias)}</strong> volverá a recibir casos en el siguiente bloque de rotación. ¿Continuar?`
+        : `<strong>${esc(alias)}</strong> dejará de recibir casos internos de inmediato. Sus pendientes NO se mueven solos: usa «Repartir pendientes» después si quieres redistribuirlos. ¿Continuar?`,
+      async () => {
+        try {
+          await setAsesorOperativo(sw.dataset.id, activar);
+          try { localStorage.removeItem(LS_COLAS); } catch {}
+          S.asesoresCC = await listarAsesoresCC();
+          toast(activar ? `✅ ${alias} activo en rotación` : `⏸️ ${alias} fuera de rotación`);
+          renderEquipoConfig();
+        } catch (e) { console.error(e); toast('⚠️ ' + (e.message || 'No se pudo cambiar el estado')); }
+      });
+  }));
+  $$('#equipoRotacion .eq-rep').forEach(b => b.addEventListener('click', () => {
+    const alias = b.dataset.alias;
+    confirmModal(`Repartir pendientes de ${alias}`,
+      `Los casos <strong>pendientes</strong> de ${esc(alias)} se reasignarán por rotación entre los asesores activos, con registro en el historial de cada caso. ¿Continuar?`,
+      async () => {
+        try {
+          const n = await repartirPendientes(b.dataset.id);
+          toast(`✅ ${n} caso${n===1?'':'s'} repartido${n===1?'':'s'} por rotación`);
+          refrescarInternos();
+          renderEquipoConfig();
+        } catch (e) { console.error(e); toast('⚠️ ' + (e.message || 'No se pudo repartir')); }
+      });
+  }));
+}
 function renderConfig(){
   if (!can('config')) return;
   renderListasConfig();
   renderConexionConfig();
+  renderEquipoConfig();
   const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
     confirmModal('Limpiar caché local', `Esto borra la <strong>caché de gestiones de este navegador</strong>. Los datos reales viven en Supabase y se recargan al sincronizar. ¿Continuar?`, () => {
       localStorage.removeItem(LS_GESTIONES);
@@ -3429,10 +3481,18 @@ function saveColas(){ if (S.colas) localStorage.setItem(LS_COLAS, JSON.stringify
 function siguienteDeCola(colaKey){
   const st = S.colas || loadColas();
   let c = st[colaKey];
-  if (!c.orden || !c.orden.length) { c.orden = barajarPool(); c.pos = 0; }
-  if (c.pos >= c.orden.length) { c.orden = barajarPool(); c.pos = 0; } // nuevo bloque
-  const asesorId = c.orden[c.pos];
-  c.pos += 1;
+  // Salta ids que ya no estén en el pool de activos: el bloque del día pudo
+  // armarse ANTES de inactivar a un asesor (piloto #35).
+  const activos = new Set(rotacionPool().map(u => u.id));
+  let asesorId = null, intentos = 0;
+  while (intentos < 25) {
+    if (!c.orden || !c.orden.length || c.pos >= c.orden.length) { c.orden = barajarPool(); c.pos = 0; }
+    if (!c.orden.length) break;
+    const cand = c.orden[c.pos];
+    c.pos += 1;
+    intentos += 1;
+    if (activos.has(cand)) { asesorId = cand; break; }
+  }
   saveColas();
   return asesorId;
 }
@@ -3551,7 +3611,7 @@ function cancelarCasoActivo(){
   S.casoActivo = null;
   const b = $('#casoActivoBanner'); if (b) b.style.display = 'none';
   const sCotiz = $('#sCotiz'); if (sCotiz) sCotiz.classList.remove('hidden');
-  const sWego = $('#sWego'); if (sWego && S.resultado==='agenda') sWego.classList.remove('hidden');
+  const sWego = $('#sWego'); if (sWego && esAgendaRes(S.resultado)) sWego.classList.remove('hidden');
 }
 
 function resetPanel(){
