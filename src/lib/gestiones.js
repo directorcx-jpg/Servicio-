@@ -339,18 +339,31 @@ export function uiDesdeFila(r){
 
 // Lista gestiones con joins, filtrable. Ordenada descendente por creación.
 // filtros: { desde, hasta, sede, asesorId, estado, limite }
+// PostgREST devuelve máximo 1.000 filas por consulta aunque se pida más
+// (silencioso), así que se pagina con range() hasta completar el límite:
+// un rango de Control con más de 1.000 gestiones perdía las más antiguas.
 export async function listarGestiones(filtros){
   requiereSupabase();
   const f = filtros || {};
-  let q = supabase.from('gestiones').select(SELECT_GESTION).order('creado_en', { ascending: false }).limit(f.limite || 500);
-  if (f.desde)    q = q.gte('creado_en', f.desde);
-  if (f.hasta)    q = q.lte('creado_en', f.hasta);
-  if (f.sede)     q = q.eq('sede', f.sede);
-  if (f.asesorId) q = q.eq('asesor_cc_id', f.asesorId);
-  if (f.estado)   q = q.eq('estado', f.estado);
-  const { data, error } = await q;
-  if (error) throw new Error('No se pudieron leer las gestiones: ' + error.message);
-  return (data || []).map(uiDesdeFila);
+  const tope = f.limite || 500;
+  const PAGINA = 1000;
+  const filas = [];
+  while (filas.length < tope) {
+    const lote = Math.min(PAGINA, tope - filas.length);
+    let q = supabase.from('gestiones').select(SELECT_GESTION)
+      .order('creado_en', { ascending: false })
+      .range(filas.length, filas.length + lote - 1);
+    if (f.desde)    q = q.gte('creado_en', f.desde);
+    if (f.hasta)    q = q.lte('creado_en', f.hasta);
+    if (f.sede)     q = q.eq('sede', f.sede);
+    if (f.asesorId) q = q.eq('asesor_cc_id', f.asesorId);
+    if (f.estado)   q = q.eq('estado', f.estado);
+    const { data, error } = await q;
+    if (error) throw new Error('No se pudieron leer las gestiones: ' + error.message);
+    filas.push(...(data || []));
+    if (!data || data.length < lote) break;
+  }
+  return filas.map(uiDesdeFila);
 }
 
 // Línea de tiempo de la ficha 360: TODAS las gestiones del cliente y/o de

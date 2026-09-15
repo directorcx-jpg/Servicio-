@@ -342,3 +342,37 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   botón "Repartir pendientes" (`repartir_pendientes`, reasigna por
   rotación con historial). Al cambiar un estado el front limpia su bloque
   local y recarga la lista de activos.
+- **#36 Leads posventa duplicados por corridas "a ciegas" (fix
+  `ingestar-leads` v4 / `ingestar-no-ingresos` v3, 15/09)**: durante la
+  degradación de Supabase del 12-13/09, en 3 corridas del cron (12/09
+  8:00am, 13/09 8:00am y 3:00pm) la lectura inicial de `leads_ingestados`
+  falló y la función continuó con la lista de dedupe vacía: re-creó los 12
+  leads vigentes en cada corrida (36 gestiones duplicadas, repartidas por
+  rotación y gestionadas de nuevo por los asesores). La anotación en la
+  tabla de control también fallaba en silencio (llave duplicada sin
+  verificar). Fix en dos capas: (1) **fallo cerrado** — si la lectura de la
+  tabla de control falla, la corrida se aborta y lo reporta, nunca procesa
+  a ciegas; (2) **reserva previa** — el lead/alerta se reserva en la tabla
+  de control ANTES de crear la gestión usando la llave única de la base de
+  datos como candado (si la reserva ya existe se salta; si la gestión
+  falla, la reserva se libera para reintentar). Mismo blindaje aplicado a
+  `ingestar-no-ingresos` (UNIQUE placa+fecha). Verificado en vivo: corrida
+  manual de leads → 0 nuevos/0 duplicados; alerta repetida de no-ingreso →
+  `duplicados: 1` sin crear nada. Limpieza: eliminadas las 36 gestiones
+  duplicadas del 12-13/09 (ninguna tenía cita agendada; se conservan las
+  12 originales). Hallazgo colateral: en la hoja de Honda la fila del lead
+  `l:1574831480750607` (22/08, ingresado como Jhon Freddy Bedoya) hoy
+  muestra otra persona (Marco Aurelio Ospina, tel. +1 314…) — la
+  sincronización de Meta parece reescribir filas; pendiente validar con
+  quien administra las hojas.
+- **#37 Control mostraba rangos incompletos — tope silencioso de 1.000
+  filas (v1.33.1)**: al revisar por qué el Control solo mostraba 6 de los
+  12 leads (rango 01/08–15/09), se encontró que PostgREST devuelve máximo
+  1.000 filas por consulta aunque el cliente pida más: el rango tenía
+  1.786 gestiones y las 1.000 más recientes llegaban solo hasta el ~24/08,
+  ocultando todo lo anterior (entre eso, 6 leads con los 2 agendados). La
+  advertencia de "rango muy grande" tampoco saltaba porque está calibrada
+  al tope propio (2.000). Fix: `listarGestiones` ahora pagina con
+  `range()` de a 1.000 hasta completar el límite pedido — aplica a
+  Control, Modo TV y exportes que usan la misma consulta. Los 12 leads y
+  los 2 agendados vuelven a verse completos en el rango.
