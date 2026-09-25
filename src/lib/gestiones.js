@@ -257,8 +257,17 @@ export async function guardarGestion(payload, usuario){
 
   // FK nullable: sin teléfono no hay upsert de cliente (p. ej. casos internos
   // radicados solo con placa); sin placa no hay vehículo.
-  const clienteId  = normTelefono(payload.telefono) ? await upsertCliente(payload) : null;
+  let clienteId  = normTelefono(payload.telefono) ? await upsertCliente(payload) : null;
   const vehiculoId = normPlaca(payload.placa) ? await upsertVehiculo(payload, clienteId) : null;
+
+  // Red de seguridad (piloto #38, caso EOY654): si el asesor guardó sin
+  // teléfono pero el vehículo ya tiene dueño en el CRM, la gestión se
+  // vincula a ese cliente — una cita/We Go nunca debe quedar sin nombre
+  // ni teléfono cuando el dato ya existe en la base.
+  if (!clienteId && vehiculoId) {
+    const { data: v } = await supabase.from('vehiculos').select('cliente_id').eq('id', vehiculoId).maybeSingle();
+    if (v && v.cliente_id) clienteId = v.cliente_id;
+  }
 
   const tieneCotizacion = !!(payload.valor || payload.kmServicio);
   const cotizacionId = tieneCotizacion ? await crearCotizacion(payload) : null;

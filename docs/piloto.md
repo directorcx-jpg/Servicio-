@@ -376,3 +376,15 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   `range()` de a 1.000 hasta completar el límite pedido — aplica a
   Control, Modo TV y exportes que usan la misma consulta. Los 12 leads y
   los 2 agendados vuelven a verse completos en el rango.
+- **#38 We Go guardado sin cliente (EOY654, v1.33.2)**: una re-gestión
+  para agregar We Go se guardó sin teléfono; como el cliente solo se
+  vincula por teléfono, la gestión quedó sin nombre ni contacto y el
+  aviso de We Go al taller salió vacío, aunque el vehículo SÍ tenía dueño
+  registrado (dato corregido a mano el 22/09). Fix en dos capas:
+  (1) el semáforo ahora exige **Teléfono** para Agendado/Reagenda y para
+  Seguimiento (una cita o un recontacto sin teléfono no deberían poder
+  guardarse); (2) red de seguridad en el guardado — si aún así llega una
+  gestión sin teléfono pero la placa ya tiene dueño en el CRM, la gestión
+  se vincula automáticamente al cliente del vehículo. Verificado en
+  navegador: el botón se bloquea con "Falta: Teléfono" y se libera al
+  digitarlo.

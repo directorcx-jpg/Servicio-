@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.33.1';
+import { DATA } from './data.js?v=1.33.2';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -18,7 +18,7 @@ import {
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.33.1';
+} from './src/lib/gestiones.js?v=1.33.2';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -3147,11 +3147,15 @@ function validateSemaforo(){
   if (r === 'companero' && !f.observacion) req.push('Observación (quién gestionó)');
   if (esAgendaRes(r)) {
     if (!f.asesorTaller) req.push('Asesor taller');
+    // Piloto #38 (EOY654): una cita — y más un We Go — sin teléfono deja la
+    // gestión sin cliente y el aviso al taller sale sin datos de contacto.
+    if (!f.telefono) req.push('Teléfono');
     if (S.hasWG) {
       if (!f.wgFecha)     req.push('Fecha We Go');
       if (!f.wgDireccion) req.push('Dirección We Go');
     }
   }
+  if (r === 'seg' && !f.telefono) req.push('Teléfono (para el recontacto)');
   // Fechas en el pasado (piloto #18): el calendario deja elegir el mes
   // anterior por error y la cita queda invisible en We Go agendados.
   const hoyV = hoyStr();
