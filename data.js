@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.33.2",
+    version: "1.34.0",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -127,6 +127,21 @@ export const DATA = {
     propiedadDias: 10,     // REGLA 0: ventana de propiedad por placa
     slaMinutos: 5          // temporizador del caso se pone rojo a los 5 min
   },
+
+  // =============================================================
+  //  PQR HABEAS DATA (spec 2026-10-01) — causales del asesor jurídico.
+  //  tipo: 'consulta' = 10 días hábiles de término SIC; 'reclamo' = 15.
+  // =============================================================
+  pqrCausales: [
+    { nombre: "No autoriza contacto comercial / no quiere llamadas", tipo: "reclamo" },
+    { nombre: "Eliminación (supresión) de datos personales",          tipo: "reclamo" },
+    { nombre: "Corrección o actualización de datos",                  tipo: "reclamo" },
+    { nombre: "Consulta de sus datos personales",                     tipo: "consulta" },
+    { nombre: "Prueba de la autorización otorgada",                   tipo: "consulta" },
+    { nombre: "Revocatoria de la autorización",                       tipo: "reclamo" },
+    { nombre: "Solicitud de datos asociados a un vehículo",           tipo: "consulta" },
+    { nombre: "Contacto sin autorización / uso de datos por terceros", tipo: "reclamo" }
+  ],
 
   // =============================================================
   //  INBOUND POSVENTA — 10 pasos (flujo-inbound-posventa-10-pasos.md)

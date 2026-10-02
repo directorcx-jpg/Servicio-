@@ -3,11 +3,12 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.33.2';
+import { DATA } from './data.js?v=1.34.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller, listarEquipoCC, setAsesorOperativo, repartirPendientes } from './src/lib/usuarios.js?v=1.33.0';
+import { guardarPqr as sbGuardarPqr, listarPqr as sbListarPqr, responderPqr as sbResponderPqr } from './src/lib/pqr.js?v=1.34.0';
 import {
   guardarGestion as sbGuardarGestion,
   listarGestiones as sbListarGestiones,
@@ -18,7 +19,7 @@ import {
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.33.2';
+} from './src/lib/gestiones.js?v=1.34.0';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -47,6 +48,8 @@ const S = {
   resultado: 'agenda',
   hasNovedad: false,
   hasWG: false,
+  hasPqr: false,    // PQR Habeas Data activa en el panel (spec 2026-10-01)
+  pqrAuto: false,   // true si la activó la tipificación (se apaga sola al cambiar)
   adicionales: new Set(),
   checks: new Set(),          // botones "para el taller" arrancan apagados (punto 11)
   teleAcepta: false,          // cliente acepta contratar telemetría (punto 10)
@@ -378,6 +381,7 @@ function enterApp(){
   poblarHoras();             // selects de hora por franjas (punto 14)
   poblarComunicaSub();       // sub-motivos de "Cliente se comunica" (punto 5)
   poblarWgQuien();           // quién recoge según ciudad (puntos 8/9)
+  poblarPqrCausales();       // causales PQR Habeas Data (spec 2026-10-01)
   cargarCotizadorEnVivo();   // 3 capas: cache → API → seed; rellena precios y puebla
   renderHome();
   renderContent();
@@ -1299,6 +1303,85 @@ function tarjetasNoIngresos(fil){
       ${Object.entries(porAsesor).sort((a,b)=>b[1].r-a[1].r).map(filaA).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--tx3)">Sin no-ingresos en el rango</td></tr>'}
     </tbody></table></div>`;
 }
+// ===== PQR Habeas Data en Control (spec 2026-10-01): pendientes con días
+// hábiles corriendo y semáforo de términos SIC (consulta 10 / reclamo 15). =====
+let pqrCtrl = { rows: null, cargando: false, error: '' };
+function cargarPqrControl(){
+  if (pqrCtrl.cargando || !supabaseEnabled) return;
+  pqrCtrl.cargando = true;
+  sbListarPqr(100).then(rs => {
+    pqrCtrl = { rows: rs, cargando: false, error: '' };
+    if ($('#v-control')?.classList.contains('active')) renderControl();
+  }).catch(err => {
+    console.error('[CETA] pqr control', err);
+    pqrCtrl = { rows: [], cargando: false, error: 'No se pudieron cargar las PQR' };
+  });
+}
+function diasHabiles(desdeIso){
+  let d = new Date(desdeIso); const hoy = new Date(); let n = 0;
+  while (d < hoy) {
+    d = new Date(d.getTime() + 86400e3);
+    const dia = d.getDay();
+    if (dia !== 0 && dia !== 6) n++;
+  }
+  return n;
+}
+function terminoDe(causal){
+  const c = (DATA.pqrCausales || []).find(x => x.nombre === causal);
+  return c && c.tipo === 'consulta' ? 10 : 15;
+}
+function bloquePqr(){
+  if (!supabaseEnabled) return '';
+  if (!pqrCtrl.rows) { cargarPqrControl(); return ''; }
+  const rows = pqrCtrl.rows;
+  if (!rows.length) return '';
+  const pend = rows.filter(r => r.estado === 'pendiente');
+  const resp = rows.length - pend.length;
+  const puedeResponder = ['coordinador','administrador'].includes(S.user?.rol);
+  const filaP = r => {
+    const dias = diasHabiles(r.creado_en), term = terminoDe(r.causal);
+    const color = dias >= term ? 'var(--bad,#C0392B)' : (dias >= term - 5 ? '#B45309' : 'var(--ok)');
+    return `<tr>
+      <td style="font-family:var(--fm);font-size:10px">${esc(String(r.creado_en).slice(0,10))}</td>
+      <td><strong>${esc(r.nombre || '—')}</strong><div style="font-size:9px;color:var(--tx3)">${esc(r.telefono || '')} ${r.placa ? '· '+esc(r.placa) : ''}</div></td>
+      <td style="font-size:10px">${esc(r.causal)}</td>
+      <td style="font-size:10px">${esc(r.descripcion || '')}</td>
+      <td style="text-align:center;font-family:var(--fm);font-weight:800;color:${color}">${dias}/${term}</td>
+      <td>${puedeResponder ? `<button class="btn btn-gh pqr-resp" data-id="${r.id}" style="padding:3px 8px;font-size:10px"><i class="fas fa-reply"></i> Responder</button>` : ''}</td>
+    </tr>`;
+  };
+  return `<div class="fb" style="margin-bottom:14px;border-left:3px solid #7c3aed">
+    <div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-shield-halved"></i></span>PQR Habeas Data
+      <span style="font-size:10px;color:var(--tx3);font-weight:400">· ${pend.length} pendiente${pend.length===1?'':'s'} · ${resp} respondida${resp===1?'':'s'} · días hábiles / término SIC</span></div>
+    ${pend.length ? `<div class="scrollx"><table class="tbl"><thead><tr><th>Recibida</th><th>Titular</th><th>Causal</th><th>Solicitud</th><th style="text-align:center">Días</th><th></th></tr></thead><tbody>
+      ${pend.map(filaP).join('')}</tbody></table></div>`
+      : '<div class="al ok" style="margin:0;padding:6px 10px;font-size:11px"><i class="fas fa-check"></i>Sin PQR pendientes de respuesta.</div>'}
+  </div>`;
+}
+function responderPqrUI(id){
+  const r = (pqrCtrl.rows || []).find(x => x.id === id); if (!r) return;
+  modalOpen(`
+    <div class="modal-head"><h3><i class="fas fa-shield-halved" style="color:#7c3aed"></i> Responder PQR</h3><button class="ib" data-modal-close><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:8px"><strong>${esc(r.nombre || '—')}</strong> · ${esc(r.causal)}<br>${esc(r.descripcion || '')}</div>
+      <div class="ff"><label>Respuesta dada al titular</label><textarea id="pqrRespTxt" rows="3" style="width:100%;border:1px solid var(--bd);background:var(--bgs);color:var(--tx);border-radius:5px;padding:6px"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gh" data-modal-close>Cancelar</button>
+      <button class="btn btn-ac" id="pqrRespOk"><i class="fas fa-check"></i> Registrar respuesta</button>
+    </div>`);
+  $('#pqrRespOk').addEventListener('click', async () => {
+    const txt = ($('#pqrRespTxt').value || '').trim();
+    if (!txt) { toast('Escribe la respuesta'); return; }
+    try {
+      await sbResponderPqr(id, txt);
+      r.estado = 'respondida'; r.respuesta = txt; r.fecha_respuesta = new Date().toISOString();
+      modalClose(); toast('✅ PQR respondida');
+      renderControl();
+    } catch (e) { console.error(e); toast('⚠️ No se pudo registrar: ' + e.message); }
+  });
+}
+
 // Embudo de leads Meta (filtro Origen = Leads posventa): recibidos →
 // contactados → agendados, con tasas. "Contactado" = cualquier
 // tipificación distinta de pendiente / no contesta.
@@ -1427,6 +1510,7 @@ function renderControl(){
     ${ctrlRango.error && !rangoCargando ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>${esc(ctrlRango.error)}</div></div>` : ''}
     ${!rangoCargando && supabaseEnabled && (ctrlRango.rows||[]).length >= CTRL_TOPE ? `<div class="al wr" style="margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i><div>El rango supera ${CTRL_TOPE.toLocaleString('es-CO')} gestiones — se muestran las más recientes. Acorta el rango para ver todo.</div></div>` : ''}
     ${ctrlFiltro.origen === 'Leads posventa' ? tarjetasLeads(fil) : ctrlFiltro.origen === 'No ingresó taller' ? tarjetasNoIngresos(fil) : ''}
+    ${bloquePqr()}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       ${[['Total',total,''],['Agendados',agend,'var(--ok)'],['No contesta',noc,'var(--wr)'],['Seguimiento',segc,'var(--in)']].map(([l,n,c])=>
         `<div class="fb" style="text-align:center;padding:14px"><div style="font-family:var(--fd);font-weight:800;font-size:24px;${c?`color:${c}`:''}">${n}</div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase">${l}</div></div>`).join('')}
@@ -1484,6 +1568,7 @@ function renderControl(){
     ctrlFiltro.hasta = $('#ctrlHasta')?.value || def.hasta;
     renderControl();
   });
+  $$('.pqr-resp').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); responderPqrUI(b.dataset.id); }));
   const tv = $('#ctrlTV'); if (tv) tv.addEventListener('click', openModoTV);
   const tvc = $('#ctrlTVCfg'); if (tvc) tvc.addEventListener('click', openTVConfig);
   const cog = $('#ctrlCols'); if (cog) cog.addEventListener('click', openColsConfig);
@@ -2483,6 +2568,23 @@ function pickRes(b){
     if (r === 'companero')  { mostrar('companero-f'); mostrar('sObs'); }   // mínimo + observación (obligatoria)
   }
 
+  // PQR Habeas Data: No contactar / Actualizar datos la activan solos con la
+  // causal propuesta; si la había activado la tipificación y el asesor cambia
+  // de resultado, se apaga (la activación manual se respeta).
+  if (r === 'noContactar' || r === 'actualizar') {
+    if (!S.hasPqr) {
+      setPqr(true, true);
+      const sel = $('#pqrCausalSel');
+      if (sel) sel.value = r === 'noContactar'
+        ? 'No autoriza contacto comercial / no quiere llamadas'
+        : 'Corrección o actualización de datos';
+      const med = $('[data-f="pqrMedio"]');
+      if (med) med.value = (S.f.origen === 'Chat MTIC') ? 'WhatsApp' : 'Llamada telefónica';
+    }
+  } else if (S.pqrAuto) {
+    setPqr(false, false);
+  }
+
   // Cotizador SOLO con motivo Mantenimiento o Cotización, y solo si el resultado lo permite. Punto 1.
   aplicarVisibilidadCotizador();
 
@@ -2494,6 +2596,26 @@ function pickRes(b){
     }
   }
   u();
+}
+
+// ===== PQR Habeas Data (spec 2026-10-01) =====
+function setPqr(on, auto){
+  S.hasPqr = on; S.pqrAuto = on ? !!auto : false;
+  $('#pqrSw')?.classList.toggle('on', on);
+  $('#pqr-f')?.classList.toggle('hidden', !on);
+  $('#pqrAutoTag')?.classList.toggle('hidden', !(on && S.pqrAuto));
+}
+function togglePqr(){
+  setPqr(!S.hasPqr, false);
+  if (S.hasPqr) {
+    const med = $('[data-f="pqrMedio"]');
+    if (med && S.f.origen === 'Chat MTIC') med.value = 'WhatsApp';
+  }
+  u();
+}
+function poblarPqrCausales(){
+  const sel = $('#pqrCausalSel'); if (!sel) return;
+  sel.innerHTML = (DATA.pqrCausales || []).map(c => `<option>${esc(c.nombre)}</option>`).join('');
 }
 
 // Muestra el cotizador solo cuando el motivo es Mantenimiento o Cotización Y el resultado lo amerita. Punto 1.
@@ -3165,6 +3287,11 @@ function validateSemaforo(){
     // razón ya tiene default; sin requeridos extra
   }
   if (S.hasNovedad && !f.novedad) req.push('Descripción novedad');
+  if (S.hasPqr) {
+    if (!f.pqrCausal) req.push('Causal Habeas Data');
+    if (!f.pqrDesc)   req.push('Descripción PQR');
+    if (f.pqrEstado !== 'Queda pendiente' && !f.pqrResp) req.push('Respuesta PQR (o marca "Queda pendiente")');
+  }
 
   const sem = $('#semaforo'), btn = $('#btnSave');
   const dot = sem.querySelector('.dot'), msg = sem.querySelector('.msg');
@@ -3265,8 +3392,23 @@ function buildPayload(){
     notaQuiter: $('#outNota').textContent,
     evoEstado: $('#eEst').textContent, evoCausa: $('#eCau').textContent,
     evoMotivo: $('#eMot').textContent, evoVoz: $('#eVoz').textContent,
-    validaciones:[...S.checks]
+    validaciones:[...S.checks],
+    pqr: S.hasPqr ? 'Sí' : 'No', pqrCausal:f.pqrCausal||'', pqrMedio:f.pqrMedio||'',
+    pqrDesc:f.pqrDesc||'', pqrResp:f.pqrResp||'', pqrEstado:f.pqrEstado||''
   };
+}
+
+// Registra la PQR ligada a la gestión recién guardada. Si falla, la gestión
+// ya quedó — se avisa para re-registrar la PQR (no se revierte la gestión).
+async function registrarPqrSiAplica(payload, fila){
+  if (payload.pqr !== 'Sí') return;
+  try {
+    await sbGuardarPqr(payload, fila?.id || null, fila?.clienteId || null, S.user);
+    toast('📋 PQR Habeas Data registrada');
+  } catch (e) {
+    console.error('[CETA] registrarPqr', e);
+    toast('⚠️ La gestión se guardó pero la PQR NO — repórtala al coordinador');
+  }
 }
 
 // Aviso al guardar con una placa que crearía un vehículo NUEVO para un
@@ -3328,6 +3470,7 @@ async function saveGestion(){
       );
       conAliases([fila]);
       reemplazarEnCache(fila);
+      await registrarPqrSiAplica(payload, fila);
       // La cola de seguimientos reacciona al instante: si dejó de ser
       // seguimiento sale de la cola; si se reprogramó, vuelve con fecha nueva.
       S.seguimientos = (S.seguimientos || []).filter(x => x.id !== S.casoActivo);
@@ -3361,6 +3504,7 @@ async function saveGestion(){
     fila.asesorCeta = S.user?.alias || '';
     fila.createdByAlias = S.user?.alias || '';
     insertarEnCache(fila);
+    await registrarPqrSiAplica(payload, fila);
     limpiarBorrador();
     toast('✅ Gestión guardada');
     setTimeout(resetPanel, 600);
@@ -3624,6 +3768,7 @@ function resetPanel(){
   // repoblar la cascada del cotizador (modelo/km dependientes)
   poblarCotizador();
   S.hasNovedad=false; S.hasWG=false; S.teleAcepta=false; S.adicionales.clear();
+  setPqr(false, false);
   S.checks = new Set(CHECKS_DEF);   // CHECKS_DEF ahora vacío → botones del taller apagados (punto 11)
   $('#novSw').classList.remove('warn'); $('#wgSw').classList.remove('on');
   $('#novedadF').classList.add('hidden'); $('#wgF').classList.add('hidden'); $('#accF').classList.add('hidden');
@@ -3675,7 +3820,7 @@ function omniSearch(q){
 //  EXPONER HANDLERS USADOS EN onclick INLINE
 // =============================================================
 function goToInternos(){ goTo('internos'); }
-Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, openModoTV, openTVConfig, cancelarCasoActivo, goToInternos, goToSeguimientos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta });
+Object.assign(window, { u, pickRes, togNovedad, togWego, togAd, togChk, switchTab, cpText, cpEvo, copyMsg, downloadCard, saveGestion, closeModoTV, openModoTV, openTVConfig, cancelarCasoActivo, goToInternos, goToSeguimientos, onAsesorTaller, onAlertaTipo, togAlCiudad, onCotMarca, onCotCombustion, onCotModelo, togTeleAcepta, togglePqr });
 
 // =============================================================
 //  INIT

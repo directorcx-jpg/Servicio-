@@ -311,6 +311,7 @@ export function uiDesdeFila(r){
   const actualizado = r.actualizado_en ? new Date(r.actualizado_en).getTime() : creado;
   return {
     id: r.id,
+    clienteId: cli.id || r.cliente_id || null,
     // cliente/vehículo (la UI los espera planos)
     nombre: cli.nombre || '', telefono: cli.telefono || '', ciudad: r.sede || cli.ciudad || '',
     fechaNac: cli.fecha_nacimiento || '',
