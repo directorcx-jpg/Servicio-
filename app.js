@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.34.0';
+import { DATA } from './data.js?v=1.34.1';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
@@ -804,7 +804,7 @@ function renderInternos(){
       <button class="btn btn-ac btn-big" id="inRadicar" style="margin-top:10px"><i class="fas fa-shuffle"></i> Radicar y asignar</button>
     </div>
 
-    ${can('config') ? `<div class="fb">
+    ${can('cargaMasiva') ? `<div class="fb">
       <div class="bt say" style="margin-bottom:8px"><span class="n"><i class="fas fa-file-csv"></i></span>Carga masiva (CSV)</div>
       <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Sube un archivo .csv y el sistema asignará cada caso por la rotación aleatoria (mismas reglas). Columnas requeridas:</div>
       <div class="out-box mono" style="margin-bottom:8px">placa,nombre,telefono,ciudad,servicio,grupoChat,nota</div>

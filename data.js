@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.34.0",
+    version: "1.34.1",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -33,9 +33,9 @@ export const DATA = {
   // Las claves de `permisos` deben coincidir EXACTAMENTE con el enum rol_usuario
   // de Supabase: administrador | coordinador | analista | asesor_cc | asesor_digital.
   permisos: {
-    administrador:  { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true,  usuarios_manage: true },
-    coordinador:    { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true },
-    analista:       { homeEquipo: true,  registrar: false, verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: false, config: false, internosAsignar: false, exportar: true },
+    administrador:  { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true,  usuarios_manage: true, cargaMasiva: true },
+    coordinador:    { homeEquipo: true,  registrar: true,  verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: true,  config: true,  internosAsignar: true,  exportar: true,  cargaMasiva: true },
+    analista:       { homeEquipo: true,  registrar: false, verCasos: "todos",   controlGestion: true,  modoTV: true,  reasignar: true,  editarContenido: false, config: false, internosAsignar: false, exportar: true,  cargaMasiva: true },
     asesor_cc:      { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: "ver", exportar: false },
     asesor_digital: { homeEquipo: false, registrar: true,  verCasos: "propios", controlGestion: "propios", modoTV: false, reasignar: false, editarContenido: false, config: false, internosAsignar: false, exportar: false }
   },
