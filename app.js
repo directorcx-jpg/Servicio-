@@ -3,10 +3,10 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.34.1';
+import { DATA } from './data.js?v=1.34.2';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
-import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js';
+import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js?v=1.34.2';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller, listarEquipoCC, setAsesorOperativo, repartirPendientes } from './src/lib/usuarios.js?v=1.33.0';
 import { guardarPqr as sbGuardarPqr, listarPqr as sbListarPqr, responderPqr as sbResponderPqr } from './src/lib/pqr.js?v=1.34.0';
 import {
@@ -144,7 +144,24 @@ async function onLoginExitoso(authUser){
   // (getCurrentSession y el listener SIGNED_IN pueden dispararse ambos).
   if (S.user && S.user.id === authUser.id) return;
 
-  const perfil = await loadUserProfile(authUser.id);
+  // Fallo cerrado: si la CONSULTA del perfil falla (red lenta, timeout),
+  // se reintenta — jamás se expulsa al usuario por un error transitorio.
+  // Solo una respuesta real de "no existe / inactivo" cierra la sesión.
+  let perfil = null, fallo = null;
+  for (let intento = 1; intento <= 3; intento++) {
+    try { fallo = null; perfil = await loadUserProfile(authUser.id); break; }
+    catch (e) {
+      fallo = e;
+      console.warn(`[Auth] perfil intento ${intento}/3 falló`, e);
+      mostrarErrorLogin('Validando tu perfil… reintentando (' + intento + '/3)');
+      await new Promise(r => setTimeout(r, 1500 * intento));
+    }
+  }
+  if (fallo) {
+    mostrarErrorLogin('No pudimos validar tu perfil por un problema de conexión. Tu sesión sigue activa — recarga la página para reintentar.');
+    mostrarLogin();
+    return;   // SIN signOut: al recargar entra directo si la red volvió.
+  }
   if (!perfil || !perfil.activo) {
     const msg = 'Tu cuenta no está autorizada. Contacta al coordinador.';
     try { sessionStorage.setItem(SS_AUTH_ERR, msg); } catch {}

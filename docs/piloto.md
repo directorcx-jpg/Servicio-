@@ -388,3 +388,14 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   se vincula automáticamente al cliente del vehículo. Verificado en
   navegador: el botón se bloquea con "Falta: Teléfono" y se libera al
   digitarlo.
+- **#39 Ingreso intermitente — expulsión por fallo transitorio al validar
+  el perfil (v1.34.2)**: al abrir el CRM, si la consulta del perfil en
+  `usuarios` fallaba por red lenta o timeout, el código la confundía con
+  "usuario no autorizado": mostraba ese mensaje, cerraba la sesión de
+  Google y obligaba a loguearse de nuevo — el "ingreso intermitente" que
+  reportaban los asesores (verificado: Supabase operacional, logins del
+  día exitosos y decenas de sesiones re-creadas por usuario). Fix con la
+  regla de fallo cerrado (#36): el error de consulta ahora LANZA en vez
+  de devolver null, el arranque reintenta 3 veces con espera progresiva
+  y, si la red sigue caída, conserva la sesión y pide recargar — solo
+  una respuesta real de "no existe / inactivo" cierra la sesión.

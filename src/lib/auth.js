@@ -34,6 +34,10 @@ export function getCurrentSession() {
 
 // Carga el perfil de public.usuarios por id (UUID enlazado a auth.users).
 // Devuelve { id, email, nombre, alias, rol, sede_asignada, activo } o null.
+// Devuelve la fila del perfil, o null SOLO cuando la consulta respondió y el
+// usuario no existe. Un fallo de red/timeout LANZA error: el llamador decide
+// reintentar — nunca debe confundirse "no pude consultar" con "no autorizado"
+// (causaba expulsiones intermitentes al abrir el CRM con red lenta).
 export async function loadUserProfile(userId) {
   if (!supabase || !userId) return null;
   const { data, error } = await supabase
@@ -41,7 +45,7 @@ export async function loadUserProfile(userId) {
     .select('id, email, nombre, alias, rol, sede_asignada, activo')
     .eq('id', userId)
     .maybeSingle();
-  if (error) { console.error('[Auth] loadUserProfile', error); return null; }
+  if (error) { console.error('[Auth] loadUserProfile', error); throw new Error('perfil: ' + error.message); }
   return data || null;
 }
 
