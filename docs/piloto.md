@@ -399,3 +399,39 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   de devolver null, el arranque reintenta 3 veces con espera progresiva
   y, si la red sigue caída, conserva la sesión y pide recargar — solo
   una respuesta real de "no existe / inactivo" cierra la sesión.
+- **#40 Ingesta de leads: pestañas nuevas, columnas corridas y alerta a
+  Mercadeo (Edge Function v6–v8, 20-21/10)**: Mercadeo creó pestañas
+  nuevas en el libro KIA que la ingesta no leía (12 leads de octubre sin
+  cargar) y uno de los formularios de Meta entrega las columnas corridas
+  (teléfono en full_name y cédula en phone_number). La ingesta ahora lee
+  las 4 pestañas, encuentra el celular por patrón (10 dígitos iniciando
+  en 3) entre los campos candidatos, y en cada corrida compara la lista
+  de pestañas del libro contra las configuradas: si aparece una nueva,
+  radica UN caso interno "Alerta" (candado tab:<sheet>:<gid>) para
+  escalar a Mercadeo. Probada E2E; los 12 leads quedaron cargados con
+  teléfonos correctos.
+- **#41 Cotizador: los mantenimientos impares mostraban alineación
+  (v1.34.3)**: Gasolina e Híbrida no tenían parametrizados los cortes
+  impares (5.000, 15.000…) en el detalle del cotizador; el buscador de
+  "km más cercano" (hecho para eléctricos) los resolvía al par vecino,
+  que SÍ incluye "Alineación, Balanceo y Rotación de Llantas". Validado
+  contra el Manual de Garantías KIA Gasolina/Diésel (Drive): los impares
+  NUNCA llevan alineación en ningún combustible. Se parametrizaron los
+  31 cortes impares (15 Gasolina + 16 Híbrida) con la estructura del
+  impar Diésel ya validada, sin urea (específico diésel), con la
+  alineación explícita en el "No incluye". El valor/descuento NO se
+  tocó (pendiente validación del analista sobre restar las horas de
+  alineación en impares — regla del Excel, piloto #17).
+- **#41b Cotizador: descuento sin alineación en impares (v1.34.4)**: el
+  analista ajustó la fórmula B10 del libro (hojas de asesor): en los
+  cortes impares las horas de alineación ya no entran a la base del
+  descuento. El CRM replica la regla por el km real del kit (impar =
+  termina en 5.000): base de descuento = solo horas del kit; en pares
+  sigue sumando la alineación. Verificado con SOLUTO impar al 10%:
+  base $443.037 → $286.671 (ya no se descuenta una alineación que no se
+  hace). Sincronizado el libro (439 kits, 371 horas actualizadas). DOS
+  avisos para el analista: (1) la fórmula del Excel usa SEARCH("5") y
+  captura también 50.000/150.000 y los kits-lista que contienen "50" —
+  en el Excel esos PARES pierden la alineación por error; el CRM usa el
+  km real y la mantiene; (2) la hoja "Cotizador hpuerta" quedó con la
+  fórmula vieja (siempre suma alineación).

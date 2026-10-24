@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.34.2';
+import { DATA } from './data.js?v=1.34.4';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js?v=1.34.2';
@@ -3011,13 +3011,18 @@ function computeQuote(){
   const desc = parseInt((f.descuento||'0%'),10) || 0;
   const combo = (DATA.cotizador.combos||[]).find(c => c[0] === f.embellecimiento);
   const valorCombo = combo ? Number(combo[1]) : 0;
-  // Regla del Excel vigente (piloto #17, validada contra las fórmulas del
-  // libro): el descuento aplica sobre la MO POR HORAS del kit + la
-  // alineación del modelo, a tarifa plena con IVA. Si el kit no está en la
-  // tabla de horas, cae a la MO de la tabla de precios + alineación.
+  // Regla del Excel vigente (piloto #17 + ajuste #41 del 21/10/2026,
+  // validada contra la fórmula B10 de las hojas de asesor): el descuento
+  // aplica sobre la MO POR HORAS del kit + la alineación del modelo, a
+  // tarifa plena con IVA — PERO en los mantenimientos IMPARES (5.000,
+  // 15.000, 25.000…) la alineación NO se suma, porque esos cortes no la
+  // incluyen (Manual de Garantías KIA). Si el kit no está en la tabla de
+  // horas, cae a la MO de la tabla de precios.
   const tarifa = (COTIZADOR_HORAS.tarifaHora || 219000) * (COTIZADOR_HORAS.iva || 1.19);
   const hKit = COTIZADOR_HORAS.horasKit?.[f.modelo]?.[f.kmServicio];
-  const hAlin = COTIZADOR_HORAS.alineacionHoras?.[f.modelo] ?? 0;
+  const kmKit = kmDeDesc(f.kmServicio);
+  const esImpar = kmKit != null && kmKit % 10000 === 5000;
+  const hAlin = esImpar ? 0 : (COTIZADOR_HORAS.alineacionHoras?.[f.modelo] ?? 0);
   const baseDto = (hKit != null ? Math.round(hKit * tarifa) : manoObra) + Math.round(hAlin * tarifa);
   const dtoValor = desc ? Math.round(baseDto * desc / 100) : 0;
   const moDesc = baseDto - dtoValor;   // MO visible con descuento (celda F9 del Excel)

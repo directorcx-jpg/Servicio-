@@ -5,13 +5,13 @@
 //  Fase 3: contenido real de los 5 docs de /docs.
 //  Módulo 3: cotizador KIA real (seed de precios + detalle de servicios).
 // =============================================================
-import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.27.0';
+import { COTIZADOR_SEED } from './cotizador-seed.js?v=1.34.3';
 
 export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.34.2",
+    version: "1.34.4",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
