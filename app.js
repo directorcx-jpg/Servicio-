@@ -3,12 +3,13 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.34.4';
+import { DATA } from './data.js?v=1.35.0';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js?v=1.34.2';
 import { listarAsesoresCC, listarOperadoresCasos, listarAsesoresTaller, listarEquipoCC, setAsesorOperativo, repartirPendientes } from './src/lib/usuarios.js?v=1.33.0';
 import { guardarPqr as sbGuardarPqr, listarPqr as sbListarPqr, responderPqr as sbResponderPqr } from './src/lib/pqr.js?v=1.34.0';
+import { listarComerciales, agregarComercial, setComercialActivo, leerClaveRadicacion, cambiarClaveRadicacion } from './src/lib/radicacion.js?v=1.35.0';
 import {
   guardarGestion as sbGuardarGestion,
   listarGestiones as sbListarGestiones,
@@ -2409,11 +2410,60 @@ async function renderEquipoConfig(){
       });
   }));
 }
+// ===== Formulario de radicación (spec 2026-10-24): enlace + comerciales =====
+const SEDES_CETA = ['Pereira','Manizales','Armenia','Cartago','La Dorada'];
+async function renderRadicacionConfig(){
+  const box = $('#radicacionConfig'); if (!box) return;
+  if (!supabaseEnabled) { box.innerHTML = '<div style="font-size:11px;color:var(--tx3)">Disponible solo con conexión a Supabase.</div>'; return; }
+  let lista = [], clave = null;
+  try { [lista, clave] = await Promise.all([listarComerciales(), leerClaveRadicacion()]); } catch (e) { console.error(e); }
+  const base = location.href.replace(/[#?].*$/, '').replace(/index\.html$/, '').replace(/\/?$/, '/');
+  const enlace = clave ? `${base}radicar.html?k=${clave}` : '';
+  box.innerHTML = `
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px">Los asesores de taller y comerciales radican casos desde este enlace (sin login). Los de taller salen de la lista de asesores de taller del CRM; los comerciales, de la lista de abajo.</div>
+    ${enlace ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <input id="radEnlace" class="mono" readonly value="${esc(enlace)}" style="flex:1;min-width:220px;font-size:11px;text-transform:none;letter-spacing:0">
+        <button class="btn btn-gh" id="radCopiar"><i class="fas fa-copy"></i> Copiar enlace</button>
+        <button class="btn btn-gh" id="radClave" title="Invalida el enlace actual"><i class="fas fa-rotate"></i> Cambiar clave</button>
+      </div>` : `<div class="al in" style="font-size:11px;margin-bottom:12px"><i class="fas fa-lock"></i><div>El enlace del formulario lo ve y lo comparte el administrador.</div></div>`}
+    <table class="tbl"><thead><tr><th>Asesor comercial</th><th>Sede</th><th style="text-align:center">Activo</th></tr></thead><tbody>
+      ${lista.map(c => `<tr><td><strong>${esc(c.nombre)}</strong></td><td>${esc(c.sede)}</td>
+        <td style="text-align:center"><label class="tog" style="justify-content:center"><span class="tog-sw rad-tog ${c.activo?'on':''}" data-id="${esc(c.id)}" data-activo="${c.activo?'1':'0'}"></span></label></td></tr>`).join('')
+        || '<tr><td colspan="3" style="text-align:center;color:var(--tx3)">Aún no hay comerciales — agrégalos abajo.</td></tr>'}
+    </tbody></table>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <input id="radNombre" placeholder="Nombre y apellido del comercial" style="flex:1;min-width:180px">
+      <select id="radSede">${SEDES_CETA.map(s => `<option>${s}</option>`).join('')}</select>
+      <button class="btn btn-ac" id="radAgregar"><i class="fas fa-plus"></i> Agregar</button>
+    </div>`;
+  $('#radCopiar')?.addEventListener('click', () => {
+    const inp = $('#radEnlace');
+    navigator.clipboard.writeText(inp.value).then(() => toast('📋 Enlace copiado')).catch(() => { inp.select(); toast('Selecciona y copia el enlace'); });
+  });
+  $('#radClave')?.addEventListener('click', () => {
+    confirmModal('Cambiar clave del formulario', 'El enlace actual <strong>deja de funcionar</strong> de inmediato y habrá que compartir el nuevo con taller y comerciales. ¿Continuar?', async () => {
+      try { await cambiarClaveRadicacion(); toast('🔑 Clave cambiada — comparte el nuevo enlace'); renderRadicacionConfig(); }
+      catch (e) { toast('⚠️ ' + e.message); }
+    });
+  });
+  $('#radAgregar')?.addEventListener('click', async () => {
+    const nombre = ($('#radNombre').value || '').trim().replace(/\s+/g, ' ');
+    if (nombre.split(' ').length < 2) { toast('Escribe nombre y apellido'); return; }
+    try { await agregarComercial(nombre, $('#radSede').value); toast('✅ Comercial agregado'); renderRadicacionConfig(); }
+    catch (e) { toast('⚠️ ' + e.message); }
+  });
+  $$('#radicacionConfig .rad-tog').forEach(sw => sw.addEventListener('click', async () => {
+    try { await setComercialActivo(sw.dataset.id, sw.dataset.activo !== '1'); renderRadicacionConfig(); }
+    catch (e) { toast('⚠️ ' + e.message); }
+  }));
+}
+
 function renderConfig(){
   if (!can('config')) return;
   renderListasConfig();
   renderConexionConfig();
   renderEquipoConfig();
+  renderRadicacionConfig();
   const bb = $('#btnBorrarCasos'); if (bb) bb.addEventListener('click', () => {
     confirmModal('Limpiar caché local', `Esto borra la <strong>caché de gestiones de este navegador</strong>. Los datos reales viven en Supabase y se recargan al sincronizar. ¿Continuar?`, () => {
       localStorage.removeItem(LS_GESTIONES);

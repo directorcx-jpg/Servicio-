@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- La URL se inyecta en el deploy (igual que index.html); en el repo va vacía. -->
+<meta name="supabase-url" content="">
+<title>Radicar caso · CETA Armotor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Formulario de radicación (spec 2026-10-24) — una columna, pensado para celular. */
+:root{
+  --azul:#12232B; --rojo:#E53935; --ok:#1E7B4F; --warn:#B45309;
+  --bg:#F3F6F7; --panel:#FFFFFF; --tinta:#1C2A31; --tx2:#4A5A63; --tx3:#7A8890;
+  --bd:#D5DDE1; --campo:#FFFFFF; --sel:#E8EEF1;
+  --fd:'Montserrat',system-ui,sans-serif; --ft:'Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --azul:#0D1B22; --rojo:#F05B57; --ok:#4CC38A; --warn:#E3A008;
+    --bg:#10191E; --panel:#182329; --tinta:#E8EDEF; --tx2:#AEBCC3; --tx3:#7E8C94;
+    --bd:#2E3C43; --campo:#1E2B31; --sel:#25353C; color-scheme:dark; }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tinta);font-family:var(--ft);font-size:16px;line-height:1.45}
+header{background:var(--azul);color:#fff;padding:calc(18px + env(safe-area-inset-top,0px)) 18px 16px;border-bottom:4px solid var(--rojo)}
+header .marca{font-family:var(--fd);font-weight:900;font-size:16px;letter-spacing:-.01em}
+header h1{font-family:var(--fd);font-weight:800;font-size:22px;margin-top:4px}
+header p{font-size:13px;opacity:.85;margin-top:2px}
+main{max-width:560px;margin:0 auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+.bloque{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:12px}
+.bloque h2{font-family:var(--fd);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:12px}
+label{display:block;font-size:13px;font-weight:600;color:var(--tx2);margin:12px 0 5px}
+label:first-of-type{margin-top:0}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--tinta);background:var(--campo);border:1.5px solid var(--bd);border-radius:9px;padding:12px}
+textarea{min-height:96px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px color-mix(in srgb,var(--azul) 18%,transparent)}
+.err{border-color:var(--rojo)!important}
+.msg-err{color:var(--rojo);font-size:12px;margin-top:4px;display:none}
+.err + .msg-err{display:block}
+.mono{text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tipo{border:1.5px solid var(--bd);background:var(--campo);border-radius:10px;padding:14px 10px;text-align:center;font:inherit;color:var(--tinta);cursor:pointer}
+.tipo strong{display:block;font-family:var(--fd);font-weight:800;font-size:15px}
+.tipo span{font-size:12px;color:var(--tx3)}
+.tipo.on{border-color:var(--azul);background:var(--sel);box-shadow:inset 0 0 0 1px var(--azul)}
+.ayuda{font-size:12px;color:var(--tx3);margin-top:5px}
+.chat{font-size:13px;background:var(--sel);border-radius:8px;padding:9px 11px;margin-top:12px;color:var(--tx2)}
+.contador{font-size:12px;color:var(--tx3);text-align:right;margin-top:3px}
+button.enviar{width:100%;font-family:var(--fd);font-weight:800;font-size:17px;color:#fff;background:var(--rojo);border:0;border-radius:11px;padding:16px;margin-top:6px;cursor:pointer}
+button.enviar:disabled{opacity:.55;cursor:wait}
+.aviso{border-radius:10px;padding:14px 16px;margin-bottom:12px;font-size:14px}
+.aviso.ok{background:color-mix(in srgb,var(--ok) 14%,var(--panel));border:1px solid var(--ok)}
+.aviso.warn{background:color-mix(in srgb,var(--warn) 14%,var(--panel));border:1px solid var(--warn)}
+.aviso.bad{background:color-mix(in srgb,var(--rojo) 12%,var(--panel));border:1px solid var(--rojo)}
+.aviso strong{font-family:var(--fd);font-weight:800;display:block;font-size:16px;margin-bottom:2px}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--rojo);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">armotor · CETA</div>
+  <h1>Radicar caso al call center</h1>
+  <p>Todos los campos son obligatorios. El caso queda en el CRM y en el chat de Google.</p>
+</header>
+
+<main>
+  <div id="resultado"></div>
+
+  <div id="sinClave" class="aviso bad" hidden><strong>Enlace no válido</strong>Pide a tu coordinador el enlace actualizado del formulario.</div>
+
+  <form id="form" novalidate hidden>
+    <section class="bloque">
+      <h2>¿Quién solicita?</h2>
+      <div class="tipos" role="radiogroup" aria-label="Desde dónde solicitas">
+        <button type="button" class="tipo" data-tipo="Taller" role="radio" aria-checked="false"><strong>Taller</strong><span>Asesor de servicio</span></button>
+        <button type="button" class="tipo" data-tipo="Comercial" role="radio" aria-checked="false"><strong>Comercial</strong><span>Asesor de ventas</span></button>
+      </div>
+      <div class="msg-err" id="errTipo" style="display:none">Elige si eres de taller o comercial.</div>
+
+      <div id="bloqueTaller" hidden>
+        <label for="sedeSolicitante">Tu sede</label>
+        <select id="sedeSolicitante"></select>
+        <div class="msg-err">Elige tu sede.</div>
+      </div>
+      <label for="solicitante" id="lblSolicitante" hidden>Tu nombre</label>
+      <select id="solicitante" hidden></select>
+      <div class="msg-err">Elige tu nombre de la lista.</div>
+      <div class="ayuda" id="ayudaLista" hidden>¿No apareces en la lista? Avisa a tu coordinador para que te agregue.</div>
+      <div class="chat" id="chatDestino" hidden></div>
+    </section>
+
+    <section class="bloque">
+      <h2>Cliente</h2>
+      <label for="placa">Placa</label>
+      <input id="placa" class="mono" maxlength="7" autocomplete="off" placeholder="ABC123" inputmode="text">
+      <div class="msg-err">Placa inválida (ej. ABC123 o ABC12D).</div>
+      <div class="ayuda" id="ayudaPlaca" hidden></div>
+      <label for="nombre">Nombre del cliente</label>
+      <input id="nombre" autocomplete="off" placeholder="Nombre y apellido">
+      <div class="msg-err">Escribe el nombre del cliente.</div>
+      <label for="telefono">Celular del cliente</label>
+      <input id="telefono" inputmode="tel" autocomplete="off" placeholder="300 000 0000">
+      <div class="msg-err">Celular de 10 dígitos que empiece por 3.</div>
+    </section>
+
+    <section class="bloque">
+      <h2>Solicitud</h2>
+      <label for="sedeAtencion">Taller donde se atenderá el cliente</label>
+      <select id="sedeAtencion"></select>
+      <div class="msg-err">Elige el taller donde se atenderá.</div>
+      <label for="servicio">Tipo de servicio</label>
+      <select id="servicio"></select>
+      <div class="msg-err">Elige el tipo de servicio.</div>
+      <label for="detalle">¿Qué necesita el cliente?</label>
+      <textarea id="detalle" maxlength="600" placeholder="Ej: cotización de la revisión de 40.000 km y revisar ruido en la suspensión delantera"></textarea>
+      <div class="msg-err">Describe la solicitud (mínimo 15 caracteres).</div>
+      <div class="contador" id="contador">0 / 600</div>
+    </section>
+
+    <button class="enviar" id="enviar" type="submit">Radicar caso</button>
+  </form>
+</main>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const base = (document.querySelector('meta[name="supabase-url"]')?.content || '').replace(/\/$/, '');
+  const FN = base + '/functions/v1/radicar-caso';
+  const clave = new URLSearchParams(location.search).get('k') || '';
+  const LS_PERFIL = 'ceta_radicar_perfil', LS_BORRADOR = 'ceta_radicar_borrador';
+  const ls = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
+    set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k){ try { localStorage.removeItem(k); } catch {} }
+  };
+  let L = null, tipo = '';
+
+  const opciones = (sel, items, vacio) => {
+    sel.innerHTML = `<option value="">${vacio}</option>` + items.map(([v,t]) => `<option value="${String(v).replace(/"/g,'&quot;')}">${t}</option>`).join('');
+  };
+  const normPlaca = p => String(p||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const placaOk = p => /^[A-Z]{3}\d{3}$/.test(p) || /^[A-Z]{3}\d{2}[A-Z]$/.test(p);
+  const celOk = t => { let d = String(t||'').replace(/\D/g,''); if (d.startsWith('57') && d.length===12) d=d.slice(2); return /^3\d{9}$/.test(d); };
+
+  function setTipo(t){
+    tipo = t;
+    document.querySelectorAll('.tipo').forEach(b => { const on = b.dataset.tipo === t; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    $('#errTipo').style.display = 'none';
+    $('#bloqueTaller').hidden = t !== 'Taller';
+    $('#lblSolicitante').hidden = $('#solicitante').hidden = $('#ayudaLista').hidden = false;
+    if (t === 'Comercial') {
+      opciones($('#solicitante'), L.comerciales.map(c => [c.nombre, `${c.nombre} · ${c.sede}`]), L.comerciales.length ? 'Elige tu nombre' : 'Aún no hay comerciales cargados');
+    } else llenarTaller();
+    destinoChat();
+  }
+  function llenarTaller(){
+    const s = $('#sedeSolicitante').value;
+    const lista = s ? (L.taller[s] || []) : [];
+    opciones($('#solicitante'), lista.map(n => [n, n]), s ? 'Elige tu nombre' : 'Primero elige tu sede');
+    if (s && !$('#sedeAtencion').value) $('#sedeAtencion').value = s;
+  }
+  function destinoChat(){
+    const el = $('#chatDestino');
+    if (!tipo) { el.hidden = true; return; }
+    const g = tipo === 'Comercial' ? 'Citas Taller' : ($('#sedeSolicitante').value ? 'G ' + $('#sedeSolicitante').value : '');
+    el.hidden = !g;
+    el.textContent = g ? `💬 El caso se publicará en el grupo de chat "${g}".` : '';
+  }
+
+  function datos(){
+    return { tipoSolicitante: tipo, sedeSolicitante: $('#sedeSolicitante').value, solicitante: $('#solicitante').value,
+      sedeAtencion: $('#sedeAtencion').value, placa: normPlaca($('#placa').value), nombre: $('#nombre').value.trim(),
+      telefono: $('#telefono').value.trim(), servicio: $('#servicio').value, detalle: $('#detalle').value.trim() };
+  }
+  function marcar(id, malo){ const e = $('#'+id); if (e) e.classList.toggle('err', !!malo); }
+  function validar(d){
+    const m = {
+      sedeSolicitante: d.tipoSolicitante === 'Taller' && !d.sedeSolicitante,
+      solicitante: !d.solicitante, sedeAtencion: !d.sedeAtencion, placa: !placaOk(d.placa),
+      nombre: d.nombre.length < 3, telefono: !celOk(d.telefono), servicio: !d.servicio, detalle: d.detalle.length < 15
+    };
+    Object.entries(m).forEach(([k,v]) => marcar(k, v));
+    if (!d.tipoSolicitante) $('#errTipo').style.display = 'block';
+    return !d.tipoSolicitante ? 'tipo' : (Object.keys(m).find(k => m[k]) || null);
+  }
+  function guardarBorrador(){ const d = datos(); ls.set(LS_BORRADOR, { placa: d.placa, nombre: d.nombre, telefono: d.telefono, sedeAtencion: d.sedeAtencion, servicio: d.servicio, detalle: d.detalle }); }
+
+  function mostrarResultado(html, clase){ $('#resultado').innerHTML = `<div class="aviso ${clase}">${html}</div>`; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+  async function cargar(){
+    if (!clave || !base) { $('#sinClave').hidden = false; return; }
+    let r;
+    try { r = await fetch(`${FN}?k=${encodeURIComponent(clave)}&accion=listas`); }
+    catch { mostrarResultado('<strong>Sin conexión</strong>Revisa tu internet y recarga la página.', 'bad'); return; }
+    if (r.status === 401) { $('#sinClave').hidden = false; return; }
+    L = await r.json();
+    opciones($('#sedeSolicitante'), L.sedes.map(s => [s, s]), 'Elige tu sede');
+    opciones($('#sedeAtencion'), L.sedes.map(s => [s, s]), 'Elige el taller');
+    opciones($('#servicio'), L.servicios.map(s => [s, s]), 'Elige el servicio');
+    $('#form').hidden = false;
+    // perfil recordado (tipo, sede y nombre) + borrador sin enviar
+    const p = ls.get(LS_PERFIL);
+    if (p && p.tipo) {
+      if (p.tipo === 'Taller' && p.sede) $('#sedeSolicitante').value = p.sede;
+      setTipo(p.tipo);
+      if (p.solicitante) $('#solicitante').value = p.solicitante;
+      destinoChat();
+    }
+    const b = ls.get(LS_BORRADOR);
+    if (b) {
+      ['placa','nombre','telefono','sedeAtencion','servicio','detalle'].forEach(k => { if (b[k]) $('#'+k).value = b[k]; });
+      $('#contador').textContent = `${$('#detalle').value.length} / 600`;
+    }
+  }
+
+  async function autocompletar(){
+    const p = normPlaca($('#placa').value);
+    $('#placa').value = p;
+    const ay = $('#ayudaPlaca'); ay.hidden = true;
+    if (!placaOk(p)) return;
+    try {
+      const r = await fetch(`${FN}?k=${encodeURIComponent(clave)}&accion=placa&placa=${p}`);
+      const c = await r.json();
+      if (c && c.telefono) {
+        if (!$('#nombre').value) $('#nombre').value = c.nombre || '';
+        if (!$('#telefono').value) $('#telefono').value = c.telefono || '';
+        ay.textContent = 'Cliente encontrado en el CRM: confirma que el nombre y el celular sigan vigentes.';
+        ay.hidden = false; guardarBorrador();
+      }
+    } catch {}
+  }
+
+  document.querySelectorAll('.tipo').forEach(b => b.addEventListener('click', () => setTipo(b.dataset.tipo)));
+  $('#sedeSolicitante').addEventListener('change', () => { llenarTaller(); destinoChat(); });
+  $('#placa').addEventListener('change', autocompletar);
+  $('#detalle').addEventListener('input', () => { $('#contador').textContent = `${$('#detalle').value.length} / 600`; });
+  $('#form').addEventListener('input', e => { if (e.target.classList) e.target.classList.remove('err'); guardarBorrador(); });
+  $('#form').addEventListener('change', guardarBorrador);
+
+  $('#form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const d = datos();
+    const malo = validar(d);
+    if (malo) { const el = malo === 'tipo' ? document.querySelector('.tipo') : $('#'+malo); el?.focus(); el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    const btn = $('#enviar'); btn.disabled = true; btn.textContent = 'Radicando…';
+    try {
+      const r = await fetch(FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: clave, ...d }) });
+      const res = await r.json();
+      if (!r.ok) {
+        (res.campos || []).forEach(c => marcar(c, true));
+        mostrarResultado(`<strong>No se pudo radicar</strong>${res.error || 'Intenta de nuevo.'}`, 'bad');
+        return;
+      }
+      ls.set(LS_PERFIL, { tipo: d.tipoSolicitante, sede: d.sedeSolicitante, solicitante: d.solicitante });
+      ls.del(LS_BORRADOR);
+      if (res.duplicado) mostrarResultado(`<strong>Esta placa ya tenía un caso abierto</strong>Agregamos tu solicitud al caso que gestiona <b>${res.asignado}</b>. Puedes seguirlo en el hilo del chat.`, 'warn');
+      else mostrarResultado(`<strong>✅ Caso radicado</strong>${res.asignado ? `Asignado a <b>${res.asignado}</b>.` : 'Quedó pendiente de asignación.'} Lo verás en el hilo del chat.`, 'ok');
+      ['placa','nombre','telefono','detalle'].forEach(k => $('#'+k).value = '');
+      $('#servicio').value = ''; $('#ayudaPlaca').hidden = true;
+      $('#sedeAtencion').value = d.tipoSolicitante === 'Taller' ? d.sedeSolicitante : '';
+      $('#contador').textContent = '0 / 600';
+    } catch {
+      mostrarResultado('<strong>Sin conexión</strong>No se pudo radicar. Tus datos siguen en el formulario: intenta de nuevo.', 'bad');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Radicar caso';
+    }
+  });
+
+  cargar();
+})();
+</script>
+</body>
+</html>

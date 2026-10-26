@@ -435,3 +435,18 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   en el Excel esos PARES pierden la alineación por error; el CRM usa el
   km real y la mantiene; (2) la hoja "Cotizador hpuerta" quedó con la
   fórmula vieja (siempre suma alineación).
+- **#42 Formulario de radicación de casos (v1.35.0; spec
+  2026-10-24-formulario-radicacion-casos)**: los casos que el taller y los
+  comerciales pedían por el chat de Google llegaban incompletos y el
+  campo "grupo de chat" estaba desordenado (382 "Otros", 108
+  "OTROS/otros", textos de repuestos por un CSV corrido). Nueva página
+  `radicar.html` (enlace con clave, sin login, pensada para celular):
+  Taller → sede + nombre de la lista de asesores de taller, hilo en el
+  grupo de su sede; Comercial → nombre de la lista nueva de comerciales,
+  hilo siempre en "Citas Taller"; "taller donde se atenderá" separado y
+  obligatorio (es la sede del caso). Edge Function `radicar-caso` valida
+  todo de nuevo, aplica propiedad por placa (10 días) o rotación, y si la
+  placa ya tiene caso abierto suma la solicitud a ese caso y la publica
+  en su hilo. Configuración: lista de comerciales (coordinador/admin) y
+  enlace/clave (admin). Tablas `asesores_comerciales`, `app_config`,
+  `radicaciones_log` (auditoría + máximo 8 envíos por minuto por IP).
