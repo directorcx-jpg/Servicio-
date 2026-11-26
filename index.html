@@ -387,6 +387,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
         <button class="pill" data-r="actualizar" onclick="pickRes(this)">✏️ Actualizar datos</button>
         <button class="pill" data-r="noContactar" onclick="pickRes(this)">🚫 No contactar</button>
         <button class="pill" data-r="companero" onclick="pickRes(this)">🤝 Gestión de compañero</button>
+        <button class="pill hidden" data-r="encSatisfecho" data-enc="1" onclick="pickRes(this)">😊 Efectiva · satisfecho</button>
+        <button class="pill hidden" data-r="encInsatisfecho" data-enc="1" onclick="pickRes(this)">☹️ Efectiva · insatisfecho</button>
       </div>
       <div id="companero-f" class="hidden" style="margin-top:6px">
         <div class="al in" style="margin:0;padding:6px 8px;font-size:10px"><i class="fas fa-info-circle"></i>Contacto ya realizado por un compañero. Solo registra nombre, placa y en la <strong>observación</strong> quién lo gestionó y qué hizo (ej: "agendado por Karen el 24/7").</div>
@@ -563,6 +565,6 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=1.35.0"></script>
+<script type="module" src="app.js?v=1.35.1"></script>
 </body>
 </html>

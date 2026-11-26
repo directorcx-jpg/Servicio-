@@ -11,7 +11,7 @@ export const DATA = {
 
   // ===== CONFIGURACIÓN GENERAL =====
   config: {
-    version: "1.35.0",
+    version: "1.35.1",
     fecha: "Mayo 2026",
     owner: "Pablo Andrey Rincón",
     // Backend Apps Script. URL /exec FIJA → todos los dispositivos conectan solos.
@@ -84,7 +84,9 @@ export const DATA = {
       "noContactar": { estado: "CONTACTO",    causa: "NO VOLVER A CONTACTAR" },
       "actualizar":  { estado: "CONTACTO",    causa: "ACTUALIZACIÓN DE DATOS" },
       "comunica":    { estado: "CONTACTO",    causa: "CLIENTE SE COMUNICA" },
-      "companero":   { estado: "CONTACTO",    causa: "GESTIONADO POR COMPAÑERO" }
+      "companero":   { estado: "CONTACTO",    causa: "GESTIONADO POR COMPAÑERO" },
+      "encSatisfecho":   { estado: "CONTACTO", causa: "ENCUESTA EFECTIVA - CLIENTE SATISFECHO" },
+      "encInsatisfecho": { estado: "CONTACTO", causa: "ENCUESTA EFECTIVA - CLIENTE INSATISFECHO" }
     },
     // Sub-motivos del resultado "Cliente se comunica" → tipificación Evolution.
     comunicaSubmotivos: {
@@ -100,7 +102,7 @@ export const DATA = {
   // Alimentan los selects "Motivo del contacto" y "Servicio" del panel de cierre.
   // Editables desde Configuración; override en localStorage 'ceta_listas'.
   listas: {
-    motivos: ["Mantenimiento", "Servicio rápido", "Garantía", "Cotización", "Información", "Queja", "Inspección", "Especializada", "Accesorios"],
+    motivos: ["Mantenimiento", "Servicio rápido", "Garantía", "Cotización", "Información", "Queja", "Inspección", "Especializada", "Accesorios", "Encuesta marca", "Encuesta Armotor"],
     servicios: ["Mantenimiento", "Servicio rápido", "Revisión", "Garantía", "Inspección", "Especializada"]
   },
 
@@ -116,7 +118,9 @@ export const DATA = {
       { nombre: "Accesorios",     cola: "A" },
       { nombre: "Garantía",       cola: "B" },
       { nombre: "Inspección",     cola: "B" },
-      { nombre: "Especializada",  cola: "B" }
+      { nombre: "Especializada",  cola: "B" },
+      { nombre: "Encuesta marca",   cola: "B" },   // satisfacción KIA/Honda/FAW
+      { nombre: "Encuesta Armotor", cola: "B" }    // encuesta interna
     ],
     colas: {
       A: { nombre: "Cola A · Genera factura" },

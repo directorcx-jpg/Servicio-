@@ -450,3 +450,11 @@ esperaba**, y pantallazo si aplica. Pablo los trae a esta bitácora.
   en su hilo. Configuración: lista de comerciales (coordinador/admin) y
   enlace/clave (admin). Tablas `asesores_comerciales`, `app_config`,
   `radicaciones_log` (auditoría + máximo 8 envíos por minuto por IP).
+- **#43 Encuestas en casos internos (v1.35.1; spec
+  2026-11-26-encuestas-casos-internos):** tipos de servicio "Encuesta
+  marca" y "Encuesta Armotor" en Cola B (sin Cotización ni We Go). Con
+  motivo de encuesta el panel solo ofrece No contesta, Efectiva ·
+  satisfecho, Efectiva · insatisfecho, No contactar, Gestión de compañero
+  y Seguimiento; insatisfecho exige observación; km no obligatorio.
+  Enum `resultado_gestion` + `encuesta_satisfecho`/`encuesta_insatisfecho`
+  (migración `resultado_encuestas`). No aplica al formulario externo.

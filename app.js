@@ -3,7 +3,7 @@
 //  Lógica: autenticación + roles, navegación, panel de cierre
 //  unificado con estado reactivo (S), cotizador local y salidas.
 // =============================================================
-import { DATA } from './data.js?v=1.35.0';
+import { DATA } from './data.js?v=1.35.1';
 import { COTIZADOR_HORAS } from './cotizador-horas-seed.js?v=1.27.0';
 import { supabaseEnabled } from './src/lib/supabaseClient.js';
 import { signInWithGoogle, signOut, getCurrentSession, loadUserProfile, onAuthStateChange } from './src/lib/auth.js?v=1.34.2';
@@ -20,7 +20,7 @@ import {
   listarGestionesDeCliente as sbListarGestionesDeCliente,
   buscarWeGoEnFranja as sbBuscarWeGoEnFranja,
   refrescarAsesoresTallerCache
-} from './src/lib/gestiones.js?v=1.34.0';
+} from './src/lib/gestiones.js?v=1.35.1';
 import {
   sugerirClientes as sbSugerirClientes,
   obtenerCliente as sbObtenerCliente,
@@ -1089,8 +1089,23 @@ function updateInternosBadges(){
 function esAgendaRes(r){ return r === 'agenda' || r === 'reagenda'; }
 function esCasoInterno(g){ return ['Interno', 'Leads posventa', 'No ingresó taller'].includes(g.origen); }
 const ORIGEN_BADGE = { 'Leads posventa': 'background:rgba(245,158,11,.14);color:#d97706;font-weight:600', 'No ingresó taller': 'background:rgba(56,189,248,.14);color:#0284c7;font-weight:600', 'Interno': 'background:rgba(168,85,247,.12);color:#a855f7' };
-const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', reagenda:'Reagenda', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero' };
-const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', reagenda:'#0d9488', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488' };
+const RESULT_LABEL = { pendiente:'Pendiente', agenda:'Agendado', reagenda:'Reagenda', seg:'Seguimiento', comunica:'Se comunica', noc:'No contesta', sinKm:'Sin km', otroTaller:'Otro taller', actualizar:'Actualizar datos', noContactar:'No contactar', companero:'Gestión de compañero', encSatisfecho:'Encuesta satisfecho', encInsatisfecho:'Encuesta insatisfecho' };
+const RESULT_COLOR = { pendiente:'#a855f7', agenda:'var(--ok)', reagenda:'#0d9488', seg:'var(--in)', comunica:'#0891b2', noc:'var(--wr)', sinKm:'var(--gd)', otroTaller:'var(--tx3)', actualizar:'#7c3aed', noContactar:'var(--ac)', companero:'#0d9488', encSatisfecho:'#16a34a', encInsatisfecho:'#dc2626' };
+// Encuestas (spec 2026-11-26): motivo de encuesta → solo estos resultados.
+const RES_ENCUESTA = ['noc','encSatisfecho','encInsatisfecho','noContactar','companero','seg'];
+function esMotivoEncuesta(m){ return /^encuesta/i.test(String(m || '').trim()); }
+function esEncuestaRes(r){ return r === 'encSatisfecho' || r === 'encInsatisfecho'; }
+// Muestra/oculta los botones de resultado según el motivo. Si el resultado
+// elegido no aplica al motivo, cambia al primero válido.
+function aplicarResultadosPorMotivo(){
+  const enc = esMotivoEncuesta($('#motivoSel')?.value);
+  $$('#resP .pill').forEach(p => {
+    const r = p.dataset.r;
+    p.classList.toggle('hidden', enc ? !RES_ENCUESTA.includes(r) : !!p.dataset.enc);
+  });
+  const valido = enc ? RES_ENCUESTA.includes(S.resultado) : !esEncuestaRes(S.resultado);
+  if (!valido) pickRes($(`#resP .pill[data-r="${enc ? 'noc' : 'agenda'}"]`));
+}
 // Rango por defecto del tablero: últimos 7 días (fecha de radicación).
 function ctrlRangoDefecto(){
   const hoy = new Date(); const d = new Date(); d.setDate(hoy.getDate() - 6);
@@ -2267,7 +2282,7 @@ function tvHTML(rows){
       por[a].ss[s] = (por[a].ss[s] || 0) + 1;
       totTipo[s] = (totTipo[s] || 0) + 1;
     });
-    const COLORES = { 'Mantenimiento':'#ef4444', 'Inspección':'#3b82f6', 'Garantía':'#22c55e', 'Especializada':'#f97316', 'Servicio rápido':'#a855f7', 'Accesorios':'#0d9488', 'Correctivo':'#f59e0b', 'Cotización':'#38bdf8' };
+    const COLORES = { 'Mantenimiento':'#ef4444', 'Inspección':'#3b82f6', 'Garantía':'#22c55e', 'Especializada':'#f97316', 'Servicio rápido':'#a855f7', 'Accesorios':'#0d9488', 'Correctivo':'#f59e0b', 'Cotización':'#38bdf8', 'Encuesta marca':'#eab308', 'Encuesta Armotor':'#64748b' };
     const EXTRA = ['#ec4899', '#84cc16', '#64748b', '#eab308'];
     let extraI = 0;
     const tipos = Object.keys(totTipo).sort((a, b) => totTipo[b] - totTipo[a]);
@@ -2633,6 +2648,7 @@ function pickRes(b){
     if (r === 'comunica')   { mostrar('comunica-f'); poblarComunicaSub(); }
     if (r === 'actualizar') mostrar('actualizar-f');   // solo datos del cliente (sección 1) + motivo
     if (r === 'companero')  { mostrar('companero-f'); mostrar('sObs'); }   // mínimo + observación (obligatoria)
+    if (esEncuestaRes(r))   mostrar('sObs');   // encuesta: observación (obligatoria si insatisfecho)
   }
 
   // PQR Habeas Data: No contactar / Actualizar datos la activan solos con la
@@ -3208,6 +3224,7 @@ function u(){
   // Si cambió el motivo, re-evaluar si el cotizador debe mostrarse (punto 1).
   const motivoActual = ($('#motivoSel')?.value || '');
   if (motivoActual !== _ultMotivoPanel) { _ultMotivoPanel = motivoActual; aplicarVisibilidadCotizador(); }
+  aplicarResultadosPorMotivo();   // encuestas: solo sus 6 resultados
   verificarConflictoWeGo();
   const f = S.f, r = S.resultado;
   const pla = (f.placa||'').toUpperCase(), tel = f.telefono||'';
@@ -3310,6 +3327,14 @@ function u(){
     mot = 'CLIENTE NO INTERESADO'; voz = 'NO DESEA RECIBIR INFORMACIÓN';
     nota = armarNota(['NO VOLVER A CONTACTAR', obsGen]);
     cli = 'Gracias por su atención. Quedamos atentos si en el futuro requiere nuestros servicios.';
+  } else if (esEncuestaRes(r)) {
+    const sat = r === 'encSatisfecho';
+    mot = sat ? 'CLIENTE SATISFECHO' : 'CLIENTE INSATISFECHO';
+    voz = 'ENCUESTA EFECTIVA';
+    nota = armarNota(['ENCUESTA EFECTIVA', mot, obsGen]);   // el motivo ya va al inicio
+    cli = sat
+      ? '¡Gracias por responder nuestra encuesta! 😊 Para Armotor es muy valiosa su opinión.'
+      : 'Gracias por responder nuestra encuesta. Lamentamos que su experiencia no haya sido la esperada; su comentario ya fue registrado para mejorar.';
   } else if (r === 'companero') {
     mot = 'GESTIONADO POR COMPAÑERO'; voz = 'CONTACTO YA REALIZADO';
     nota = armarNota(['GESTIONADO POR COMPAÑERO', obsGen]);
@@ -3336,7 +3361,9 @@ function validateSemaforo(){
   if (!f.placa)  req.push('Placa');
   // Km actual SIEMPRE obligatorio — excepto "Sin km" (el cliente no tiene
   // el dato) y "Gestión de compañero" (registro mínimo).
-  if (r !== 'sinKm' && r !== 'companero' && !f.kmActual) req.push('Km actual');
+  if (r !== 'sinKm' && r !== 'companero' && !esMotivoEncuesta(f.motivo) && !f.kmActual) req.push('Km actual');
+  // Encuesta insatisfecho: el motivo de la insatisfacción es obligatorio.
+  if (r === 'encInsatisfecho' && !f.observacion) req.push('Observación (motivo de insatisfacción)');
   // Gestión de compañero: la observación que referencia la gestión previa es obligatoria.
   if (r === 'companero' && !f.observacion) req.push('Observación (quién gestionó)');
   if (esAgendaRes(r)) {
@@ -3670,7 +3697,9 @@ function rotacionPool(){
 }
 function hoyStr(){ const d = new Date(); return d.toISOString().slice(0,10); }   // YYYY-MM-DD
 function colaDeServicio(tipo){
-  const t = (DATA.internos.tiposServicio || []).find(x => x.nombre === tipo);
+  // Sin distinguir mayúsculas: en la carga masiva llega "encuesta marca", etc.
+  const k = String(tipo || '').trim().toLowerCase();
+  const t = (DATA.internos.tiposServicio || []).find(x => x.nombre.toLowerCase() === k);
   return t ? t.cola : 'A';   // por defecto Cola A
 }
 
@@ -3790,7 +3819,10 @@ function precargarPanel(g){
   setF('origen', 'Base');   // origen del contacto en el panel
   // el tipo de servicio del caso interno alimenta el Motivo del contacto (tipificación)
   const mSel = $('#motivoSel');
-  if (mSel && g.servicio && [...mSel.options].some(o=>o.value===g.servicio)) mSel.value = g.servicio;
+  // Si la lista de motivos fue personalizada y no trae el tipo (p. ej. las
+  // encuestas), se agrega la opción para no perder el motivo del caso.
+  if (mSel && g.servicio && ![...mSel.options].some(o=>o.value===g.servicio)) mSel.add(new Option(g.servicio, g.servicio));
+  if (mSel && g.servicio) mSel.value = g.servicio;
   // poblar asesor de taller según la ciudad del caso y preseleccionar si ya tenía uno
   _ultCiudadPanel = (g.ciudad || '').trim();
   if (g.asesorTaller) {
@@ -3798,8 +3830,9 @@ function precargarPanel(g){
     if (lista.includes(g.asesorTaller)) { poblarAsesorTaller(g.asesorTaller); }
     else { poblarAsesorTaller('__otro__'); const o = $('#asesorTallerOtro'); if (o) o.value = g.asesorTaller; }
   } else { poblarAsesorTaller(''); }
-  // resultado por defecto al gestionar un pendiente: agenda (el asesor elige)
-  pickRes($('#resP .pill[data-r="agenda"]'));
+  // resultado por defecto al gestionar un pendiente: agenda (el asesor elige);
+  // en encuestas, No contesta (el agenda no aplica).
+  pickRes($(`#resP .pill[data-r="${esMotivoEncuesta(g.servicio) ? 'noc' : 'agenda'}"]`));
   // Cola B no factura → ocultar Cotización (s3) y We Go (s5)
   const colaB = colaDeServicio(g.servicio) === 'B';
   const sCotiz = $('#sCotiz'), sWego = $('#sWego');
